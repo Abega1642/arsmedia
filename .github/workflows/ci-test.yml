@@ -1,12 +1,10 @@
-name: CI Tests
+name: CI - Tests
 
 on:
   push:
-    branches:
-      - '**'
+    branches: [ '**' ]
   pull_request:
-    branches:
-      - '**'
+    branches: [ '**' ]
 
 jobs:
   test:
@@ -23,8 +21,14 @@ jobs:
           java-version: 21
           cache: gradle
 
+      - name: Enable Docker for Testcontainers
+        run: |
+          sudo systemctl start docker
+          docker info
+
       - name: Grant execute permission for Gradle wrapper
         run: chmod +x ./gradlew
 
-      - name: Build project and run tests
+      - name: Run tests
         run: ./gradlew clean test
+

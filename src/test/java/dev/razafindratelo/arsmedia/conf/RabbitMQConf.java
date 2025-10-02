@@ -1,27 +1,29 @@
 package dev.razafindratelo.arsmedia.conf;
 
 import dev.razafindratelo.arsmedia.InfraGenerated;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.utility.DockerImageName;
 
 @InfraGenerated
+@TestConfiguration
 public class RabbitMQConf {
-  private final RabbitMQContainer rabbit =
+
+  static final RabbitMQContainer rabbit =
       new RabbitMQContainer(DockerImageName.parse("rabbitmq:3-management"));
 
-  public void start() {
+  static {
     rabbit.start();
   }
 
-  public void stop() {
-    rabbit.stop();
-  }
-
-  public void configureProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.rabbitmq.host", rabbit::getHost);
-    registry.add("spring.rabbitmq.port", rabbit::getAmqpPort);
-    registry.add("spring.rabbitmq.username", rabbit::getAdminUsername);
-    registry.add("spring.rabbitmq.password", rabbit::getAdminPassword);
+  @DynamicPropertySource
+  static void registerProps(DynamicPropertyRegistry registry) {
+    registry.add("infra.rabbitmq.host", rabbit::getHost);
+    registry.add("infra.rabbitmq.port", () -> String.valueOf(rabbit.getAmqpPort()));
+    registry.add("infra.rabbitmq.username", rabbit::getAdminUsername);
+    registry.add("infra.rabbitmq.password", rabbit::getAdminPassword);
+    registry.add("infra.rabbitmq.vhost", () -> "/");
   }
 }
