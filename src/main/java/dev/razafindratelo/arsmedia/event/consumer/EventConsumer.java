@@ -37,7 +37,7 @@ public class EventConsumer implements Consumer<String> {
                 }));
   }
 
-  @RabbitListener(queues = "${infra.rabbitmq.queue}")
+  @RabbitListener(queues = "${spring.rabbitmq.queue}")
   public void onMessage(String rawMessage) {
     accept(rawMessage);
   }

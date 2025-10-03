@@ -28,8 +28,8 @@ public class EventProducer<T extends InfraEvent> implements Consumer<Collection<
   public EventProducer(
       RabbitTemplate rabbitTemplate,
       ObjectMapper objectMapper,
-      @Value("${infra.rabbitmq.exchange}") String exchangeName,
-      @Value("${infra.rabbitmq.routing-key}") String routingKey,
+      @Value("${spring.rabbitmq.exchange}") String exchangeName,
+      @Value("${spring.rabbitmq.routing-key}") String routingKey,
       ListGrouper<T> listGrouper) {
     this.rabbitTemplate = rabbitTemplate;
     this.objectMapper = objectMapper;
@@ -40,13 +40,24 @@ public class EventProducer<T extends InfraEvent> implements Consumer<Collection<
 
   @Override
   public void accept(Collection<T> events) {
-    for (List<T> batch : listGrouper.apply(events.stream().toList(), MAX_EVENTS_PER_BATCH)) {
-      log.info("Publishing batch of {} events", batch.size());
+    if (events == null || events.isEmpty()) {
+      log.warn("No events to publish.");
+      return;
+    }
+
+    List<T> eventsList = List.copyOf(events);
+
+    for (List<T> batch : listGrouper.apply(eventsList, MAX_EVENTS_PER_BATCH)) {
+      log.info(
+          "Publishing batch of {} events to exchange '{}' with routing '{}'",
+          batch.size(),
+          exchangeName,
+          routingKey);
       for (T event : batch) {
         try {
           String payload = objectMapper.writeValueAsString(event);
           rabbitTemplate.convertAndSend(exchangeName, routingKey, payload);
-          log.debug("Published event: {}", payload);
+          log.debug("Published event: {}", event.getClass().getSimpleName());
         } catch (JsonProcessingException e) {
           log.error("Serialization failed for event: {}", event, e);
         } catch (Exception e) {

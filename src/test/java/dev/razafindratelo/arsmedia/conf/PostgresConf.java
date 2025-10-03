@@ -1,0 +1,38 @@
+package dev.razafindratelo.arsmedia.conf;
+
+import dev.razafindratelo.arsmedia.InfraGenerated;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.testcontainers.containers.PostgreSQLContainer;
+
+@InfraGenerated
+@TestConfiguration
+@SuppressWarnings("resource")
+public class PostgresConf {
+
+  private static final PostgreSQLContainer<?> POSTGRES =
+      new PostgreSQLContainer<>("postgres:13.9")
+          .withReuse(false)
+          .withDatabaseName("arsmedia")
+          .withUsername("test")
+          .withPassword("test");
+
+  public void start() {
+    if (!POSTGRES.isRunning()) {
+      POSTGRES.start();
+    }
+  }
+
+  public void stop() {
+    if (POSTGRES.isRunning()) {
+      POSTGRES.stop();
+    }
+  }
+
+  public void configureProperties(DynamicPropertyRegistry registry) {
+    registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
+    registry.add("spring.datasource.username", POSTGRES::getUsername);
+    registry.add("spring.datasource.password", POSTGRES::getPassword);
+    registry.add("spring.datasource.driver-class-name", POSTGRES::getDriverClassName);
+  }
+}
