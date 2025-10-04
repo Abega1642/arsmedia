@@ -37,6 +37,9 @@ dependencies {
     testCompileOnly 'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
 
+    implementation 'software.amazon.awssdk:s3:2.21.40'
+    implementation 'software.amazon.awssdk:s3-transfer-manager:2.21.40'
+
     runtimeOnly 'org.postgresql:postgresql'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
@@ -45,6 +48,7 @@ dependencies {
 	testImplementation 'org.testcontainers:junit-jupiter'
 	testImplementation 'org.testcontainers:postgresql'
 	testImplementation 'org.testcontainers:rabbitmq'
+    testImplementation 'org.testcontainers:localstack:1.21.3'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     implementation 'com.github.kokorin.jaffree:jaffree:2024.08.29'
     implementation 'io.jsonwebtoken:jjwt-api:0.13.0'
