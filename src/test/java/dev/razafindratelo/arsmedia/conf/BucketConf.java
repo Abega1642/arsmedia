@@ -63,5 +63,7 @@ public class BucketConf {
         "b2.endpoint.prefix",
         () -> LOCALSTACK.getEndpointOverride(LocalStackContainer.Service.S3).toString());
     registry.add("b2.endpoint.suffix", () -> "");
+    registry.add("b2.upload.part-size-mb", () -> 5);
+    registry.add("b2.upload.target-throughput-gbps", () -> 10.0);
   }
 }
