@@ -2,6 +2,7 @@ package dev.razafindratelo.arsmedia.event.model;
 
 import static java.lang.Math.random;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import dev.razafindratelo.arsmedia.InfraGenerated;
 import java.io.Serializable;
 import java.time.Duration;
@@ -9,6 +10,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 @InfraGenerated
+@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY, property = "@class")
 public abstract class InfraEvent implements Serializable {
 
   @Getter @Setter protected int attemptNb;

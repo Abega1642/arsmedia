@@ -19,7 +19,7 @@ class HealthEventControllerTest extends FacadeIT {
     int waitInSeconds = 1;
 
     mvc.perform(
-            get("/health/dummy")
+            get("/health/message")
                 .param("nbEvent", String.valueOf(nbEvent))
                 .param("waitInSeconds", String.valueOf(waitInSeconds)))
         .andExpect(status().isOk())

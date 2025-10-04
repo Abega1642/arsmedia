@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class HealthEventController {
   private final EventProducer<DummyEvent> eventProducer;
 
-  @GetMapping("/health/dummy")
+  @GetMapping("/health/message")
   public List<String> triggerDummyEvents(
       @RequestParam(defaultValue = "1") int nbEvent,
       @RequestParam(defaultValue = "2") int waitInSeconds) {

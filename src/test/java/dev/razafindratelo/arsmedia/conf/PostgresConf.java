@@ -11,7 +11,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 public class PostgresConf {
 
   private static final PostgreSQLContainer<?> POSTGRES =
-      new PostgreSQLContainer<>("postgres:13.9")
+      new PostgreSQLContainer<>("postgres:17")
           .withReuse(false)
           .withDatabaseName("arsmedia")
           .withUsername("test")
@@ -34,5 +34,7 @@ public class PostgresConf {
     registry.add("spring.datasource.username", POSTGRES::getUsername);
     registry.add("spring.datasource.password", POSTGRES::getPassword);
     registry.add("spring.datasource.driver-class-name", POSTGRES::getDriverClassName);
+    registry.add("spring.datasource.driver-class-name", POSTGRES::getDriverClassName);
+    registry.add("spring.jpa.database-platform", () -> "org.hibernate.dialect.PostgreSQLDialect");
   }
 }
