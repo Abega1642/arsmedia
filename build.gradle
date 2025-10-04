@@ -61,4 +61,15 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+
+    jvmArgs(
+            '-XX:+EnableDynamicAgentLoading',
+            '-Djdk.instrument.traceUsage=false'
+    )
+
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat "full"
+        showStandardStreams = false
+    }
 }
