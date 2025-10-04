@@ -27,6 +27,11 @@ public class SecurityConf {
                     .permitAll()
                     .requestMatchers("/actuator/**")
                     .permitAll()
+                    .requestMatchers(GET, "/")
+                    .permitAll()
+                    .requestMatchers(
+                        "/", "/doc", "/swagger-ui/**", "/v3/api-docs/**", "/v3/api-docs.yaml")
+                    .permitAll()
                     .anyRequest()
                     .authenticated())
         .sessionManagement(

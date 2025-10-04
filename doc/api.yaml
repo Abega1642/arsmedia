@@ -1,0 +1,160 @@
+openapi: "3.1.0"
+info:
+  title: Arsmedia Backend API
+  description: >
+    Backend API for the **Arsmedia Application**. This API provides endpoints for:
+    
+    **Video Capabilities**
+    - Convert between formats: .avi → .mp4, .mkv → .mov, .webm → .avi, etc.
+    - Change codecs (H.264, H.265, VP9, AV1).
+    - Extract or replace audio tracks.
+    - Cut, trim, merge, or concatenate videos without re-encoding.
+    - Resize, crop, rotate, or flip videos.
+    - Add subtitles or burn them into the video.
+    - Apply filters: blur, sharpen, grayscale, watermark.
+    - Record screen or webcam.
+
+    **Audio Capabilities**
+    - Convert between audio formats: .mp3 → .wav, .flac → .aac, etc.
+    - Change bitrate, sample rate, or channels.
+    - Extract audio from a video file.
+    - Normalize or adjust volume.
+    - Apply effects: fade in/out, echo, equalizer.
+    - Mix multiple audio tracks.
+
+    **Image Capabilities**
+    - Convert between image formats: .png → .jpg, .bmp → .tiff, etc.
+    - Extract frames from a video.
+    - Create a video or GIF from images.
+    - Resize, crop, or apply filters.
+    - Generate thumbnails.
+
+    The health endpoints check if the storage bucket and event messaging system are operational.
+
+  version: "1.0.0"
+  contact:
+    name: Abegà Razafindratelo
+    email: a.razafindratelo@gmail.com
+    url: https://github.com/Abega1642
+
+servers:
+  - url: https://arsmedia.onrender.com
+    description: Production server
+
+tags:
+  - name: Health
+    description: Endpoints to verify system and bucket health
+  - name: Events
+    description: Endpoints for health event generation and messaging
+  - name: Docs
+    description: API documentation endpoints and redirects
+
+paths:
+  /:
+    get:
+      operationId: rootRedirect
+      tags:
+        - Docs
+      summary: Redirect root path to Swagger UI
+      responses:
+        302:
+          description: Redirects to /doc
+          headers:
+            Location:
+              description: URL to redirect
+              schema:
+                type: string
+                example: /doc
+
+  /ping:
+    get:
+      operationId: pong
+      tags:
+        - Health
+      summary: Check if the server is alive
+      responses:
+        200:
+          description: A message showing that the server is alive
+          content:
+            application/json:
+              schema:
+                type: string
+                example: pong
+
+  /health/bucket:
+    get:
+      operationId: healthBucketCheck
+      tags:
+        - Health
+      summary: Check bucket health by uploading, downloading, and presigning a file
+      description: >
+        This endpoint uploads a randomly generated text file to the storage bucket, 
+        verifies its content by downloading it, and returns a presigned URL for the file.
+      responses:
+        200:
+          description: Successfully uploaded, verified, and presigned file.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "https://arsmedia-bucket.s3.amazonaws.com/health/uuid.txt?X-Amz-Signature=..."
+        500:
+          description: Uploaded and downloaded content mismatch or other error occurred.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Uploaded and downloaded content mismatch
+
+  /health/message:
+    get:
+      operationId: triggerDummyEvents
+      tags:
+        - Health
+      summary: Trigger dummy health check events
+      description: >
+        This endpoint triggers one or more dummy events through the event producer 
+        for testing the messaging system (e.g., RabbitMQ or Kafka).
+      parameters:
+        - name: nbEvent
+          in: query
+          required: false
+          description: Number of events to trigger (1–500)
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+            maximum: 500
+        - name: waitInSeconds
+          in: query
+          required: false
+          description: Duration (in seconds) to simulate event processing
+          schema:
+            type: integer
+            default: 2
+            minimum: 1
+      responses:
+        200:
+          description: List of UUIDs corresponding to triggered dummy events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                example:
+                  - "c91f2c9b-9c8e-4e7f-84e2-09c95edff3e4"
+                  - "51af4d2b-745a-465d-b9a2-bf0b1c1ffb23"
+        400:
+          description: Invalid parameter values (e.g., nbEvent not in 1–500)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: nbEvent must be between 1 and 500
