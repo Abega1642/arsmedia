@@ -20,12 +20,7 @@ RUN addgroup -S spring && adduser -S spring -G spring
 
 COPY --from=build /app/build/libs/*.jar app.jar
 
-COPY .env .env
-
 RUN echo '#!/bin/sh' > /app/start.sh && \
-    echo 'if [ -f /app/.env ]; then' >> /app/start.sh && \
-    echo '  export $(grep -v "^#" /app/.env | xargs)' >> /app/start.sh && \
-    echo 'fi' >> /app/start.sh && \
     echo 'exec java -jar /app/app.jar "$@"' >> /app/start.sh && \
     chmod +x /app/start.sh && \
     chown spring:spring /app/start.sh
