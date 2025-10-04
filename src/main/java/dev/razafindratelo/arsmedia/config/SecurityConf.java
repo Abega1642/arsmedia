@@ -2,6 +2,7 @@ package dev.razafindratelo.arsmedia.config;
 
 import static org.springframework.http.HttpMethod.GET;
 
+import dev.razafindratelo.arsmedia.InfraGenerated;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -10,6 +11,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 
+@InfraGenerated
 @EnableWebSecurity
 @Configuration
 public class SecurityConf {

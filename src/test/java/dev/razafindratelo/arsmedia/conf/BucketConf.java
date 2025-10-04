@@ -1,5 +1,6 @@
 package dev.razafindratelo.arsmedia.conf;
 
+import dev.razafindratelo.arsmedia.InfraGenerated;
 import lombok.SneakyThrows;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -12,6 +13,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 
+@InfraGenerated
 @TestConfiguration
 public class BucketConf {
   private static final LocalStackContainer LOCALSTACK =

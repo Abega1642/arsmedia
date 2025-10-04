@@ -1,5 +1,6 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller.health;
 
+import dev.razafindratelo.arsmedia.InfraGenerated;
 import dev.razafindratelo.arsmedia.event.model.DummyEvent;
 import dev.razafindratelo.arsmedia.event.model.EventProducer;
 import java.util.List;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@InfraGenerated
 @RestController
 @AllArgsConstructor
 public class HealthEventController {

@@ -4,11 +4,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import dev.razafindratelo.arsmedia.InfraGenerated;
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 
+@InfraGenerated
 class HealthEventControllerTest extends FacadeIT {
 
   @Autowired private MockMvc mvc;

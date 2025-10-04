@@ -1,5 +1,6 @@
 package dev.razafindratelo.arsmedia.config;
 
+import dev.razafindratelo.arsmedia.InfraGenerated;
 import java.net.URI;
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -13,6 +14,7 @@ import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
 
+@InfraGenerated
 @Configuration
 public class BucketConf {
 

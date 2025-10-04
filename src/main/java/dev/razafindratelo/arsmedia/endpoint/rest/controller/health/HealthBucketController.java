@@ -1,5 +1,6 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller.health;
 
+import dev.razafindratelo.arsmedia.InfraGenerated;
 import dev.razafindratelo.arsmedia.file.BucketComponent;
 import java.io.File;
 import java.io.FileWriter;
@@ -12,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@InfraGenerated
 @RestController
 @AllArgsConstructor
 public class HealthBucketController {

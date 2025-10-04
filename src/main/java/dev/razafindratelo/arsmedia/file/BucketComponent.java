@@ -1,5 +1,6 @@
 package dev.razafindratelo.arsmedia.file;
 
+import dev.razafindratelo.arsmedia.InfraGenerated;
 import dev.razafindratelo.arsmedia.config.BucketConf;
 import java.io.File;
 import java.io.IOException;
@@ -16,6 +17,7 @@ import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
 import software.amazon.awssdk.transfer.s3.model.UploadFileRequest;
 import software.amazon.awssdk.transfer.s3.progress.LoggingTransferListener;
 
+@InfraGenerated
 @Component
 @AllArgsConstructor
 public class BucketComponent {

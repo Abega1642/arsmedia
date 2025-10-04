@@ -1,15 +1,16 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller.health;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import dev.razafindratelo.arsmedia.InfraGenerated;
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+@InfraGenerated
 class HealthBucketControllerTest extends FacadeIT {
   @Autowired private MockMvc mvc;
 
