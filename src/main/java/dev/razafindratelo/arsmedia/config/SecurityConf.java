@@ -24,7 +24,11 @@ public class SecurityConf {
                 auth.requestMatchers(GET, "/ping")
                     .permitAll()
                     .requestMatchers(GET, "/health/**")
-                    .permitAll())
+                    .permitAll()
+                    .requestMatchers("/actuator/**")
+                    .permitAll()
+                    .anyRequest()
+                    .authenticated())
         .sessionManagement(
             configurer -> configurer.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .build();
