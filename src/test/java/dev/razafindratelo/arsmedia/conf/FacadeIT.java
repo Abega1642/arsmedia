@@ -20,12 +20,14 @@ public abstract class FacadeIT {
   private static final PostgresConf POSTGRES_CONF = new PostgresConf();
   private static final RabbitMQConf RABBITMQ_CONF = new RabbitMQConf();
   private static final BucketConf BUCKET_CONF = new BucketConf();
+  private static final EmailConf EMAIL_CONF = new EmailConf();
 
   @BeforeAll
   static void beforeAll() {
     POSTGRES_CONF.start();
     RABBITMQ_CONF.start();
     BUCKET_CONF.start();
+    EMAIL_CONF.start();
 
     getRuntime()
         .addShutdownHook(
@@ -34,6 +36,7 @@ public abstract class FacadeIT {
                   POSTGRES_CONF.stop();
                   RABBITMQ_CONF.stop();
                   BUCKET_CONF.stop();
+                  EMAIL_CONF.stop();
                 }));
   }
 
@@ -43,6 +46,7 @@ public abstract class FacadeIT {
     POSTGRES_CONF.configureProperties(registry);
     RABBITMQ_CONF.configureProperties(registry);
     BUCKET_CONF.configureProperties(registry);
+    EMAIL_CONF.configureProperties(registry);
     new EnvConf().configureProperties(registry);
 
     try {
