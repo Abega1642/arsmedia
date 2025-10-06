@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 
 @InfraGenerated
-public class SwaggerDocTest extends FacadeIT {
+public class SwaggerDocIT extends FacadeIT {
   @Autowired private MockMvc mockMvc;
 
   @Test

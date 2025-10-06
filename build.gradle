@@ -44,7 +44,6 @@ dependencies {
 
     implementation 'software.amazon.awssdk:s3:2.21.40'
     implementation 'software.amazon.awssdk:s3-transfer-manager:2.21.40'
-    implementation 'software.amazon.awssdk.crt:aws-crt:0.29.15'
 
     implementation 'com.github.kokorin.jaffree:jaffree:2024.08.29'
     implementation 'io.jsonwebtoken:jjwt-api:0.13.0'
@@ -62,7 +61,7 @@ dependencies {
     testImplementation 'org.testcontainers:localstack:1.21.3'
     testImplementation 'org.wiremock:wiremock-standalone:3.13.1'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-    
+
 }
 
 tasks.named('test') {

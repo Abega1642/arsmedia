@@ -18,7 +18,6 @@ import software.amazon.awssdk.transfer.s3.S3TransferManager;
 @InfraGenerated
 @Configuration
 public class BucketConf {
-
   @Getter private final String bucketName;
   @Getter private final S3TransferManager s3TransferManager;
   @Getter private final S3Presigner s3Presigner;
@@ -30,29 +29,24 @@ public class BucketConf {
       @Value("${b2.bucket.name}") String bucketName,
       @Value("${b2.region}") String regionString,
       @Value("${b2.endpoint.prefix}") String endpointPrefix,
-      @Value("${b2.endpoint.suffix}") String endpointSuffix,
-      @Value("${b2.upload.part-size-mb:8}") int partSizeMb,
-      @Value("${b2.upload.target-throughput-gbps:10.0}") double targetThroughputGbps) {
-
+      @Value("${b2.endpoint.suffix}") String endpointSuffix) {
     this.bucketName = bucketName;
-
     String fullEndpoint =
         (endpointPrefix.contains("localhost") || endpointPrefix.contains("127.0.0.1"))
             ? endpointPrefix
             : endpointPrefix + regionString + endpointSuffix;
     URI endpoint = URI.create(fullEndpoint);
+
     Region region = Region.of(regionString);
 
     AwsCredentialsProvider credentialsProvider =
         StaticCredentialsProvider.create(AwsBasicCredentials.create(keyId, applicationKey));
 
     S3AsyncClient s3AsyncClient =
-        S3AsyncClient.crtBuilder()
+        S3AsyncClient.builder()
             .endpointOverride(endpoint)
             .region(region)
             .credentialsProvider(credentialsProvider)
-            .targetThroughputInGbps(targetThroughputGbps)
-            .minimumPartSizeInBytes((long) partSizeMb * 1024 * 1024)
             .build();
 
     this.s3TransferManager = S3TransferManager.builder().s3Client(s3AsyncClient).build();

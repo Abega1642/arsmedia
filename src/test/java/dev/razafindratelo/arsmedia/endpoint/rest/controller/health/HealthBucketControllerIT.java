@@ -11,7 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 @InfraGenerated
-class HealthBucketControllerTest extends FacadeIT {
+class HealthBucketControllerIT extends FacadeIT {
   @Autowired private MockMvc mvc;
 
   @Test

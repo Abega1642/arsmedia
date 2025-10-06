@@ -12,15 +12,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 
 @InfraGenerated
-class HealthEmailControllerTest extends FacadeIT {
-  @Autowired private MockMvc mvc;
+class PingPongControllerIT extends FacadeIT {
+  @Autowired MockMvc mvc;
 
   @Test
-  void should_send_email_with_successful_response() throws Exception {
-    String email = "a.razafindratelo@gmail.com";
-    String expected = "All 5 test emails sent successfully to " + email;
+  void should_respond_by_pong() throws Exception {
+    var expected = "pong";
 
-    mvc.perform(get("/health/email").param("to", email))
+    mvc.perform(get("/ping"))
         .andExpect(status().isOk())
         .andExpect(content().string(containsString(expected)));
   }

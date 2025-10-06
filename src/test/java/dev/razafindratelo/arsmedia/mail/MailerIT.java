@@ -1,0 +1,299 @@
+package dev.razafindratelo.arsmedia.mail;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+import dev.razafindratelo.arsmedia.conf.FacadeIT;
+import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.internet.MimeMessage;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mail.javamail.JavaMailSender;
+
+class MailerIT extends FacadeIT {
+
+  @TempDir Path tempDir;
+  @Autowired private Mailer mailer;
+  @Autowired private JavaMailSender mailSender;
+  private InternetAddress testRecipient;
+  private InternetAddress ccRecipient;
+  private InternetAddress bccRecipient;
+
+  @BeforeEach
+  void setUp() throws Exception {
+    testRecipient = new InternetAddress("test@example.com");
+    ccRecipient = new InternetAddress("cc@example.com");
+    bccRecipient = new InternetAddress("bcc@example.com");
+  }
+
+  @Test
+  void should_send_simple_email() {
+    Email email =
+        new Email(
+            testRecipient, List.of(), List.of(), "Test Subject", "<p>Test Body</p>", List.of());
+
+    mailer.accept(email);
+
+    verify(mailSender, times(1)).send(any(MimeMessage.class));
+  }
+
+  @Test
+  void should_send_email_with_cc() {
+    Email email =
+        new Email(
+            testRecipient,
+            List.of(ccRecipient),
+            List.of(),
+            "Test with CC",
+            "<p>Test Body</p>",
+            List.of());
+
+    mailer.accept(email);
+
+    verify(mailSender, times(1)).send(any(MimeMessage.class));
+  }
+
+  @Test
+  void should_send_email_with_bcc() {
+    Email email =
+        new Email(
+            testRecipient,
+            List.of(),
+            List.of(bccRecipient),
+            "Test with BCC",
+            "<p>Test Body</p>",
+            List.of());
+
+    mailer.accept(email);
+
+    verify(mailSender, times(1)).send(any(MimeMessage.class));
+  }
+
+  @Test
+  void should_send_email_with_cc_and_bcc() {
+    Email email =
+        new Email(
+            testRecipient,
+            List.of(ccRecipient),
+            List.of(bccRecipient),
+            "Test with CC and BCC",
+            "<p>Test Body</p>",
+            List.of());
+
+    mailer.accept(email);
+
+    verify(mailSender, times(1)).send(any(MimeMessage.class));
+  }
+
+  @Test
+  void should_send_email_without_html_body() {
+    Email email =
+        new Email(testRecipient, List.of(), List.of(), "Test without HTML", null, List.of());
+
+    mailer.accept(email);
+
+    verify(mailSender, times(1)).send(any(MimeMessage.class));
+  }
+
+  @Test
+  void should_send_email_with_empty_html_body() {
+    Email email =
+        new Email(testRecipient, List.of(), List.of(), "Test with empty HTML", "", List.of());
+
+    mailer.accept(email);
+
+    verify(mailSender, times(1)).send(any(MimeMessage.class));
+  }
+
+  @Test
+  void should_send_email_with_attachment() throws IOException {
+    File attachment = createTestFile("test-attachment.txt", "This is test content");
+    Email email =
+        new Email(
+            testRecipient,
+            List.of(),
+            List.of(),
+            "Test with Attachment",
+            "<p>See attachment</p>",
+            List.of(attachment));
+
+    mailer.accept(email);
+
+    verify(mailSender, times(1)).send(any(MimeMessage.class));
+    assertTrue(attachment.exists(), "Attachment file should still exist after sending");
+  }
+
+  @Test
+  void should_send_email_with_multiple_attachments() throws IOException {
+    File attachment1 = createTestFile("attachment1.txt", "Content 1");
+    File attachment2 = createTestFile("attachment2.txt", "Content 2");
+    File attachment3 = createTestFile("attachment3.pdf", "PDF Content");
+
+    Email email =
+        new Email(
+            testRecipient,
+            List.of(),
+            List.of(),
+            "Test with Multiple Attachments",
+            "<p>See attachments</p>",
+            List.of(attachment1, attachment2, attachment3));
+
+    mailer.accept(email);
+
+    verify(mailSender, times(1)).send(any(MimeMessage.class));
+  }
+
+  @Test
+  void should_handle_null_email_gracefully() {
+    mailer.accept(null);
+
+    verify(mailSender, never()).send(any(MimeMessage.class));
+  }
+
+  @Test
+  void should_handle_null_recipient_gracefully() {
+    Email email =
+        new Email(null, List.of(), List.of(), "Test Subject", "<p>Test Body</p>", List.of());
+
+    mailer.accept(email);
+
+    verify(mailSender, never()).send(any(MimeMessage.class));
+  }
+
+  @Test
+  void should_handle_null_cc_list() {
+    Email email =
+        new Email(testRecipient, null, List.of(), "Test Subject", "<p>Test Body</p>", List.of());
+
+    mailer.accept(email);
+
+    verify(mailSender, times(1)).send(any(MimeMessage.class));
+  }
+
+  @Test
+  void should_handle_null_bcc_list() {
+    Email email =
+        new Email(testRecipient, List.of(), null, "Test Subject", "<p>Test Body</p>", List.of());
+
+    mailer.accept(email);
+
+    verify(mailSender, times(1)).send(any(MimeMessage.class));
+  }
+
+  @Test
+  void should_handle_null_attachments_list() {
+    Email email =
+        new Email(testRecipient, List.of(), List.of(), "Test Subject", "<p>Test Body</p>", null);
+
+    mailer.accept(email);
+
+    verify(mailSender, times(1)).send(any(MimeMessage.class));
+  }
+
+  @Test
+  void should_handle_empty_lists() {
+    Email email =
+        new Email(
+            testRecipient, List.of(), List.of(), "Test Subject", "<p>Test Body</p>", List.of());
+
+    mailer.accept(email);
+
+    verify(mailSender, times(1)).send(any(MimeMessage.class));
+  }
+
+  @Test
+  void should_send_email_with_long_subject() {
+    String longSubject =
+        "This is a very long subject line that might cause issues if not handled properly by the"
+            + " email system and we want to make sure it works correctly";
+    Email email =
+        new Email(testRecipient, List.of(), List.of(), longSubject, "<p>Test Body</p>", List.of());
+
+    mailer.accept(email);
+
+    verify(mailSender, times(1)).send(any(MimeMessage.class));
+  }
+
+  @Test
+  void should_send_email_with_unicode_characters() {
+    Email email =
+        new Email(
+            testRecipient,
+            List.of(),
+            List.of(),
+            "Test with émojis 🎉 and ñoñó",
+            "<p>Unicode test: こんにちは 你好 مرحبا</p>",
+            List.of());
+
+    mailer.accept(email);
+
+    verify(mailSender, times(1)).send(any(MimeMessage.class));
+  }
+
+  @Test
+  void should_continue_sending_even_if_one_attachment_fails() throws IOException {
+    File validAttachment = createTestFile("valid.txt", "Valid content");
+    File invalidAttachment = new File("/non/existent/path/invalid.txt");
+
+    Email email =
+        new Email(
+            testRecipient,
+            List.of(),
+            List.of(),
+            "Test with Invalid Attachment",
+            "<p>Mixed attachments</p>",
+            List.of(validAttachment, invalidAttachment));
+
+    mailer.accept(email);
+
+    verify(mailSender, times(1)).send(any(MimeMessage.class));
+  }
+
+  @Test
+  void should_send_email_with_complex_html() {
+    String complexHtml =
+        """
+        <html>
+          <head>
+            <style>
+              body { font-family: Arial; }
+              .header { color: blue; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>Welcome!</h1>
+            </div>
+            <p>This is a <strong>complex</strong> HTML email.</p>
+            <ul>
+              <li>Item 1</li>
+              <li>Item 2</li>
+            </ul>
+          </body>
+        </html>
+        """;
+
+    Email email =
+        new Email(testRecipient, List.of(), List.of(), "Complex HTML Test", complexHtml, List.of());
+
+    mailer.accept(email);
+
+    verify(mailSender, times(1)).send(any(MimeMessage.class));
+  }
+
+  private File createTestFile(String filename, String content) throws IOException {
+    Path filePath = tempDir.resolve(filename);
+    Files.writeString(filePath, content);
+    File file = filePath.toFile();
+    assertTrue(file.exists(), "Test file should be created: " + filename);
+    return file;
+  }
+}
