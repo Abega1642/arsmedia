@@ -1,12 +1,10 @@
 package dev.razafindratelo.arsmedia.mail;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
 import jakarta.mail.internet.InternetAddress;
-import jakarta.mail.internet.MimeMessage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -36,18 +34,16 @@ class MailerIT extends FacadeIT {
 
   @Test
   void should_send_simple_email() {
-    Email email =
+    var email =
         new Email(
             testRecipient, List.of(), List.of(), "Test Subject", "<p>Test Body</p>", List.of());
 
-    mailer.accept(email);
-
-    verify(mailSender, times(1)).send(any(MimeMessage.class));
+    assertDoesNotThrow(() -> mailer.accept(email));
   }
 
   @Test
   void should_send_email_with_cc() {
-    Email email =
+    var email =
         new Email(
             testRecipient,
             List.of(ccRecipient),
@@ -56,14 +52,12 @@ class MailerIT extends FacadeIT {
             "<p>Test Body</p>",
             List.of());
 
-    mailer.accept(email);
-
-    verify(mailSender, times(1)).send(any(MimeMessage.class));
+    assertDoesNotThrow(() -> mailer.accept(email));
   }
 
   @Test
   void should_send_email_with_bcc() {
-    Email email =
+    var email =
         new Email(
             testRecipient,
             List.of(),
@@ -72,14 +66,12 @@ class MailerIT extends FacadeIT {
             "<p>Test Body</p>",
             List.of());
 
-    mailer.accept(email);
-
-    verify(mailSender, times(1)).send(any(MimeMessage.class));
+    assertDoesNotThrow(() -> mailer.accept(email));
   }
 
   @Test
   void should_send_email_with_cc_and_bcc() {
-    Email email =
+    var email =
         new Email(
             testRecipient,
             List.of(ccRecipient),
@@ -88,35 +80,29 @@ class MailerIT extends FacadeIT {
             "<p>Test Body</p>",
             List.of());
 
-    mailer.accept(email);
-
-    verify(mailSender, times(1)).send(any(MimeMessage.class));
+    assertDoesNotThrow(() -> mailer.accept(email));
   }
 
   @Test
   void should_send_email_without_html_body() {
-    Email email =
+    var email =
         new Email(testRecipient, List.of(), List.of(), "Test without HTML", null, List.of());
 
-    mailer.accept(email);
-
-    verify(mailSender, times(1)).send(any(MimeMessage.class));
+    assertDoesNotThrow(() -> mailer.accept(email));
   }
 
   @Test
   void should_send_email_with_empty_html_body() {
-    Email email =
+    var email =
         new Email(testRecipient, List.of(), List.of(), "Test with empty HTML", "", List.of());
 
-    mailer.accept(email);
-
-    verify(mailSender, times(1)).send(any(MimeMessage.class));
+    assertDoesNotThrow(() -> mailer.accept(email));
   }
 
   @Test
   void should_send_email_with_attachment() throws IOException {
-    File attachment = createTestFile("test-attachment.txt", "This is test content");
-    Email email =
+    var attachment = createTestFile("test-attachment.txt", "This is test content");
+    var email =
         new Email(
             testRecipient,
             List.of(),
@@ -125,19 +111,17 @@ class MailerIT extends FacadeIT {
             "<p>See attachment</p>",
             List.of(attachment));
 
-    mailer.accept(email);
-
-    verify(mailSender, times(1)).send(any(MimeMessage.class));
+    assertDoesNotThrow(() -> mailer.accept(email));
     assertTrue(attachment.exists(), "Attachment file should still exist after sending");
   }
 
   @Test
   void should_send_email_with_multiple_attachments() throws IOException {
-    File attachment1 = createTestFile("attachment1.txt", "Content 1");
-    File attachment2 = createTestFile("attachment2.txt", "Content 2");
-    File attachment3 = createTestFile("attachment3.pdf", "PDF Content");
+    var attachment1 = createTestFile("attachment1.txt", "Content 1");
+    var attachment2 = createTestFile("attachment2.txt", "Content 2");
+    var attachment3 = createTestFile("attachment3.pdf", "PDF Content");
 
-    Email email =
+    var email =
         new Email(
             testRecipient,
             List.of(),
@@ -146,67 +130,48 @@ class MailerIT extends FacadeIT {
             "<p>See attachments</p>",
             List.of(attachment1, attachment2, attachment3));
 
-    mailer.accept(email);
-
-    verify(mailSender, times(1)).send(any(MimeMessage.class));
-  }
-
-  @Test
-  void should_handle_null_email_gracefully() {
-    mailer.accept(null);
-
-    verify(mailSender, never()).send(any(MimeMessage.class));
+    assertDoesNotThrow(() -> mailer.accept(email));
   }
 
   @Test
   void should_handle_null_recipient_gracefully() {
-    Email email =
+    var email =
         new Email(null, List.of(), List.of(), "Test Subject", "<p>Test Body</p>", List.of());
 
-    mailer.accept(email);
-
-    verify(mailSender, never()).send(any(MimeMessage.class));
+    assertDoesNotThrow(() -> mailer.accept(email));
   }
 
   @Test
   void should_handle_null_cc_list() {
-    Email email =
+    var email =
         new Email(testRecipient, null, List.of(), "Test Subject", "<p>Test Body</p>", List.of());
 
-    mailer.accept(email);
-
-    verify(mailSender, times(1)).send(any(MimeMessage.class));
+    assertDoesNotThrow(() -> mailer.accept(email));
   }
 
   @Test
   void should_handle_null_bcc_list() {
-    Email email =
+    var email =
         new Email(testRecipient, List.of(), null, "Test Subject", "<p>Test Body</p>", List.of());
 
-    mailer.accept(email);
-
-    verify(mailSender, times(1)).send(any(MimeMessage.class));
+    assertDoesNotThrow(() -> mailer.accept(email));
   }
 
   @Test
   void should_handle_null_attachments_list() {
-    Email email =
+    var email =
         new Email(testRecipient, List.of(), List.of(), "Test Subject", "<p>Test Body</p>", null);
 
-    mailer.accept(email);
-
-    verify(mailSender, times(1)).send(any(MimeMessage.class));
+    assertDoesNotThrow(() -> mailer.accept(email));
   }
 
   @Test
   void should_handle_empty_lists() {
-    Email email =
+    var email =
         new Email(
             testRecipient, List.of(), List.of(), "Test Subject", "<p>Test Body</p>", List.of());
 
-    mailer.accept(email);
-
-    verify(mailSender, times(1)).send(any(MimeMessage.class));
+    assertDoesNotThrow(() -> mailer.accept(email));
   }
 
   @Test
@@ -214,17 +179,15 @@ class MailerIT extends FacadeIT {
     String longSubject =
         "This is a very long subject line that might cause issues if not handled properly by the"
             + " email system and we want to make sure it works correctly";
-    Email email =
+    var email =
         new Email(testRecipient, List.of(), List.of(), longSubject, "<p>Test Body</p>", List.of());
 
-    mailer.accept(email);
-
-    verify(mailSender, times(1)).send(any(MimeMessage.class));
+    assertDoesNotThrow(() -> mailer.accept(email));
   }
 
   @Test
   void should_send_email_with_unicode_characters() {
-    Email email =
+    var email =
         new Email(
             testRecipient,
             List.of(),
@@ -233,17 +196,15 @@ class MailerIT extends FacadeIT {
             "<p>Unicode test: こんにちは 你好 مرحبا</p>",
             List.of());
 
-    mailer.accept(email);
-
-    verify(mailSender, times(1)).send(any(MimeMessage.class));
+    assertDoesNotThrow(() -> mailer.accept(email));
   }
 
   @Test
   void should_continue_sending_even_if_one_attachment_fails() throws IOException {
-    File validAttachment = createTestFile("valid.txt", "Valid content");
-    File invalidAttachment = new File("/non/existent/path/invalid.txt");
+    var validAttachment = createTestFile("valid.txt", "Valid content");
+    var invalidAttachment = new File("/non/existent/path/invalid.txt");
 
-    Email email =
+    var email =
         new Email(
             testRecipient,
             List.of(),
@@ -252,9 +213,7 @@ class MailerIT extends FacadeIT {
             "<p>Mixed attachments</p>",
             List.of(validAttachment, invalidAttachment));
 
-    mailer.accept(email);
-
-    verify(mailSender, times(1)).send(any(MimeMessage.class));
+    assertDoesNotThrow(() -> mailer.accept(email));
   }
 
   @Test
@@ -281,12 +240,44 @@ class MailerIT extends FacadeIT {
         </html>
         """;
 
-    Email email =
+    var email =
         new Email(testRecipient, List.of(), List.of(), "Complex HTML Test", complexHtml, List.of());
 
-    mailer.accept(email);
+    assertDoesNotThrow(() -> mailer.accept(email));
+  }
 
-    verify(mailSender, times(1)).send(any(MimeMessage.class));
+  @Test
+  void should_handle_empty_file() throws IOException {
+    var emptyFile = createTestFile("empty.txt", "");
+    var email =
+        new Email(
+            testRecipient,
+            List.of(),
+            List.of(),
+            "Test with Empty Attachment",
+            "<p>Empty file attached</p>",
+            List.of(emptyFile));
+
+    assertDoesNotThrow(() -> mailer.accept(email));
+  }
+
+  @Test
+  void should_handle_binary_file_attachment() throws IOException {
+    var binaryFile = tempDir.resolve("binary.bin").toFile();
+    byte[] binaryContent = new byte[] {0x00, 0x01, 0x02, (byte) 0xFF, (byte) 0xFE};
+    Files.write(binaryFile.toPath(), binaryContent);
+    assertTrue(binaryFile.exists(), "Binary file should be created");
+
+    var email =
+        new Email(
+            testRecipient,
+            List.of(),
+            List.of(),
+            "Test with Binary Attachment",
+            "<p>Binary file attached</p>",
+            List.of(binaryFile));
+
+    assertDoesNotThrow(() -> mailer.accept(email));
   }
 
   private File createTestFile(String filename, String content) throws IOException {

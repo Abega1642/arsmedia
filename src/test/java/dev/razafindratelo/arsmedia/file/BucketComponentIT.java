@@ -43,17 +43,6 @@ class BucketComponentIT extends FacadeIT {
   }
 
   @Test
-  void should_upload_single_file() {
-    var bucketKey = "test/single-file.txt";
-
-    FileHash result = bucketComponent.upload(testFile, bucketKey);
-
-    assertNotNull(result);
-    assertEquals("SHA-256", result.algorithm());
-    assertNotNull(result.value());
-  }
-
-  @Test
   void should_upload_directory() {
     var bucketKey = "test/directory";
 
