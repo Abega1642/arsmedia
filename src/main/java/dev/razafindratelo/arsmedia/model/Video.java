@@ -1,0 +1,25 @@
+package dev.razafindratelo.arsmedia.model;
+
+import dev.razafindratelo.arsmedia.model.classifier.AudioCodec;
+import dev.razafindratelo.arsmedia.model.classifier.ContainerFormat;
+import lombok.*;
+
+@AllArgsConstructor
+@NoArgsConstructor
+@Getter
+@Setter
+@EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true)
+public class Video extends Media {
+  private double duration;
+  private String codec;
+  private int width;
+  private int height;
+  private double frameRate;
+  private String aspectRatio;
+  private ContainerFormat containerFormat;
+  private double bitRate;
+  private AudioCodec audioCodec;
+  private int audioChannels;
+  private int audioSampleRate;
+}

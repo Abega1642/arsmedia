@@ -1,0 +1,46 @@
+package dev.razafindratelo.arsmedia.model.classifier;
+
+public enum ContainerFormat {
+  MP4,
+  MKV,
+  MOV,
+  AVI,
+  FLV,
+  WMV,
+  WEBM,
+  MPEG_TS,
+  MPEG_PS,
+  THREEGP,
+  OGG,
+  M4A,
+  WAV,
+  FLAC,
+  ASF,
+  APE,
+  AIFF,
+  UNKNOWN;
+
+  public static ContainerFormat fromString(String value) {
+    if (value == null) return UNKNOWN;
+    String v = value.trim().toUpperCase();
+    return switch (v) {
+      case "MP4", "MPEG-4" -> MP4;
+      case "MKV", "MATROSKA" -> MKV;
+      case "MOV", "QUICKTIME" -> MOV;
+      case "AVI" -> AVI;
+      case "FLV" -> FLV;
+      case "WMV", "ASF" -> WMV;
+      case "WEBM" -> WEBM;
+      case "MPEGTS", "TS", "MPEG-TS" -> MPEG_TS;
+      case "MPEGPS", "PS", "MPEG-PS" -> MPEG_PS;
+      case "3GP", "THREEGP" -> THREEGP;
+      case "OGG" -> OGG;
+      case "M4A" -> M4A;
+      case "WAV" -> WAV;
+      case "FLAC" -> FLAC;
+      case "AIFF" -> AIFF;
+      case "APE" -> APE;
+      default -> UNKNOWN;
+    };
+  }
+}
