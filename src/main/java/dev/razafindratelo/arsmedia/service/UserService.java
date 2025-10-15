@@ -12,15 +12,20 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
 @Service
 @Validated
 @AllArgsConstructor
-public class UserService {
+public class UserService implements UserDetailsService {
   private UserRepository repository;
   private Pagination paginator;
+  private BCryptPasswordEncoder encoder;
 
   public User findByEmail(@Email String email) {
     if (email == null || email.isBlank())
@@ -36,6 +41,8 @@ public class UserService {
 
   public User create(JUser user) {
     if (user == null) throw new IllegalArgumentException("User cannot be null");
+    var encodedPassword = encoder.encode(user.getPassword());
+    user.setPassword(encodedPassword);
     return UserMapper.toUser(repository.save(user));
   }
 
@@ -53,6 +60,7 @@ public class UserService {
     if (user.getImageProfileBucketKey() != null)
       existing.setImageProfileBucketKey(user.getImageProfileBucketKey());
     if (user.getRole() != null) existing.setRole(user.getRole());
+    if (user.getPassword() != null) existing.setPassword(encoder.encode(user.getPassword()));
     existing.setActivated(user.isActivated());
     existing.setUpdatedAt(LocalDateTime.now());
 
@@ -75,5 +83,10 @@ public class UserService {
         PageRequest.of(
             pagination.get("page"), pagination.get("size"), Sort.by("createdAt").descending());
     return repository.findAll(pageable);
+  }
+
+  @Override
+  public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+    return findByEmail(username);
   }
 }

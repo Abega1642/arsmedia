@@ -3,22 +3,30 @@ package dev.razafindratelo.arsmedia.config;
 import static org.springframework.http.HttpMethod.GET;
 
 import dev.razafindratelo.arsmedia.InfraGenerated;
+import lombok.AllArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 @InfraGenerated
 @EnableWebSecurity
 @Configuration
+@AllArgsConstructor
 public class SecurityConf {
+  private final BCryptPasswordEncoder encoder;
+  private final UserDetailsService userDetailsService;
 
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-    return http.csrf(AbstractHttpConfigurer::disable)
+    return http.csrf(Customizer.withDefaults())
         .authorizeHttpRequests(
             auth ->
                 auth.requestMatchers(GET, "/ping")
@@ -37,5 +45,13 @@ public class SecurityConf {
         .sessionManagement(
             configurer -> configurer.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .build();
+  }
+
+  @Bean
+  public AuthenticationManager authManager(HttpSecurity http) throws Exception {
+    AuthenticationManagerBuilder authenticationManagerBuilder =
+        http.getSharedObject(AuthenticationManagerBuilder.class);
+    authenticationManagerBuilder.userDetailsService(userDetailsService).passwordEncoder(encoder);
+    return authenticationManagerBuilder.build();
   }
 }
