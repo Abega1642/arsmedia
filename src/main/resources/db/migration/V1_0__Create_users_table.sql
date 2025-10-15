@@ -15,5 +15,7 @@ CREATE TABLE users
     user_role              user_role                DEFAULT 'USER',
     is_activated           BOOLEAN NOT NULL         DEFAULT FALSE,
     created_at             TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at             TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    updated_at             TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+    UNIQUE (email)
 );

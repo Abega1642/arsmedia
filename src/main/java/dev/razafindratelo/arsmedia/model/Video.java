@@ -2,6 +2,7 @@ package dev.razafindratelo.arsmedia.model;
 
 import dev.razafindratelo.arsmedia.model.classifier.AudioCodec;
 import dev.razafindratelo.arsmedia.model.classifier.ContainerFormat;
+import dev.razafindratelo.arsmedia.model.classifier.VideoCodec;
 import lombok.*;
 
 @AllArgsConstructor
@@ -12,7 +13,7 @@ import lombok.*;
 @ToString(callSuper = true)
 public class Video extends Media {
   private double duration;
-  private String codec;
+  private VideoCodec codec;
   private int width;
   private int height;
   private double frameRate;

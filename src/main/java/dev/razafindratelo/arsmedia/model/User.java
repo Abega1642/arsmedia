@@ -5,13 +5,14 @@ import java.time.LocalDateTime;
 import lombok.*;
 
 @AllArgsConstructor
+@NoArgsConstructor
 @Getter
 @Setter
 @ToString
 @EqualsAndHashCode
 public class User {
-  private final String id;
-  private final String email;
+  private String id;
+  private String email;
   private String pseudo;
   private String phoneNumber;
   private String imageProfileBucketKey;

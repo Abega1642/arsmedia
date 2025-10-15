@@ -2,6 +2,7 @@ package dev.razafindratelo.arsmedia.repository.model;
 
 import dev.razafindratelo.arsmedia.model.classifier.AudioCodec;
 import dev.razafindratelo.arsmedia.model.classifier.ContainerFormat;
+import dev.razafindratelo.arsmedia.model.classifier.VideoCodec;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -18,7 +19,11 @@ import org.hibernate.type.SqlTypes;
 public class JVideo extends JMedia {
 
   private double duration;
-  private String codec;
+
+  @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+  private VideoCodec codec;
+
   private int width;
   private int height;
 
@@ -44,6 +49,6 @@ public class JVideo extends JMedia {
   @Column(name = "audio_channels")
   private int audioChannels;
 
-  @Column(name = "audio_simple_rate")
+  @Column(name = "audio_sample_rate")
   private int audioSampleRate;
 }

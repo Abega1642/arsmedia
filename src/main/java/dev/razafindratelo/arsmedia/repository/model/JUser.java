@@ -18,10 +18,18 @@ import org.hibernate.annotations.JdbcTypeCode;
 @ToString
 public class JUser {
   @Id private String id;
+
+  @Column(unique = true, nullable = false)
   private String email;
+
   private String pseudo;
+
+  @Column(name = "phone_number")
   private String phoneNumber;
+
+  @Column(name = "img_profile_bucket_key")
   private String imageProfileBucketKey;
+
   private String password;
 
   @Enumerated(EnumType.STRING)
@@ -29,7 +37,12 @@ public class JUser {
   @Column(name = "user_role")
   private UserRole role;
 
+  @Column(name = "is_activated")
   private boolean isActivated;
+
+  @Column(name = "created_at")
   private LocalDateTime createdAt;
+
+  @Column(name = "updated_at")
   private LocalDateTime updatedAt;
 }

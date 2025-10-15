@@ -10,6 +10,7 @@ import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "media")
+@Inheritance(strategy = InheritanceType.JOINED)
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
@@ -39,6 +40,6 @@ public class JMedia {
   @Column(nullable = false, name = "created_at")
   private LocalDateTime createdAt;
 
-  @Column(name = "bucket_key")
+  @Column(name = "bucket_key", nullable = false)
   private String bucketKey;
 }
