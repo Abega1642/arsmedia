@@ -1,15 +1,14 @@
 package dev.razafindratelo.arsmedia.service;
 
-import static java.time.LocalDateTime.now;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.health.model.RUser;
+import dev.razafindratelo.arsmedia.mapper.UserMapper;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.model.classifier.UserRole;
 import dev.razafindratelo.arsmedia.repository.UserRepository;
-import dev.razafindratelo.arsmedia.repository.mapper.UserMapper;
 import jakarta.validation.ConstraintViolationException;
-import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,19 +66,8 @@ class UserServiceIT extends FacadeIT {
   }
 
   private User createUser() {
-    var user =
-        new User(
-            UUID.randomUUID().toString(),
-            EMAIL,
-            "ab3g4",
-            "+261 32 92 636 82",
-            "https://dummy-bucket-key.com",
-            UserRole.ADMIN,
-            "dummy-password",
-            false,
-            now(),
-            now());
+    var user = new RUser(EMAIL, "ab3g4", "+261 32 92 636 82", UserRole.ADMIN, "dummy-password");
 
-    return subject.create(UserMapper.toJUser(user));
+    return subject.create(user);
   }
 }

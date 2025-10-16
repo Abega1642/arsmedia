@@ -1,7 +1,11 @@
-package dev.razafindratelo.arsmedia.repository.mapper;
+package dev.razafindratelo.arsmedia.mapper;
 
+import static java.time.LocalDateTime.now;
+
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.health.model.RUser;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.repository.model.JUser;
+import java.util.UUID;
 
 public class UserMapper {
   public static User toUser(JUser jUser) {
@@ -30,5 +34,19 @@ public class UserMapper {
         user.isActivated(),
         user.getCreatedAt(),
         user.getUpdatedAt());
+  }
+
+  public static User toUser(RUser rUser) {
+    return new User(
+        UUID.randomUUID().toString(),
+        rUser.email(),
+        rUser.pseudo(),
+        rUser.phoneNumber(),
+        "no-image-profile",
+        rUser.role(),
+        rUser.password(),
+        false,
+        now(),
+        now());
   }
 }

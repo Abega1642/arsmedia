@@ -1,4 +1,4 @@
-package dev.razafindratelo.arsmedia.repository.mapper;
+package dev.razafindratelo.arsmedia.mapper;
 
 import dev.razafindratelo.arsmedia.model.Audio;
 import dev.razafindratelo.arsmedia.repository.model.JAudio;

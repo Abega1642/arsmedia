@@ -11,6 +11,10 @@ public class Pagination implements BiFunction<Integer, Integer, Map<String, Inte
   public Map<String, Integer> apply(Integer page, Integer size) {
     var fPage = (page == null) ? 1 : page;
     var fSize = (size == null) ? 10 : size;
+
+    if (fPage < 0) throw new IllegalArgumentException("Page cannot be negative");
+    if (fSize < 1) throw new IllegalArgumentException("Size cannot be less than 1.");
+
     return Map.of(
         "page", fPage,
         "size", fSize);

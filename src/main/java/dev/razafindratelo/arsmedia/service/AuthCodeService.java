@@ -2,9 +2,9 @@ package dev.razafindratelo.arsmedia.service;
 
 import static java.time.LocalDateTime.now;
 
+import dev.razafindratelo.arsmedia.mapper.AuthCodeMapper;
 import dev.razafindratelo.arsmedia.model.AuthCode;
 import dev.razafindratelo.arsmedia.repository.AuthCodeRepository;
-import dev.razafindratelo.arsmedia.repository.mapper.AuthCodeMapper;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.Email;

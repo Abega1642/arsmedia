@@ -1,8 +1,9 @@
 package dev.razafindratelo.arsmedia.service;
 
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.health.model.RUser;
+import dev.razafindratelo.arsmedia.mapper.UserMapper;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.repository.UserRepository;
-import dev.razafindratelo.arsmedia.repository.mapper.UserMapper;
 import dev.razafindratelo.arsmedia.repository.model.JUser;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.Email;
@@ -39,11 +40,13 @@ public class UserService implements UserDetailsService {
     return UserMapper.toUser(jUser);
   }
 
-  public User create(JUser user) {
+  public User create(RUser user) {
     if (user == null) throw new IllegalArgumentException("User cannot be null");
-    var encodedPassword = encoder.encode(user.getPassword());
-    user.setPassword(encodedPassword);
-    return UserMapper.toUser(repository.save(user));
+
+    var jUser = UserMapper.toJUser(UserMapper.toUser(user));
+    var encodedPassword = encoder.encode(jUser.getPassword());
+    jUser.setPassword(encodedPassword);
+    return UserMapper.toUser(repository.save(jUser));
   }
 
   public User update(JUser user) {
@@ -76,13 +79,16 @@ public class UserService implements UserDetailsService {
     return true;
   }
 
-  public Page<JUser> findAll(Integer page, Integer size) {
+  public Page<User> findAll(Integer page, Integer size) {
     var pagination = paginator.apply(page, size);
 
     Pageable pageable =
         PageRequest.of(
             pagination.get("page"), pagination.get("size"), Sort.by("createdAt").descending());
-    return repository.findAll(pageable);
+
+    var results = repository.findAll(pageable);
+
+    return results.map(UserMapper::toUser);
   }
 
   @Override

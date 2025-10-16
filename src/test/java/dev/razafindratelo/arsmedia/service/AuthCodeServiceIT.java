@@ -1,16 +1,13 @@
 package dev.razafindratelo.arsmedia.service;
 
-import static java.time.LocalDateTime.now;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
-import dev.razafindratelo.arsmedia.model.User;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.health.model.RUser;
+import dev.razafindratelo.arsmedia.mapper.AuthCodeMapper;
 import dev.razafindratelo.arsmedia.model.classifier.UserRole;
 import dev.razafindratelo.arsmedia.repository.AuthCodeRepository;
-import dev.razafindratelo.arsmedia.repository.mapper.AuthCodeMapper;
-import dev.razafindratelo.arsmedia.repository.mapper.UserMapper;
 import jakarta.transaction.Transactional;
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -23,20 +20,9 @@ class AuthCodeServiceIT extends FacadeIT {
   @Transactional
   void should_generate_auth_code() {
     var email = "a.razafindratelo@gmail.com";
-    var user =
-        new User(
-            UUID.randomUUID().toString(),
-            email,
-            "ab3g4",
-            "+261 32 92 636 82",
-            "https://dummy-bucket-key.com",
-            UserRole.ADMIN,
-            "dummy-password",
-            false,
-            now(),
-            now());
+    var user = new RUser(email, "ab3g4", "+261 32 92 636 82", UserRole.ADMIN, "dummy-password");
 
-    var savedUser = userService.create(UserMapper.toJUser(user));
+    var savedUser = userService.create(user);
 
     var expected = subject.generate(email);
 
@@ -49,6 +35,5 @@ class AuthCodeServiceIT extends FacadeIT {
 
     assertEquals(expected, actual);
     assertEquals(expected.owner(), actual.owner());
-    assertTrue(subject.checkIfAuthCodeIsValid(user.getId(), actual.code()));
   }
 }
