@@ -9,9 +9,14 @@ import dev.razafindratelo.arsmedia.model.ApiKey;
 import dev.razafindratelo.arsmedia.repository.ApiKeyRepository;
 import dev.razafindratelo.arsmedia.repository.model.JApiKey;
 import jakarta.transaction.Transactional;
+import jakarta.validation.constraints.Email;
 import java.time.Duration;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -21,6 +26,7 @@ public class ApiKeyService {
   private final ApiKeyRepository repository;
   private final UserService userService;
   private final ApiKeyGenerator apiKeyGenerator;
+  private final Pagination paginator;
 
   @Transactional
   public ApiKey createAPIKey(String userEmail, Duration duration) {
@@ -36,6 +42,16 @@ public class ApiKeyService {
             creation,
             expiration);
     return ApiKeyMapper.toModel(repository.save(apiKey));
+  }
+
+  public Page<ApiKey> findAllByUserEmail(@Email String email, Integer page, Integer size) {
+    var pagination = paginator.apply(page, size);
+    Pageable pageable =
+        PageRequest.of(
+            pagination.get("page"), pagination.get("size"), Sort.by("createdAt").descending());
+    var results = repository.findByOwnerEmail(email, pageable);
+
+    return results.map(ApiKeyMapper::toModel);
   }
 
   public ApiKey findByAPIKeyValue(String apiKey) {

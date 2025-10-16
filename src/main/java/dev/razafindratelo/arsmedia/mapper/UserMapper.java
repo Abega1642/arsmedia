@@ -22,6 +22,10 @@ public class UserMapper {
         jUser.getUpdatedAt());
   }
 
+  public static JUser toJUser(RUser rUser) {
+    return toJUser(toUser(rUser));
+  }
+
   public static JUser toJUser(User user) {
     return new JUser(
         user.getId(),
