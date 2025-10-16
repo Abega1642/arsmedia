@@ -1,5 +1,6 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller;
 
+import dev.razafindratelo.arsmedia.config.RequiresApiKey;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.health.model.RUser;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.service.UserService;
@@ -7,6 +8,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,6 +18,8 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
   private final UserService service;
 
+  @PreAuthorize("hasRole('ADMIN')")
+  @RequiresApiKey
   @GetMapping("/users")
   public Page<User> findUsers(
       @RequestParam(name = "page", required = false) Integer page,

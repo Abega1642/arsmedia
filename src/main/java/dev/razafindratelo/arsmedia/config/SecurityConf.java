@@ -15,6 +15,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 
 @InfraGenerated
 @EnableWebSecurity
@@ -22,6 +23,7 @@ import org.springframework.security.web.SecurityFilterChain;
 @AllArgsConstructor
 public class SecurityConf {
   private final BCryptPasswordEncoder encoder;
+  private final ApiKeyFilter apiKeyFilter;
   private final UserDetailsService userDetailsService;
 
   @Bean
@@ -44,6 +46,7 @@ public class SecurityConf {
                     .authenticated())
         .sessionManagement(
             configurer -> configurer.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .addFilterBefore(apiKeyFilter, BasicAuthenticationFilter.class)
         .build();
   }
 

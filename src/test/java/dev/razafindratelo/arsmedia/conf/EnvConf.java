@@ -12,5 +12,6 @@ public class EnvConf {
     registry.add("spring.rabbitmq.exchange", () -> "infra-event-exchange");
     registry.add("spring.rabbitmq.queue", () -> "infra-health-queue");
     registry.add("spring.rabbitmq.routing-key", () -> "spring.event.key");
+    registry.add("api.key.signature", () -> "random-signature-for-testing");
   }
 }
