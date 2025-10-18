@@ -3,7 +3,7 @@ package dev.razafindratelo.arsmedia.config;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.health.model.RUser;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.RUser;
 import dev.razafindratelo.arsmedia.model.classifier.UserRole;
 import dev.razafindratelo.arsmedia.repository.ApiKeyRepository;
 import dev.razafindratelo.arsmedia.repository.UserRepository;

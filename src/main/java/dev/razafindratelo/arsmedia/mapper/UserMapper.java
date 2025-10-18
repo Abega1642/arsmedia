@@ -2,7 +2,7 @@ package dev.razafindratelo.arsmedia.mapper;
 
 import static java.time.LocalDateTime.now;
 
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.health.model.RUser;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.RUser;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.repository.model.JUser;
 import java.util.UUID;

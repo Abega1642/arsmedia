@@ -1,6 +1,7 @@
 package dev.razafindratelo.arsmedia.config;
 
 import static org.springframework.http.HttpMethod.GET;
+import static org.springframework.http.HttpMethod.POST;
 
 import dev.razafindratelo.arsmedia.InfraGenerated;
 import lombok.AllArgsConstructor;
@@ -43,6 +44,8 @@ public class SecurityConf {
                     .permitAll()
                     .requestMatchers(
                         "/", "/doc", "/swagger-ui/**", "/v3/api-docs/**", "/v3/api-docs.yaml")
+                    .permitAll()
+                    .requestMatchers(POST, "/users/sign-up")
                     .permitAll()
                     .anyRequest()
                     .authenticated())

@@ -1,4 +1,4 @@
-package dev.razafindratelo.arsmedia.endpoint.rest.controller.health.model;
+package dev.razafindratelo.arsmedia.endpoint.rest.controller.model;
 
 import dev.razafindratelo.arsmedia.model.classifier.UserRole;
 

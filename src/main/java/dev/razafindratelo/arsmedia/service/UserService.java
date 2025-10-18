@@ -1,6 +1,6 @@
 package dev.razafindratelo.arsmedia.service;
 
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.health.model.RUser;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.RUser;
 import dev.razafindratelo.arsmedia.mapper.UserMapper;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.repository.UserRepository;

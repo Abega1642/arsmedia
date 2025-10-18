@@ -1,7 +1,7 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller;
 
 import dev.razafindratelo.arsmedia.config.RequiresApiKey;
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.health.model.RUser;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.RUser;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.service.UserService;
 import jakarta.validation.Valid;
