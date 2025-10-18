@@ -48,7 +48,7 @@ public class ApiKeyService {
     var pagination = paginator.apply(page, size);
     Pageable pageable =
         PageRequest.of(
-            pagination.get("page"), pagination.get("size"), Sort.by("createdAt").descending());
+            pagination.get("page"), pagination.get("size"), Sort.by("creation").descending());
     var results = repository.findByOwnerEmail(email, pageable);
 
     return results.map(ApiKeyMapper::toModel);

@@ -3,48 +3,38 @@ package dev.razafindratelo.arsmedia.config;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
-import dev.razafindratelo.arsmedia.conf.TestSecurityConf;
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.TestApiKeyController;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.health.model.RUser;
 import dev.razafindratelo.arsmedia.model.classifier.UserRole;
 import dev.razafindratelo.arsmedia.repository.ApiKeyRepository;
-import dev.razafindratelo.arsmedia.repository.model.JApiKey;
+import dev.razafindratelo.arsmedia.repository.UserRepository;
 import dev.razafindratelo.arsmedia.service.ApiKeyService;
 import dev.razafindratelo.arsmedia.service.UserService;
-import jakarta.persistence.EntityNotFoundException;
 import java.time.Duration;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.context.annotation.Import;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.*;
 
-@Import({TestApiKeyController.class, TestSecurityConf.class})
+@Slf4j
 class ApiKeyFilterIT extends FacadeIT {
-  private static final String TEST_USER_EMAIL = "apikey-filter-test@example.com";
-  private static final int BATCH_SIZE = 100;
+
+  private final String TEST_USER_EMAIL = "apikey-filter-test@example.com";
   @Autowired private TestRestTemplate restTemplate;
-  @Autowired private ApiKeyRepository apiKeyRepository;
   @Autowired private ApiKeyService apiKeyService;
   @Autowired private UserService userService;
+  @Autowired private ApiKeyRepository apiKeyRepository;
+  @Autowired private UserRepository userRepository;
   private String validApiKey;
   private String expiredApiKey;
 
   @BeforeEach
   void setUp() {
-    deleteApiKeysByOwnerEmail(TEST_USER_EMAIL);
-
-    try {
-      userService.findByEmail(TEST_USER_EMAIL);
-    } catch (EntityNotFoundException e) {
-      var testUser = new RUser(TEST_USER_EMAIL, "--", "-----", UserRole.USER, "random-password");
-      userService.create(testUser);
-    }
+    var adminUser =
+        new RUser(TEST_USER_EMAIL, "test-admin", "+261123456789", UserRole.ADMIN, "password");
+    userService.create(adminUser);
 
     var validApiKeyModel = apiKeyService.createAPIKey(TEST_USER_EMAIL, Duration.ofDays(10));
     validApiKey = validApiKeyModel.apiKey();
@@ -61,94 +51,114 @@ class ApiKeyFilterIT extends FacadeIT {
 
   @AfterEach
   void tearDown() {
-    deleteApiKeysByOwnerEmail(TEST_USER_EMAIL);
+    cleanupTestData();
   }
 
-  private void deleteApiKeysByOwnerEmail(String email) {
-    int pageNumber = 0;
-    Page<JApiKey> page;
+  private void cleanupTestData() {
+    try {
+      if (validApiKey != null) {
+        try {
+          var apiKey = apiKeyService.findByAPIKeyValue(validApiKey);
+          apiKeyRepository.deleteById(apiKey.id());
+        } catch (Exception ignored) {
+        }
+      }
 
-    do {
-      Pageable pageable = PageRequest.of(pageNumber++, BATCH_SIZE);
-      page = apiKeyRepository.findByOwnerEmail(email, pageable);
-      apiKeyRepository.deleteAll(page.getContent());
-    } while (page.hasNext());
+      if (expiredApiKey != null) {
+        try {
+          var apiKey = apiKeyService.findByAPIKeyValue(expiredApiKey);
+          apiKeyRepository.deleteById(apiKey.id());
+        } catch (Exception ignored) {
+        }
+      }
+
+      userRepository.deleteByEmail(TEST_USER_EMAIL);
+    } catch (Exception e) {
+      log.error("Cleanup warning: {}", e.getMessage());
+    }
   }
 
   @Test
-  void should_allow_access_to_secure_endpoint_with_valid_api_key() {
+  void should_allow_access_to_users_endpoint_with_valid_api_key_and_admin_role() {
     var headers = new HttpHeaders();
     headers.set("X-API-KEY", validApiKey);
 
     var response =
-        restTemplate.exchange(
-            "/test/api-key/secure", HttpMethod.GET, new HttpEntity<>(headers), String.class);
+        restTemplate.exchange("/users", HttpMethod.GET, new HttpEntity<>(headers), String.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(response.getBody()).isEqualTo("secure-data");
   }
 
   @Test
-  void should_deny_access_to_secure_endpoint_with_invalid_api_key() {
+  void should_deny_access_to_users_endpoint_with_invalid_api_key() {
     var headers = new HttpHeaders();
-    headers.set("X-API-KEY", "invalid-api-key-that-definitely-does-not-exist");
+    headers.set("X-API-KEY", "invalid-api-key-that-does-not-exist");
 
     var response =
-        restTemplate.exchange(
-            "/test/api-key/secure", HttpMethod.GET, new HttpEntity<>(headers), String.class);
+        restTemplate.exchange("/users", HttpMethod.GET, new HttpEntity<>(headers), String.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
   }
 
   @Test
-  void should_deny_access_to_secure_endpoint_with_expired_api_key() {
+  void should_deny_access_to_users_endpoint_with_expired_api_key() {
     var headers = new HttpHeaders();
     headers.set("X-API-KEY", expiredApiKey);
 
     var response =
-        restTemplate.exchange(
-            "/test/api-key/secure", HttpMethod.GET, new HttpEntity<>(headers), String.class);
+        restTemplate.exchange("/users", HttpMethod.GET, new HttpEntity<>(headers), String.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
   }
 
   @Test
-  void should_deny_access_to_secure_endpoint_without_api_key() {
-    var response = restTemplate.getForEntity("/test/api-key/secure", String.class);
-
+  void should_deny_access_to_users_endpoint_without_api_key() {
+    var response = restTemplate.getForEntity("/users", String.class);
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
   }
 
   @Test
-  void should_allow_access_to_public_endpoint_without_api_key() {
-    var response = restTemplate.getForEntity("/test/api-key/public", String.class);
+  void should_deny_access_to_users_endpoint_with_valid_api_key_but_non_admin_user() {
+    String nonAdminEmail = "non-admin-test@example.com";
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(response.getBody()).isEqualTo("public-data");
+    try {
+      var nonAdminUser =
+          new RUser(nonAdminEmail, "non-admin", "+261987654321", UserRole.USER, "password");
+      var createdUser = userService.create(nonAdminUser);
+
+      var apiKeyModel = apiKeyService.createAPIKey(nonAdminEmail, Duration.ofDays(1));
+      String nonAdminApiKey = apiKeyModel.apiKey();
+
+      try {
+        Thread.sleep(50);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+
+      var headers = new HttpHeaders();
+      headers.set("X-API-KEY", nonAdminApiKey);
+
+      var response =
+          restTemplate.exchange("/users", HttpMethod.GET, new HttpEntity<>(headers), String.class);
+
+      assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    } finally {
+      try {
+        var page = apiKeyService.findAllByUserEmail(nonAdminEmail, 0, 100);
+        page.getContent().forEach(apiKey -> apiKeyRepository.deleteById(apiKey.id()));
+        userRepository.deleteByEmail(nonAdminEmail);
+      } catch (Exception e) {
+        log.error("Cleanup warning in non-admin test: {}", e.getMessage());
+      }
+    }
   }
 
   @Test
-  void should_allow_access_to_public_endpoint_with_api_key() {
-    var headers = new HttpHeaders();
-    headers.set("X-API-KEY", validApiKey);
-
-    var response =
-        restTemplate.exchange(
-            "/test/api-key/public", HttpMethod.GET, new HttpEntity<>(headers), String.class);
-
+  void should_allow_access_to_public_endpoints_without_api_key() {
+    var response = restTemplate.getForEntity("/ping", String.class);
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(response.getBody()).isEqualTo("public-data");
-  }
 
-  @Test
-  void should_deny_access_to_admin_endpoint_without_admin_role() {
-    var headers = new HttpHeaders();
-    headers.set("X-API-KEY", validApiKey);
-
-    var response =
-        restTemplate.exchange(
-            "/test/api-key/admin-secure", HttpMethod.GET, new HttpEntity<>(headers), String.class);
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    response = restTemplate.getForEntity("/swagger-ui/index.html", String.class);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
   }
 }

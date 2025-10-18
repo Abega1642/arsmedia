@@ -9,6 +9,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.Email;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +21,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
+@Slf4j
 @Service
 @Validated
 @AllArgsConstructor
@@ -46,6 +48,7 @@ public class UserService implements UserDetailsService {
     var jUser = UserMapper.toJUser(UserMapper.toUser(user));
     var encodedPassword = encoder.encode(jUser.getPassword());
     jUser.setPassword(encodedPassword);
+
     return UserMapper.toUser(repository.save(jUser));
   }
 
