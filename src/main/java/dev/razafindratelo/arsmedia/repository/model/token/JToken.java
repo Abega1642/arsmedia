@@ -13,6 +13,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 @Table(name = "token")
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 @Getter
 @Setter
 @EqualsAndHashCode
