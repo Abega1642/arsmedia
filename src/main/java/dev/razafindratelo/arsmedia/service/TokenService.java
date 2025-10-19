@@ -1,10 +1,7 @@
 package dev.razafindratelo.arsmedia.service;
 
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.token.TokenValidationResult;
-import dev.razafindratelo.arsmedia.exception.InvalidTokenException;
-import dev.razafindratelo.arsmedia.exception.TokenGenerationException;
-import dev.razafindratelo.arsmedia.exception.TokenNotFoundException;
-import dev.razafindratelo.arsmedia.exception.UserNotActivatedException;
+import dev.razafindratelo.arsmedia.exception.*;
 import dev.razafindratelo.arsmedia.mapper.TokenMapper;
 import dev.razafindratelo.arsmedia.mapper.UserMapper;
 import dev.razafindratelo.arsmedia.model.User;
@@ -176,8 +173,11 @@ public class TokenService {
         .collect(Collectors.toList());
   }
 
-  public Optional<Token> findTokenByValue(String tokenValue) {
-    return tokenRepository.findByValue(tokenValue).map(TokenMapper::toModel);
+  public Token findTokenByValue(String tokenValue) {
+    return tokenRepository
+        .findByValue(tokenValue)
+        .map(TokenMapper::toModel)
+        .orElseThrow(() -> new RessourceNotFoundException("No token found with the given value."));
   }
 
   public boolean isTokenValid(String tokenValue) {
