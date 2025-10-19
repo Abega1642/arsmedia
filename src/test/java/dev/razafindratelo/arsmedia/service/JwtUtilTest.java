@@ -243,9 +243,10 @@ class JwtUtilTest {
   }
 
   @Test
-  void should_generate_different_tokens_for_same_user() {
+  void should_generate_different_tokens_for_same_user() throws InterruptedException {
     var user = createTestUser();
     var token1 = subject.generateToken(user);
+    Thread.sleep(1000);
     var token2 = subject.generateToken(user);
 
     assertNotEquals(token1, token2);
