@@ -11,6 +11,7 @@ CREATE TABLE token
     expiration TIMESTAMP WITH TIME ZONE NOT NULL,
     is_valid   BOOLEAN                  DEFAULT false,
     user_id    VARCHAR                  NOT NULL,
+    type       token_type               NOT NULL,
 
     FOREIGN KEY (user_id) REFERENCES users (id)
 );

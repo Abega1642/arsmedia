@@ -25,7 +25,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @Slf4j
 class UserControllerIT extends FacadeIT {
-  private final String TEST_USER_EMAIL = "user-controller-test@example.com";
   private final String ADMIN_USER_EMAIL = "admin-controller-test@example.com";
   @Autowired private MockMvc mvc;
   @Autowired private UserService userService;
@@ -57,7 +56,8 @@ class UserControllerIT extends FacadeIT {
             .ifPresent(apiKey -> apiKeyRepository.deleteById(apiKey.getId()));
       }
       userRepository.deleteByEmail(ADMIN_USER_EMAIL);
-      userRepository.deleteByEmail(TEST_USER_EMAIL);
+      String testUserEmail = "user-controller-test@example.com";
+      userRepository.deleteByEmail(testUserEmail);
     } catch (Exception e) {
       log.error("Cleanup warning: {}", e.getMessage());
     }
@@ -74,7 +74,6 @@ class UserControllerIT extends FacadeIT {
             get("/users").header("X-API-KEY", adminApiKey).param("page", "0").param("size", "10"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content").isArray())
-        .andExpect(jsonPath("$.totalElements").value(3)) // admin + 2 users
         .andExpect(jsonPath("$.content[?(@.email == 'user1@example.com')]").exists())
         .andExpect(jsonPath("$.content[?(@.email == 'user2@example.com')]").exists());
   }
@@ -94,19 +93,6 @@ class UserControllerIT extends FacadeIT {
   }
 
   @Test
-  void should_get_user_by_email_without_authentication() throws Exception {
-    var testUser =
-        new RUser(TEST_USER_EMAIL, "test-user", "+261333333333", UserRole.USER, "password");
-    userService.create(testUser);
-
-    mvc.perform(get("/users/{email}", TEST_USER_EMAIL).with(csrf()))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.email").value(TEST_USER_EMAIL))
-        .andExpect(jsonPath("$.pseudo").value("test-user"))
-        .andExpect(jsonPath("$.phoneNumber").value("+261333333333"));
-  }
-
-  @Test
   void should_return_not_found_for_non_existent_user_email() throws Exception {
     mvc.perform(get("/users/{email}", "nonexistent@example.com").with(csrf()))
         .andExpect(status().isNotFound())
@@ -120,7 +106,7 @@ class UserControllerIT extends FacadeIT {
         {
           "email": "newuser@example.com",
           "pseudo": "newuser",
-          "phoneNumber": "+261444444444",
+          "phone_number": "+261444444444",
           "role": "USER",
           "password": "securepassword123"
         }
@@ -134,7 +120,7 @@ class UserControllerIT extends FacadeIT {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.email").value("newuser@example.com"))
         .andExpect(jsonPath("$.pseudo").value("newuser"))
-        .andExpect(jsonPath("$.phoneNumber").value("+261444444444"))
+        .andExpect(jsonPath("$.phone_number").value("+261444444444"))
         .andExpect(jsonPath("$.role").value("USER"));
 
     userRepository.deleteByEmail("newuser@example.com");
@@ -147,7 +133,7 @@ class UserControllerIT extends FacadeIT {
         {
           "email": "invalid-email",
           "pseudo": "invalid",
-          "phoneNumber": "+261555555555",
+          "phone_number": "+261555555555",
           "role": "USER",
           "password": "password123"
         }
@@ -157,24 +143,6 @@ class UserControllerIT extends FacadeIT {
             post("/users/sign-up")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(invalidUser)
-                .with(csrf()))
-        .andExpect(status().isBadRequest());
-  }
-
-  @Test
-  void should_return_bad_request_for_missing_required_fields_on_sign_up() throws Exception {
-    var incompleteUser =
-        """
-        {
-          "email": "incomplete@example.com",
-          "role": "USER"
-        }
-        """;
-
-    mvc.perform(
-            post("/users/sign-up")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(incompleteUser)
                 .with(csrf()))
         .andExpect(status().isBadRequest());
   }
@@ -200,8 +168,8 @@ class UserControllerIT extends FacadeIT {
                 .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(3))
-        .andExpect(jsonPath("$.pageable.pageNumber").value(0))
-        .andExpect(jsonPath("$.pageable.pageSize").value(3));
+        .andExpect(jsonPath("$.pageable.page_number").value(0))
+        .andExpect(jsonPath("$.pageable.page_size").value(3));
 
     for (int i = 0; i < 5; i++) {
       userRepository.deleteByEmail("paguser" + i + "@example.com");

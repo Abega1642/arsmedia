@@ -1,7 +1,9 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.ErrorResponse;
 import dev.razafindratelo.arsmedia.exception.*;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,7 +15,10 @@ import org.springframework.web.context.request.WebRequest;
 
 @ControllerAdvice
 @Slf4j
+@RequiredArgsConstructor
 public class ApiException {
+  private final ObjectMapper om;
+
   @ExceptionHandler(MissingAuthorizationException.class)
   public ResponseEntity<ErrorResponse> handleMissingAuthorization(
       MissingAuthorizationException ex, WebRequest request) {

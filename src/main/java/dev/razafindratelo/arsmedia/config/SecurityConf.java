@@ -41,6 +41,7 @@ public class SecurityConf {
   private final ApiKeyFilter apiKeyFilter;
   private final TokenFilter tokenFilter;
   private final UserDetailsService userDetailsService;
+  private final ObjectMapper om;
 
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -94,7 +95,7 @@ public class SecurityConf {
               "AUTHENTICATION_REQUIRED");
 
       try (var writer = response.getWriter()) {
-        writer.write(new ObjectMapper().writeValueAsString(errorResponse));
+        writer.write(om.writeValueAsString(errorResponse));
       }
     };
   }

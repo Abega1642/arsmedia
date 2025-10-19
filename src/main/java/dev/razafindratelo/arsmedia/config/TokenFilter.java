@@ -35,7 +35,7 @@ public class TokenFilter extends OncePerRequestFilter {
 
   private final TokenService tokenService;
   private final UserService userService;
-  private final ObjectMapper objectMapper;
+  private final ObjectMapper om;
 
   @Override
   protected void doFilterInternal(
@@ -141,7 +141,7 @@ public class TokenFilter extends OncePerRequestFilter {
     var errorResponse = ErrorResponse.of(HttpStatus.UNAUTHORIZED, ex.getMessage(), path);
 
     try (var writer = response.getWriter()) {
-      writer.write(objectMapper.writeValueAsString(errorResponse));
+      writer.write(om.writeValueAsString(errorResponse));
     }
   }
 

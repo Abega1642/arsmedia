@@ -119,7 +119,7 @@ class ApiKeyFilterIT extends FacadeIT {
 
   @Test
   void should_deny_access_to_users_endpoint_with_valid_api_key_but_non_admin_user() {
-    String nonAdminEmail = "non-admin-test@example.com";
+    String nonAdminEmail = "non-admin-test2@example.com";
 
     try {
       var nonAdminUser =
