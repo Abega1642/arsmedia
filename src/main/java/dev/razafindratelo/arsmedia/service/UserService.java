@@ -7,6 +7,7 @@ import dev.razafindratelo.arsmedia.repository.UserRepository;
 import dev.razafindratelo.arsmedia.repository.model.JUser;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,9 +31,19 @@ public class UserService implements UserDetailsService {
   private Pagination paginator;
   private BCryptPasswordEncoder encoder;
 
-  public User findByEmail(@Email String email) {
-    if (email == null || email.isBlank())
-      throw new IllegalArgumentException("Email cannot be null or blank");
+  public User findById(@NotBlank String id) {
+    if (id == null) throw new IllegalArgumentException("User id cannot be null");
+
+    var jUser =
+        repository
+            .findById(id)
+            .orElseThrow(() -> new EntityNotFoundException("User with id : " + id + " not found"));
+
+    return UserMapper.toUser(jUser);
+  }
+
+  public User findByEmail(@Email @NotBlank String email) {
+    if (email == null) throw new IllegalArgumentException("Email cannot be null or blank");
 
     var jUser =
         repository

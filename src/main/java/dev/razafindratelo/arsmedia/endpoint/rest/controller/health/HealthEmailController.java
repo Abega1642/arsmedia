@@ -29,7 +29,7 @@ public class HealthEmailController {
     try {
       log.info("Starting email health check for: {}", to);
 
-      InternetAddress toAddress = new InternetAddress(to);
+      var toAddress = new InternetAddress(to);
       toAddress.validate();
 
       String emailUser = to.split("@")[0];
