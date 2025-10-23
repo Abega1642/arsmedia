@@ -5,6 +5,7 @@ import dev.razafindratelo.arsmedia.model.User;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.lang.Collections;
 import io.micrometer.common.util.StringUtils;
+import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -19,7 +20,6 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 public class JwtUtil {
-
   private static final String TOKEN_TYPE_CLAIM = "token_type";
   private static final String USER_ID_CLAIM = "user_id";
   private static final String ROLES_CLAIM = "roles";
@@ -27,14 +27,13 @@ public class JwtUtil {
   private final JwtParser jwtParser;
 
   public JwtUtil(@Value("${app.jwt.secret}") String secretKey) {
-    if (secretKey == null || secretKey.trim().isEmpty()) {
+    if (secretKey == null || secretKey.trim().isEmpty())
       throw new IllegalStateException("JWT secret key must be configured");
-    }
+
+    log.info("JwtUtil initialized successfully");
 
     this.secretKey = Jwts.SIG.HS256.key().build();
     this.jwtParser = Jwts.parser().verifyWith(this.secretKey).build();
-
-    log.info("JwtUtil initialized successfully");
   }
 
   public String generateToken(User user) {
@@ -143,13 +142,11 @@ public class JwtUtil {
   }
 
   private void validateTokenGenerationParameters(
-      Map<String, Object> claims, String subject, Duration duration) {
-    if (subject == null || subject.trim().isEmpty()) {
+      Map<String, Object> claims, String subject, @NotNull Duration duration) {
+    if (subject == null || subject.trim().isEmpty())
       throw new IllegalArgumentException("JWT subject cannot be null or empty");
-    }
 
-    if (duration == null || duration.isNegative() || duration.isZero()) {
+    if (duration == null || duration.isNegative() || duration.isZero())
       throw new IllegalArgumentException("JWT duration must be positive");
-    }
   }
 }

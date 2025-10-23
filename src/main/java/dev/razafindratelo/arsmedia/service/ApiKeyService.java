@@ -10,6 +10,8 @@ import dev.razafindratelo.arsmedia.repository.ApiKeyRepository;
 import dev.razafindratelo.arsmedia.repository.model.JApiKey;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
@@ -44,7 +46,8 @@ public class ApiKeyService {
     return ApiKeyMapper.toModel(repository.save(apiKey));
   }
 
-  public Page<ApiKey> findAllByUserEmail(@Email String email, Integer page, Integer size) {
+  public Page<ApiKey> findAllByUserEmail(
+      @Email @NotNull @NotBlank String email, Integer page, Integer size) {
     var pagination = paginator.apply(page, size);
     Pageable pageable =
         PageRequest.of(
@@ -54,10 +57,7 @@ public class ApiKeyService {
     return results.map(ApiKeyMapper::toModel);
   }
 
-  public ApiKey findByAPIKeyValue(String apiKey) {
-    if (apiKey == null || apiKey.isEmpty())
-      throw new APIKeyException("API key value should not be null or empty");
-
+  public ApiKey findByAPIKeyValue(@NotBlank @NotNull String apiKey) {
     var jApiKey =
         repository
             .findByApiKey(apiKey)

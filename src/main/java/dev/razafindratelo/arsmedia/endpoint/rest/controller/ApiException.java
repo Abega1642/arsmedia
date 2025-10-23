@@ -3,6 +3,7 @@ package dev.razafindratelo.arsmedia.endpoint.rest.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.ErrorResponse;
 import dev.razafindratelo.arsmedia.exception.*;
+import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -28,6 +29,19 @@ public class ApiException {
         ErrorResponse.of(
             HttpStatus.FORBIDDEN, ex.getMessage(), getRequestPath(request), "AUTHORIZATION_DENIED");
     return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
+  }
+
+  @ExceptionHandler(ConstraintViolationException.class)
+  public ResponseEntity<ErrorResponse> handleConstraintViolationException(
+      ConstraintViolationException ex, WebRequest request) {
+    var errorResponse =
+        ErrorResponse.of(
+            HttpStatus.BAD_REQUEST,
+            ex.getMessage(),
+            getRequestPath(request),
+            "CONSTRAINT_VIOLATION_ON_FIELDS");
+
+    return ResponseEntity.badRequest().body(errorResponse);
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)

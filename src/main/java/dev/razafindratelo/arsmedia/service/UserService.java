@@ -8,6 +8,7 @@ import dev.razafindratelo.arsmedia.repository.model.JUser;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,8 +32,7 @@ public class UserService implements UserDetailsService {
   private Pagination paginator;
   private BCryptPasswordEncoder encoder;
 
-  public User findById(@NotBlank String id) {
-    if (id == null) throw new IllegalArgumentException("User id cannot be null");
+  public User findById(@NotBlank @NotNull String id) {
 
     var jUser =
         repository
@@ -42,8 +42,7 @@ public class UserService implements UserDetailsService {
     return UserMapper.toUser(jUser);
   }
 
-  public User findByEmail(@Email @NotBlank String email) {
-    if (email == null) throw new IllegalArgumentException("Email cannot be null or blank");
+  public User findByEmail(@Email @NotBlank @NotNull String email) {
 
     var jUser =
         repository
@@ -84,10 +83,8 @@ public class UserService implements UserDetailsService {
     return UserMapper.toUser(repository.save(existing));
   }
 
-  public boolean updateActivationStatusByEmail(@Email String email, boolean isActivated) {
-    if (email == null || email.isBlank())
-      throw new IllegalArgumentException("Email cannot be null or blank");
-
+  public boolean updateActivationStatusByEmail(
+      @Email @NotBlank @NotNull String email, boolean isActivated) {
     int updated = repository.updateActivationByEmail(email, isActivated, LocalDateTime.now());
 
     return updated >= 0;

@@ -15,24 +15,25 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @AllArgsConstructor
 @Validated
+@RequestMapping("/users")
 public class UserController {
   private final UserService service;
 
   @PreAuthorize("hasRole('ADMIN')")
   @RequiresApiKey
-  @GetMapping("/users")
+  @GetMapping()
   public Page<User> findUsers(
       @RequestParam(name = "page", required = false) Integer page,
       @RequestParam(name = "size", required = false) Integer size) {
     return service.findAll(page, size);
   }
 
-  @GetMapping("/users/{email}")
+  @GetMapping("/{email}")
   public User findUser(@PathVariable @Email String email) {
     return service.findByEmail(email);
   }
 
-  @PostMapping("/users/sign-up")
+  @PostMapping("/sign-up")
   public User signUp(@RequestBody @Valid RUser user) {
     return service.create(user);
   }

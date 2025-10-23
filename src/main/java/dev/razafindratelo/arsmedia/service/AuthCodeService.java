@@ -2,7 +2,9 @@ package dev.razafindratelo.arsmedia.service;
 
 import static java.time.LocalDateTime.now;
 
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.AuthCodeRequest;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.AuthCodeResponse;
+import dev.razafindratelo.arsmedia.exception.AuthCodeInvalidException;
 import dev.razafindratelo.arsmedia.mail.Mailer;
 import dev.razafindratelo.arsmedia.mapper.AuthCodeMapper;
 import dev.razafindratelo.arsmedia.model.AuthCode;
@@ -13,9 +15,11 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
@@ -29,9 +33,21 @@ public class AuthCodeService {
   private Mailer mailer;
   private HtmlTemplateLoader htmlLoader;
 
-  public AuthCodeResponse sentAuthCodeTo(@NotBlank String userId) throws AddressException {
-    if (userId == null) throw new IllegalArgumentException("User Id should not be null");
+  public boolean activateUserProfile(@NotBlank @NotNull String userId, AuthCodeRequest request) {
+    var targetUser = userService.findByEmail(request.userEmail());
 
+    if (!userId.equals(targetUser.getId()))
+      throw new AuthorizationDeniedException(
+          "Can not process user activation due to missing authorization caused by miss matching"
+              + " params sent to the system.");
+
+    if (!checkIfAuthCodeIsValid(targetUser.getId(), request.code()))
+      throw new AuthCodeInvalidException("The auth code sent is not valid anymore.");
+
+    return userService.updateActivationStatusByEmail(targetUser.getEmail(), true);
+  }
+
+  public AuthCodeResponse sentAuthCodeTo(@NotBlank @NotNull String userId) throws AddressException {
     var user = userService.findById(userId);
     var authCode = generate(user.getEmail()).code();
 
@@ -53,10 +69,7 @@ public class AuthCodeService {
   }
 
   @Transactional
-  public AuthCode generate(@Email @NotBlank String email) {
-    if (email == null || email.isEmpty())
-      throw new IllegalArgumentException("Email is null or empty");
-
+  public AuthCode generate(@Email @NotBlank @NotNull String email) {
     var jUser = userService.findByEmail(email);
 
     var authCode = AuthCode.generate(jUser);
@@ -66,15 +79,14 @@ public class AuthCodeService {
     return AuthCodeMapper.toModel(saved);
   }
 
-  public boolean checkIfAuthCodeIsValid(String userId, String code) {
+  public boolean checkIfAuthCodeIsValid(
+      @NotBlank @NotNull String userId, @NotBlank @NotNull String code) {
     var authCode = findAuthByUserIdAndCode(userId, code);
     return authCode.deadline().isAfter(now());
   }
 
-  public AuthCode findAuthByUserIdAndCode(String userId, String code) {
-    if (userId == null || code == null || userId.isEmpty() || code.isEmpty())
-      throw new IllegalArgumentException("Email or code can not be empty or null.");
-
+  public AuthCode findAuthByUserIdAndCode(
+      @NotBlank @NotNull String userId, @NotBlank @NotNull String code) {
     var jAuthCode =
         repository
             .findByUserIdAndCode(userId, code)

@@ -13,6 +13,8 @@ import dev.razafindratelo.arsmedia.repository.model.token.JToken;
 import io.micrometer.common.util.StringUtils;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -98,7 +100,7 @@ public class TokenService {
     return generateTokenPair(validationResult.userEmail());
   }
 
-  public void revokeToken(String tokenValue, @Email String userEmail) {
+  public void revokeToken(@NotBlank @NotNull String tokenValue, @Email String userEmail) {
     log.info("Revoking token for user: {}", userEmail);
 
     var token =
@@ -112,7 +114,7 @@ public class TokenService {
     log.info("Successfully revoked token for user: {}", userEmail);
   }
 
-  public void revokeAllUserTokens(@Email String userEmail) {
+  public void revokeAllUserTokens(@Email @NotBlank @NotNull String userEmail) {
     log.info("Revoking all tokens for user: {}", userEmail);
 
     var activeTokens = tokenRepository.findByUserEmailAndIsValid(userEmail, true);
@@ -126,7 +128,8 @@ public class TokenService {
     log.info("Successfully revoked {} tokens for user: {}", activeTokens.size(), userEmail);
   }
 
-  public void revokeUserTokensByType(@Email String userEmail, TokenType type) {
+  public void revokeUserTokensByType(
+      @Email @NotBlank @NotNull String userEmail, @NotNull TokenType type) {
     log.info("Revoking {} tokens for user: {}", type, userEmail);
 
     var tokens = tokenRepository.findByUserEmailAndTypeAndIsValid(userEmail, type, true);

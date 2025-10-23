@@ -25,8 +25,8 @@ class UserServiceIT extends FacadeIT {
 
   @Test
   void should_throw_exception() {
-    assertThrows(IllegalArgumentException.class, () -> subject.findByEmail(null));
-    assertThrows(IllegalArgumentException.class, () -> subject.findByEmail(""));
+    assertThrows(ConstraintViolationException.class, () -> subject.findByEmail(null));
+    assertThrows(ConstraintViolationException.class, () -> subject.findByEmail(""));
     assertThrows(ConstraintViolationException.class, () -> subject.findByEmail("invalid-email"));
   }
 
