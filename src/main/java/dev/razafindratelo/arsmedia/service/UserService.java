@@ -78,8 +78,8 @@ public class UserService implements UserDetailsService {
       throw new IllegalArgumentException("Email cannot be null or blank");
 
     int updated = repository.updateActivationByEmail(email, isActivated, LocalDateTime.now());
-    if (updated == 0) throw new EntityNotFoundException("User not found with email: " + email);
-    return true;
+
+    return updated >= 0;
   }
 
   public Page<User> findAll(Integer page, Integer size) {

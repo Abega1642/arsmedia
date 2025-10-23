@@ -43,6 +43,18 @@ class UserServiceIT extends FacadeIT {
   }
 
   @Test
+  void should_update_user_status_correctly() {
+    createUser();
+    var before = subject.findByEmail(EMAIL);
+    var isUpdated = subject.updateActivationStatusByEmail(EMAIL, true);
+    var after = subject.findByEmail(EMAIL);
+
+    assertFalse(before.isActivated());
+    assertTrue(after.isActivated());
+    assertTrue(isUpdated);
+  }
+
+  @Test
   void should_update_pseudo() {
     var user = createUser();
     user.setPseudo("updated-pseudo");

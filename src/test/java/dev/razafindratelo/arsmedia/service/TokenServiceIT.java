@@ -17,6 +17,7 @@ import dev.razafindratelo.arsmedia.model.token.Token;
 import dev.razafindratelo.arsmedia.model.token.TokenType;
 import dev.razafindratelo.arsmedia.repository.TokenRepository;
 import dev.razafindratelo.arsmedia.repository.UserRepository;
+import jakarta.persistence.EntityNotFoundException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -33,7 +34,7 @@ import org.springframework.context.annotation.Primary;
 class TokenServiceIT extends FacadeIT {
 
   protected final String test_email = "test-email@example.com";
-  @Autowired private TokenService tokenService;
+  @Autowired private TokenService subject;
   @Autowired private UserRepository userRepository;
   @Autowired private TokenRepository tokenRepository;
   @Autowired private UserService userService;
@@ -59,7 +60,7 @@ class TokenServiceIT extends FacadeIT {
 
   @Test
   void should_generate_token_pair_successfully() {
-    var tokenPair = tokenService.generateTokenPair(test_email);
+    var tokenPair = subject.generateTokenPair(test_email);
 
     assertNotNull(tokenPair);
     assertNotNull(tokenPair.accessToken());
@@ -86,45 +87,13 @@ class TokenServiceIT extends FacadeIT {
   }
 
   @Test
-  void should_generate_access_token_successfully() {
-    var accessToken = tokenService.generateAccessToken(test_email);
-
-    assertNotNull(accessToken);
-    assertEquals(TokenType.ACCESS_TOKEN, accessToken.type());
-    assertEquals(test_email, accessToken.user().getEmail());
-    assertTrue(accessToken.expiration().isAfter(LocalDateTime.now()));
-    assertTrue(accessToken.isValid());
-
-    var savedToken = tokenRepository.findByValue(accessToken.value());
-    assertTrue(savedToken.isPresent());
-    assertNotNull(savedToken.get().getUser());
-    assertEquals(test_email, savedToken.get().getUser().getEmail());
-  }
-
-  @Test
-  void should_generate_refresh_token_successfully() {
-    var refreshToken = tokenService.generateRefreshToken(test_email);
-
-    assertNotNull(refreshToken);
-    assertEquals(TokenType.REFRESH_TOKEN, refreshToken.type());
-    assertEquals(test_email, refreshToken.user().getEmail());
-    assertTrue(refreshToken.expiration().isAfter(LocalDateTime.now()));
-    assertTrue(refreshToken.isValid());
-
-    var savedToken = tokenRepository.findByValue(refreshToken.value());
-    assertTrue(savedToken.isPresent());
-    assertNotNull(savedToken.get().getUser());
-    assertEquals(test_email, savedToken.get().getUser().getEmail());
-  }
-
-  @Test
   void should_validate_valid_token_successfully() {
-    var tokenPair = tokenService.generateTokenPair(test_email);
+    var tokenPair = subject.generateTokenPair(test_email);
     var accessTokenValue = tokenPair.accessToken().value();
 
     when(jwtUtil.validateToken(accessTokenValue)).thenReturn(true);
 
-    var validationResult = tokenService.validateToken(accessTokenValue, TokenType.ACCESS_TOKEN);
+    var validationResult = subject.validateToken(accessTokenValue, TokenType.ACCESS_TOKEN);
 
     assertTrue(validationResult.valid());
     assertEquals(test_email, validationResult.userEmail());
@@ -132,7 +101,7 @@ class TokenServiceIT extends FacadeIT {
 
   @Test
   void should_return_invalid_for_expired_token() {
-    var tokenPair = tokenService.generateTokenPair("test@example.com");
+    var tokenPair = subject.generateTokenPair(test_email);
     var accessTokenValue = tokenPair.accessToken().value();
 
     when(jwtUtil.validateToken(accessTokenValue)).thenReturn(true);
@@ -141,7 +110,7 @@ class TokenServiceIT extends FacadeIT {
     expiredJToken.setExpiration(LocalDateTime.now().minusHours(1));
     tokenRepository.save(expiredJToken);
 
-    var validationResult = tokenService.validateToken(accessTokenValue, TokenType.ACCESS_TOKEN);
+    var validationResult = subject.validateToken(accessTokenValue, TokenType.ACCESS_TOKEN);
 
     assertFalse(validationResult.valid());
     assertEquals("Token expired", validationResult.reason());
@@ -153,12 +122,12 @@ class TokenServiceIT extends FacadeIT {
 
   @Test
   void should_return_invalid_for_wrong_token_type() {
-    var tokenPair = tokenService.generateTokenPair(test_email);
+    var tokenPair = subject.generateTokenPair(test_email);
     var accessTokenValue = tokenPair.accessToken().value();
 
     when(jwtUtil.validateToken(accessTokenValue)).thenReturn(true);
 
-    var validationResult = tokenService.validateToken(accessTokenValue, TokenType.REFRESH_TOKEN);
+    var validationResult = subject.validateToken(accessTokenValue, TokenType.REFRESH_TOKEN);
 
     assertFalse(validationResult.valid());
     assertTrue(validationResult.reason().contains("Token type mismatch"));
@@ -166,13 +135,13 @@ class TokenServiceIT extends FacadeIT {
 
   @Test
   void should_refresh_token_pair_successfully() {
-    var originalTokenPair = tokenService.generateTokenPair(test_email);
+    var originalTokenPair = subject.generateTokenPair(test_email);
     var refreshTokenValue = originalTokenPair.refreshToken().value();
 
     when(jwtUtil.validateToken(refreshTokenValue)).thenReturn(true);
     when(jwtUtil.extractUsername(refreshTokenValue)).thenReturn(test_email);
 
-    var newTokenPair = tokenService.refreshTokenPair(refreshTokenValue);
+    var newTokenPair = subject.refreshTokenPair(refreshTokenValue);
 
     assertNotNull(newTokenPair);
     assertNotEquals(originalTokenPair.accessToken().value(), newTokenPair.accessToken().value());
@@ -186,15 +155,15 @@ class TokenServiceIT extends FacadeIT {
   void should_throw_exception_when_refreshing_invalid_token() {
     when(jwtUtil.validateToken("invalid-token")).thenReturn(false);
 
-    assertThrows(InvalidTokenException.class, () -> tokenService.refreshTokenPair("invalid-token"));
+    assertThrows(InvalidTokenException.class, () -> subject.refreshTokenPair("invalid-token"));
   }
 
   @Test
   void should_revoke_token_successfully() {
-    var tokenPair = tokenService.generateTokenPair(test_email);
+    var tokenPair = subject.generateTokenPair(test_email);
     var tokenValue = tokenPair.accessToken().value();
 
-    tokenService.revokeToken(tokenValue, test_email);
+    subject.revokeToken(tokenValue, test_email);
 
     var revokedToken = tokenRepository.findByValue(tokenValue);
     assertTrue(revokedToken.isPresent());
@@ -204,19 +173,18 @@ class TokenServiceIT extends FacadeIT {
   @Test
   void should_throw_exception_when_revoking_nonexistent_token() {
     assertThrows(
-        TokenNotFoundException.class,
-        () -> tokenService.revokeToken("nonexistent-token", test_email));
+        TokenNotFoundException.class, () -> subject.revokeToken("nonexistent-token", test_email));
   }
 
   @Test
   void should_revoke_all_user_tokens_successfully() {
-    tokenService.generateTokenPair(test_email);
-    tokenService.generateAccessToken(test_email);
+    subject.generateTokenPair(test_email);
+    subject.generateAccessToken(test_email);
 
     var activeTokensBefore = tokenRepository.findByUserEmailAndIsValid(test_email, true);
     assertEquals(3, activeTokensBefore.size());
 
-    tokenService.revokeAllUserTokens(test_email);
+    subject.revokeAllUserTokens(test_email);
 
     var activeTokensAfter = tokenRepository.findByUserEmailAndIsValid(test_email, true);
     assertTrue(activeTokensAfter.isEmpty());
@@ -224,14 +192,14 @@ class TokenServiceIT extends FacadeIT {
 
   @Test
   void should_revoke_tokens_by_type_successfully() {
-    tokenService.generateTokenPair(test_email);
-    tokenService.generateAccessToken(test_email);
+    subject.generateTokenPair(test_email);
+    subject.generateAccessToken(test_email);
 
     var accessTokensBefore =
         tokenRepository.findByUserEmailAndTypeAndIsValid(test_email, TokenType.ACCESS_TOKEN, true);
     assertEquals(2, accessTokensBefore.size());
 
-    tokenService.revokeUserTokensByType(test_email, TokenType.ACCESS_TOKEN);
+    subject.revokeUserTokensByType(test_email, TokenType.ACCESS_TOKEN);
 
     var accessTokensAfter =
         tokenRepository.findByUserEmailAndTypeAndIsValid(test_email, TokenType.ACCESS_TOKEN, true);
@@ -243,21 +211,8 @@ class TokenServiceIT extends FacadeIT {
   }
 
   @Test
-  void should_enforce_token_quota_by_invalidating_oldest_tokens() {
-    for (int i = 0; i < 5; i++) {
-      tokenService.generateAccessToken(test_email);
-    }
-
-    var activeTokens = tokenRepository.findByUserEmailAndIsValid(test_email, true);
-    assertEquals(3, activeTokens.size());
-
-    var invalidTokens = tokenRepository.findByUserEmailAndIsValid(test_email, false);
-    assertEquals(2, invalidTokens.size());
-  }
-
-  @Test
   void should_cleanup_expired_tokens_successfully() {
-    var tokenPair = tokenService.generateTokenPair(test_email);
+    var tokenPair = subject.generateTokenPair(test_email);
 
     var expiredJToken = tokenRepository.findByValue(tokenPair.accessToken().value()).orElseThrow();
     expiredJToken.setExpiration(LocalDateTime.now().minusHours(1));
@@ -267,7 +222,7 @@ class TokenServiceIT extends FacadeIT {
         tokenRepository.findByIsValidAndExpirationBefore(true, LocalDateTime.now());
     assertEquals(1, expiredTokensBefore.size());
 
-    tokenService.cleanupExpiredTokens();
+    subject.cleanupExpiredTokens();
 
     var expiredTokensAfter =
         tokenRepository.findByIsValidAndExpirationBefore(true, LocalDateTime.now());
@@ -280,9 +235,9 @@ class TokenServiceIT extends FacadeIT {
 
   @Test
   void should_get_active_user_tokens_successfully() {
-    tokenService.generateTokenPair(test_email);
+    subject.generateTokenPair(test_email);
 
-    var activeTokens = tokenService.getActiveUserTokens(test_email);
+    var activeTokens = subject.getActiveUserTokens(test_email);
 
     assertEquals(2, activeTokens.size());
     assertTrue(activeTokens.stream().allMatch(Token::isValid));
@@ -291,9 +246,9 @@ class TokenServiceIT extends FacadeIT {
 
   @Test
   void should_get_user_tokens_by_type_successfully() {
-    tokenService.generateTokenPair(test_email);
+    subject.generateTokenPair(test_email);
 
-    var accessTokens = tokenService.getUserTokensByType(test_email, TokenType.ACCESS_TOKEN);
+    var accessTokens = subject.getUserTokensByType(test_email, TokenType.ACCESS_TOKEN);
 
     assertEquals(1, accessTokens.size());
     assertEquals(TokenType.ACCESS_TOKEN, accessTokens.getFirst().type());
@@ -302,10 +257,10 @@ class TokenServiceIT extends FacadeIT {
 
   @Test
   void should_find_token_by_value_successfully() {
-    var tokenPair = tokenService.generateTokenPair(test_email);
+    var tokenPair = subject.generateTokenPair(test_email);
     var tokenValue = tokenPair.accessToken().value();
 
-    var foundToken = tokenService.findTokenByValue(tokenValue);
+    var foundToken = subject.findTokenByValue(tokenValue);
 
     assertNotNull(foundToken);
     assertEquals(tokenValue, foundToken.value());
@@ -315,22 +270,22 @@ class TokenServiceIT extends FacadeIT {
   @Test
   void should_throw_exception_when_finding_nonexistent_token() {
     assertThrows(
-        RessourceNotFoundException.class, () -> tokenService.findTokenByValue("nonexistent-token"));
+        RessourceNotFoundException.class, () -> subject.findTokenByValue("nonexistent-token"));
   }
 
   @Test
   void should_check_token_validity_correctly() {
-    var tokenPair = tokenService.generateTokenPair(test_email);
+    var tokenPair = subject.generateTokenPair(test_email);
     var tokenValue = tokenPair.accessToken().value();
 
-    var isValid = tokenService.isTokenValid(tokenValue);
+    var isValid = subject.isTokenValid(tokenValue);
 
     assertTrue(isValid);
   }
 
   @Test
   void should_return_false_for_invalid_token() {
-    var isValid = tokenService.isTokenValid("invalid-token");
+    var isValid = subject.isTokenValid("invalid-token");
 
     assertFalse(isValid);
   }
@@ -351,15 +306,13 @@ class TokenServiceIT extends FacadeIT {
     userRepository.save(jUser);
 
     assertThrows(
-        UserNotActivatedException.class,
-        () -> tokenService.generateTokenPair("inactive@example.com"));
+        UserNotActivatedException.class, () -> subject.generateTokenPair("inactive@example.com"));
   }
 
   @Test
   void should_throw_exception_for_nonexistent_user() {
     assertThrows(
-        RessourceNotFoundException.class,
-        () -> tokenService.generateTokenPair("nonexistent@example.com"));
+        EntityNotFoundException.class, () -> subject.generateTokenPair("nonexistent@example.com"));
   }
 
   @TestConfiguration

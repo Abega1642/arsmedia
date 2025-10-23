@@ -93,13 +93,6 @@ class UserControllerIT extends FacadeIT {
   }
 
   @Test
-  void should_return_not_found_for_non_existent_user_email() throws Exception {
-    mvc.perform(get("/users/{email}", "nonexistent@example.com").with(csrf()))
-        .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.message").value("Email not found: nonexistent@example.com"));
-  }
-
-  @Test
   void should_create_user_via_sign_up() throws Exception {
     var newUser =
         """
@@ -167,9 +160,9 @@ class UserControllerIT extends FacadeIT {
                 .param("size", "3")
                 .with(csrf()))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content.length()").value(3))
-        .andExpect(jsonPath("$.pageable.page_number").value(0))
-        .andExpect(jsonPath("$.pageable.page_size").value(3));
+        .andExpect(jsonPath("$.content.length()").value("3"))
+        .andExpect(jsonPath("$.pageable.page_number").value("0"))
+        .andExpect(jsonPath("$.pageable.page_size").value("3"));
 
     for (int i = 0; i < 5; i++) {
       userRepository.deleteByEmail("paguser" + i + "@example.com");

@@ -7,7 +7,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.ServletWebRequest;
@@ -18,6 +20,25 @@ import org.springframework.web.context.request.WebRequest;
 @RequiredArgsConstructor
 public class ApiException {
   private final ObjectMapper om;
+
+  @ExceptionHandler(AuthorizationDeniedException.class)
+  public ResponseEntity<ErrorResponse> handleAuthorizationDeniedException(
+      AuthorizationDeniedException ex, WebRequest request) {
+    var errorResponse =
+        ErrorResponse.of(
+            HttpStatus.FORBIDDEN, ex.getMessage(), getRequestPath(request), "AUTHORIZATION_DENIED");
+    return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
+  }
+
+  @ExceptionHandler(MethodArgumentNotValidException.class)
+  public ResponseEntity<ErrorResponse> handleValidationExceptions(
+      MethodArgumentNotValidException ex, WebRequest request) {
+    var errorResponse =
+        ErrorResponse.of(
+            HttpStatus.BAD_REQUEST, ex.getMessage(), getRequestPath(request), "BAD_FORM");
+
+    return ResponseEntity.badRequest().body(errorResponse);
+  }
 
   @ExceptionHandler(MissingAuthorizationException.class)
   public ResponseEntity<ErrorResponse> handleMissingAuthorization(

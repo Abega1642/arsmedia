@@ -36,20 +36,17 @@ public class TokenService {
   private final TokenRepository tokenRepository;
   private final JwtUtil jwtUtil;
 
-  @Value("${app.token.access-token-duration:PT48H}")
+  @Value("${app.token.access-token-duration}")
   private Duration accessTokenDuration;
 
-  @Value("${app.token.refresh-token-duration:PT168H}")
+  @Value("${app.token.refresh-token-duration}")
   private Duration refreshTokenDuration;
 
-  @Value("${app.token.max-active-tokens-per-user:5}")
+  @Value("${app.token.max-active-tokens-per-user}")
   private int maxActiveTokensPerUser;
 
   @Value("${app.token.max-token-generation-retries:3}")
   private int maxTokenGenerationRetries;
-
-  @Value("${app.token.cleanup-cron:0 0 2 * * ?}")
-  private String cleanupCron;
 
   public TokenPair generateTokenPair(@Email String userEmail) {
     log.info("Generating token pair for user: {}", userEmail);
@@ -143,7 +140,7 @@ public class TokenService {
     log.info("Successfully revoked {} {} tokens for user: {}", tokens.size(), type, userEmail);
   }
 
-  @Scheduled(cron = "${app.token.cleanup-cron:0 0 2 * * ?}")
+  @Scheduled(cron = "${app.token.cleanup-cron}")
   @Transactional
   public void cleanupExpiredTokens() {
     log.info("Starting expired tokens cleanup");
@@ -190,9 +187,10 @@ public class TokenService {
   private User validateUserForTokenGeneration(String userEmail) {
     var user = userService.findByEmail(userEmail);
 
-    if (!user.isActivated()) {
+    log.info("User : {}", user.toString());
+
+    if (!user.isActivated())
       throw new UserNotActivatedException("User account is not activated: " + userEmail);
-    }
 
     return user;
   }
