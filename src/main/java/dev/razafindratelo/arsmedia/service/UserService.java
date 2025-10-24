@@ -85,9 +85,13 @@ public class UserService implements UserDetailsService {
 
   public boolean updateActivationStatusByEmail(
       @Email @NotBlank @NotNull String email, boolean isActivated) {
-    int updated = repository.updateActivationByEmail(email, isActivated, LocalDateTime.now());
+    log.info("Update user {} activity status to {}", email, isActivated);
 
-    return updated >= 0;
+    repository.updateActivationByEmail(email, isActivated, LocalDateTime.now());
+    var updatedUser = findByEmail(email);
+    log.info("User infos : { email = {}, isActive = {} }", email, updatedUser.isActivated());
+
+    return updatedUser.isActivated() == isActivated;
   }
 
   public Page<User> findAll(Integer page, Integer size) {

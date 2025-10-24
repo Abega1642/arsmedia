@@ -3,6 +3,7 @@ package dev.razafindratelo.arsmedia.service;
 import static java.time.LocalDateTime.now;
 
 import dev.razafindratelo.arsmedia.exception.APIKeyException;
+import dev.razafindratelo.arsmedia.exception.UserNotActivatedException;
 import dev.razafindratelo.arsmedia.mapper.ApiKeyMapper;
 import dev.razafindratelo.arsmedia.mapper.UserMapper;
 import dev.razafindratelo.arsmedia.model.ApiKey;
@@ -15,6 +16,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Service;
 @Service
 @AllArgsConstructor
 @Transactional
+@Slf4j
 public class ApiKeyService {
   private final ApiKeyRepository repository;
   private final UserService userService;
@@ -31,11 +34,16 @@ public class ApiKeyService {
   private final Pagination paginator;
 
   @Transactional
-  public ApiKey createAPIKey(String userEmail, Duration duration) {
+  public ApiKey createAPIKey(
+      @Email @NotNull @NotBlank String userEmail, @NotNull Duration duration) {
     var owner = userService.findByEmail(userEmail);
+    log.info("Attempt to generate API key for user {}", userEmail);
+
+    validateUserForApiKeyGeneration(userEmail);
     var creation = now();
     var expiration = creation.plus(duration);
     var apiKeyValue = apiKeyGenerator.apply(owner, creation);
+
     var apiKey =
         new JApiKey(
             UUID.randomUUID().toString(),
@@ -43,7 +51,21 @@ public class ApiKeyService {
             apiKeyValue,
             creation,
             expiration);
+
+    log.info("API key generated for user {}", userEmail);
     return ApiKeyMapper.toModel(repository.save(apiKey));
+  }
+
+  private void validateUserForApiKeyGeneration(String userEmail) {
+    var user = userService.findByEmail(userEmail);
+
+    log.info(
+        "Check user activity for API key generation. User : { email ={}, isActive= {} }",
+        user.getEmail(),
+        user.isActivated());
+
+    if (!user.isActivated())
+      throw new UserNotActivatedException("User account is not activated: " + userEmail);
   }
 
   public Page<ApiKey> findAllByUserEmail(

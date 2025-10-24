@@ -6,6 +6,7 @@ import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -15,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @AllArgsConstructor
 @Validated
-@RequestMapping("/users")
 public class UserController {
   private final UserService service;
 
@@ -28,13 +28,13 @@ public class UserController {
     return service.findAll(page, size);
   }
 
-  @GetMapping("/{email}")
+  @GetMapping("/users/{email}")
   public User findUser(@PathVariable @Email String email) {
     return service.findByEmail(email);
   }
 
-  @PostMapping("/sign-up")
-  public User signUp(@RequestBody @Valid RUser user) {
+  @PostMapping("/users/sign-up")
+  public User signUp(@RequestBody @Valid @NotNull RUser user) {
     return service.create(user);
   }
 }

@@ -3,10 +3,11 @@ package dev.razafindratelo.arsmedia.endpoint.rest.controller.model;
 import dev.razafindratelo.arsmedia.model.classifier.UserRole;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 public record RUser(
     @Email @NotBlank String email,
-    String phoneNumber,
+    @NotNull @NotBlank String phoneNumber,
     String pseudo,
-    UserRole role,
-    String password) {}
+    @NotNull UserRole role,
+    @NotNull @NotBlank String password) {}

@@ -38,6 +38,7 @@ class UserControllerIT extends FacadeIT {
     var adminUser =
         new RUser(ADMIN_USER_EMAIL, "admin-user", "+261123456789", UserRole.ADMIN, "password");
     userService.create(adminUser);
+    userService.updateActivationStatusByEmail(ADMIN_USER_EMAIL, true);
 
     var apiKeyModel = apiKeyService.createAPIKey(ADMIN_USER_EMAIL, Duration.ofDays(10));
     adminApiKey = apiKeyModel.apiKey();
@@ -62,6 +63,9 @@ class UserControllerIT extends FacadeIT {
       log.error("Cleanup warning: {}", e.getMessage());
     }
   }
+
+  @Test
+  void should_give_sucess_as_login_request() {}
 
   @Test
   void should_get_all_users_with_valid_api_key_and_admin_role() throws Exception {

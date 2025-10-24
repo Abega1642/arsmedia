@@ -13,17 +13,17 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @Validated
 @AllArgsConstructor
-@RequestMapping("/auth/token")
+@RequestMapping("/auth")
 public class TokenController {
   private final TokenService service;
 
-  @PostMapping("/token-pairs")
+  @PostMapping("/token/token-pairs")
   public RTokenPair generateTokenPair(
       @RequestBody @Valid @NotNull TokenPairRequest tokenPairRequest) {
     return service.generateTokenPair(tokenPairRequest);
   }
 
-  @PostMapping("/refresh-token-pairs")
+  @PostMapping("/token/refresh-token-pairs")
   public RTokenPair refreshTokenPair(
       @RequestParam(name = "refresh_token") @NotBlank @NotNull String refreshToken) {
     return service.regenerateTokenPair(refreshToken);

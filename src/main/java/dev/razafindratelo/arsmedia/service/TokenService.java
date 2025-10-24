@@ -211,7 +211,10 @@ public class TokenService {
   private User validateUserForTokenGeneration(String userEmail) {
     var user = userService.findByEmail(userEmail);
 
-    log.info("User : {}", user.toString());
+    log.info(
+        "Check user activity for API key generation. User : { email ={}, isActive= {} }",
+        user.getEmail(),
+        user.isActivated());
 
     if (!user.isActivated())
       throw new UserNotActivatedException("User account is not activated: " + userEmail);
