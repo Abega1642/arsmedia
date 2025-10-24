@@ -35,6 +35,7 @@ class ApiKeyFilterIT extends FacadeIT {
     var adminUser =
         new RUser(TEST_USER_EMAIL, "test-admin", "+261123456789", UserRole.ADMIN, "password");
     userService.create(adminUser);
+    userService.updateActivationStatusByEmail(TEST_USER_EMAIL, true);
 
     var validApiKeyModel = apiKeyService.createAPIKey(TEST_USER_EMAIL, Duration.ofDays(10));
     validApiKey = validApiKeyModel.apiKey();
@@ -125,6 +126,7 @@ class ApiKeyFilterIT extends FacadeIT {
       var nonAdminUser =
           new RUser(nonAdminEmail, "non-admin", "+261987654321", UserRole.USER, "password");
       var createdUser = userService.create(nonAdminUser);
+      userService.updateActivationStatusByEmail(nonAdminEmail, true);
 
       var apiKeyModel = apiKeyService.createAPIKey(nonAdminEmail, Duration.ofDays(1));
       String nonAdminApiKey = apiKeyModel.apiKey();

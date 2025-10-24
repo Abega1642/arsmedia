@@ -21,7 +21,7 @@ public class UserController {
 
   @PreAuthorize("hasRole('ADMIN')")
   @RequiresApiKey
-  @GetMapping()
+  @GetMapping("/users")
   public Page<User> findUsers(
       @RequestParam(name = "page", required = false) Integer page,
       @RequestParam(name = "size", required = false) Integer size) {

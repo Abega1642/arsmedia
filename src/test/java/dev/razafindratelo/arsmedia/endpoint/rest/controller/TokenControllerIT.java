@@ -53,7 +53,7 @@ class TokenControllerIT extends FacadeIT {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(tokenRequest)
                 .with(csrf()))
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isForbidden());
   }
 
   @Test
