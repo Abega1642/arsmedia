@@ -1,14 +1,13 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller;
 
 import static com.jayway.jsonpath.JsonPath.read;
-import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.RUser;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.UserCreationRequest;
 import dev.razafindratelo.arsmedia.model.classifier.UserRole;
 import dev.razafindratelo.arsmedia.service.UserService;
 import org.junit.jupiter.api.Test;
@@ -111,7 +110,8 @@ class TokenControllerIT extends FacadeIT {
 
   private String createTestUser(String userEmail) {
     var testUser =
-        new RUser(userEmail, "+261 00 00 000 00", "abega1642", UserRole.USER, "password");
+        new UserCreationRequest(
+            userEmail, "+261 00 00 000 00", "abega1642", UserRole.USER, "password");
     return userService.create(testUser).getId();
   }
 }

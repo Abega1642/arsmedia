@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.RUser;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.UserCreationRequest;
 import dev.razafindratelo.arsmedia.model.classifier.UserRole;
 import dev.razafindratelo.arsmedia.repository.ApiKeyRepository;
 import dev.razafindratelo.arsmedia.repository.UserRepository;
@@ -36,7 +36,8 @@ class UserControllerIT extends FacadeIT {
   @BeforeEach
   void setUp() {
     var adminUser =
-        new RUser(ADMIN_USER_EMAIL, "admin-user", "+261123456789", UserRole.ADMIN, "password");
+        new UserCreationRequest(
+            ADMIN_USER_EMAIL, "admin-user", "+261123456789", UserRole.ADMIN, "password");
     userService.create(adminUser);
     userService.updateActivationStatusByEmail(ADMIN_USER_EMAIL, true);
 
@@ -69,8 +70,12 @@ class UserControllerIT extends FacadeIT {
 
   @Test
   void should_get_all_users_with_valid_api_key_and_admin_role() throws Exception {
-    var user1 = new RUser("user1@example.com", "user1", "+261111111111", UserRole.USER, "password");
-    var user2 = new RUser("user2@example.com", "user2", "+261222222222", UserRole.USER, "password");
+    var user1 =
+        new UserCreationRequest(
+            "user1@example.com", "user1", "+261111111111", UserRole.USER, "password");
+    var user2 =
+        new UserCreationRequest(
+            "user2@example.com", "user2", "+261222222222", UserRole.USER, "password");
     userService.create(user1);
     userService.create(user2);
 
@@ -110,10 +115,7 @@ class UserControllerIT extends FacadeIT {
         """;
 
     mvc.perform(
-            post("/users/sign-up")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(newUser)
-                .with(csrf()))
+            post("/sign-up").contentType(MediaType.APPLICATION_JSON).content(newUser).with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.email").value("newuser@example.com"))
         .andExpect(jsonPath("$.pseudo").value("newuser"))
@@ -137,7 +139,7 @@ class UserControllerIT extends FacadeIT {
         """;
 
     mvc.perform(
-            post("/users/sign-up")
+            post("/sign-up")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(invalidUser)
                 .with(csrf()))
@@ -148,7 +150,7 @@ class UserControllerIT extends FacadeIT {
   void should_handle_pagination_parameters_correctly() throws Exception {
     for (int i = 0; i < 5; i++) {
       var user =
-          new RUser(
+          new UserCreationRequest(
               "paguser" + i + "@example.com",
               "paguser" + i,
               "+26160000000" + i,

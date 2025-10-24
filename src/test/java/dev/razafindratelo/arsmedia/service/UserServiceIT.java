@@ -3,7 +3,7 @@ package dev.razafindratelo.arsmedia.service;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.RUser;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.UserCreationRequest;
 import dev.razafindratelo.arsmedia.mapper.UserMapper;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.model.classifier.UserRole;
@@ -78,7 +78,9 @@ class UserServiceIT extends FacadeIT {
   }
 
   private User createUser() {
-    var user = new RUser(EMAIL, "ab3g4", "+261 32 92 636 82", UserRole.ADMIN, "dummy-password");
+    var user =
+        new UserCreationRequest(
+            EMAIL, "ab3g4", "+261 32 92 636 82", UserRole.ADMIN, "dummy-password");
 
     return subject.create(user);
   }

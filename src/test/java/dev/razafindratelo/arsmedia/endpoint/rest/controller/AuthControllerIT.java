@@ -1,12 +1,11 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.RUser;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.UserCreationRequest;
 import dev.razafindratelo.arsmedia.model.classifier.UserRole;
 import dev.razafindratelo.arsmedia.repository.UserRepository;
 import dev.razafindratelo.arsmedia.service.UserService;
@@ -25,7 +24,7 @@ class AuthControllerIT extends FacadeIT {
   @BeforeEach
   void setUp() {
     var user =
-        new RUser(
+        new UserCreationRequest(
             "a.hello@gmail.com",
             "+261 00 0000 000",
             "abega",

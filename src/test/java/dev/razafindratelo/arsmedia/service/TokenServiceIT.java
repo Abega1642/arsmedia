@@ -6,7 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.RUser;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.UserCreationRequest;
 import dev.razafindratelo.arsmedia.exception.InvalidTokenException;
 import dev.razafindratelo.arsmedia.exception.RessourceNotFoundException;
 import dev.razafindratelo.arsmedia.exception.TokenNotFoundException;
@@ -45,10 +45,11 @@ class TokenServiceIT extends FacadeIT {
     tokenRepository.deleteAll();
     userRepository.deleteByEmail(test_email);
 
-    RUser testRUser =
-        new RUser(test_email, "+1234567890", "testuser", UserRole.USER, "encodedPassword123");
+    UserCreationRequest testUserCreationRequest =
+        new UserCreationRequest(
+            test_email, "+1234567890", "testuser", UserRole.USER, "encodedPassword123");
 
-    userService.create(testRUser);
+    userService.create(testUserCreationRequest);
     userService.updateActivationStatusByEmail(test_email, true);
   }
 
@@ -293,7 +294,7 @@ class TokenServiceIT extends FacadeIT {
   @Test
   void should_throw_exception_for_inactive_user() {
     var inactiveUser =
-        new RUser(
+        new UserCreationRequest(
             "inactive@example.com",
             "+1234567891",
             "inactiveuser",

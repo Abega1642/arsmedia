@@ -3,7 +3,7 @@ package dev.razafindratelo.arsmedia.service;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.RUser;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.UserCreationRequest;
 import dev.razafindratelo.arsmedia.exception.UserNotActivatedException;
 import dev.razafindratelo.arsmedia.model.classifier.UserRole;
 import dev.razafindratelo.arsmedia.repository.UserRepository;
@@ -17,8 +17,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 @Slf4j
 class ApiKeyServiceIT extends FacadeIT {
-  private final RUser user =
-      new RUser(
+  private final UserCreationRequest user =
+      new UserCreationRequest(
           "api.key@gmail.com", "+261 32 98 636 82", "Abega1642", UserRole.ADMIN, "random-password");
   @Autowired private ApiKeyService subject;
   @Autowired private UserRepository userRepository;

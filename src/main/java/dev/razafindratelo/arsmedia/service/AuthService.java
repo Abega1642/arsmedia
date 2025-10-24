@@ -1,5 +1,7 @@
 package dev.razafindratelo.arsmedia.service;
 
+import static dev.razafindratelo.arsmedia.mapper.UserMapper.toRUser;
+
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.LoginRequest;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.LoginResponse;
 import jakarta.validation.Valid;
@@ -18,6 +20,7 @@ import org.springframework.stereotype.Service;
 @AllArgsConstructor
 public class AuthService {
   private final AuthenticationManager authenticationManager;
+  private final UserService userService;
 
   public LoginResponse logIn(@NotNull @Valid LoginRequest request) {
     var authTime = LocalDateTime.now();
@@ -30,7 +33,10 @@ public class AuthService {
     if (!auth.isAuthenticated())
       throw new AuthorizationDeniedException("Authentication failed for email " + request.email());
 
+    var user = userService.findByEmail(request.email());
+
     log.info("User with email {} authenticated at {}", request.email(), authTime);
-    return new LoginResponse("SUCCESS", request.email(), authTime);
+
+    return new LoginResponse("SUCCESS", request.email(), authTime, toRUser(user));
   }
 }

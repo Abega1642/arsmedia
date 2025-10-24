@@ -3,7 +3,7 @@ package dev.razafindratelo.arsmedia.config;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.RUser;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.UserCreationRequest;
 import dev.razafindratelo.arsmedia.model.classifier.UserRole;
 import dev.razafindratelo.arsmedia.repository.ApiKeyRepository;
 import dev.razafindratelo.arsmedia.repository.UserRepository;
@@ -33,7 +33,8 @@ class ApiKeyFilterIT extends FacadeIT {
   @BeforeEach
   void setUp() {
     var adminUser =
-        new RUser(TEST_USER_EMAIL, "test-admin", "+261123456789", UserRole.ADMIN, "password");
+        new UserCreationRequest(
+            TEST_USER_EMAIL, "test-admin", "+261123456789", UserRole.ADMIN, "password");
     userService.create(adminUser);
     userService.updateActivationStatusByEmail(TEST_USER_EMAIL, true);
 
@@ -124,7 +125,8 @@ class ApiKeyFilterIT extends FacadeIT {
 
     try {
       var nonAdminUser =
-          new RUser(nonAdminEmail, "non-admin", "+261987654321", UserRole.USER, "password");
+          new UserCreationRequest(
+              nonAdminEmail, "non-admin", "+261987654321", UserRole.USER, "password");
       var createdUser = userService.create(nonAdminUser);
       userService.updateActivationStatusByEmail(nonAdminEmail, true);
 

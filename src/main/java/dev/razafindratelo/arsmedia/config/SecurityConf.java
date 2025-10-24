@@ -60,7 +60,7 @@ public class SecurityConf {
                     .requestMatchers(
                         "/", "/doc", "/swagger-ui/**", "/v3/api-docs/**", "/v3/api-docs.yaml")
                     .permitAll()
-                    .requestMatchers(POST, "/users/sign-up")
+                    .requestMatchers(POST, "/sign-up")
                     .permitAll()
                     .requestMatchers(POST, "/auth/**")
                     .permitAll()

@@ -1,6 +1,6 @@
 package dev.razafindratelo.arsmedia.service;
 
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.RUser;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.UserCreationRequest;
 import dev.razafindratelo.arsmedia.mapper.UserMapper;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.repository.UserRepository;
@@ -52,7 +52,7 @@ public class UserService implements UserDetailsService {
     return UserMapper.toUser(jUser);
   }
 
-  public User create(RUser user) {
+  public User create(UserCreationRequest user) {
     if (user == null) throw new IllegalArgumentException("User cannot be null");
 
     var jUser = UserMapper.toJUser(UserMapper.toUser(user));

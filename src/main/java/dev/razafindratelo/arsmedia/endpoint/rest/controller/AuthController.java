@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
   private final AuthService service;
 
-  @PostMapping("login")
+  @PostMapping("/login")
   public LoginResponse login(@RequestBody @NotNull @Valid LoginRequest request) {
     return service.logIn(request);
   }

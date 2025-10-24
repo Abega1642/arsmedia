@@ -1,7 +1,7 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller;
 
 import dev.razafindratelo.arsmedia.config.RequiresApiKey;
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.RUser;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.UserCreationRequest;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.service.UserService;
 import jakarta.validation.Valid;
@@ -33,8 +33,8 @@ public class UserController {
     return service.findByEmail(email);
   }
 
-  @PostMapping("/users/sign-up")
-  public User signUp(@RequestBody @Valid @NotNull RUser user) {
+  @PostMapping("/sign-up")
+  public User signUp(@RequestBody @Valid @NotNull UserCreationRequest user) {
     return service.create(user);
   }
 }

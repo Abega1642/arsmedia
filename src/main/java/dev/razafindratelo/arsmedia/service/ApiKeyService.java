@@ -2,6 +2,8 @@ package dev.razafindratelo.arsmedia.service;
 
 import static java.time.LocalDateTime.now;
 
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.ApiKeyRequest;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.ApiKeyResponse;
 import dev.razafindratelo.arsmedia.exception.APIKeyException;
 import dev.razafindratelo.arsmedia.exception.UserNotActivatedException;
 import dev.razafindratelo.arsmedia.mapper.ApiKeyMapper;
@@ -10,6 +12,7 @@ import dev.razafindratelo.arsmedia.model.ApiKey;
 import dev.razafindratelo.arsmedia.repository.ApiKeyRepository;
 import dev.razafindratelo.arsmedia.repository.model.JApiKey;
 import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -32,6 +35,11 @@ public class ApiKeyService {
   private final UserService userService;
   private final ApiKeyGenerator apiKeyGenerator;
   private final Pagination paginator;
+
+  public ApiKeyResponse createApiKey(@NotNull @Valid ApiKeyRequest request) {
+    var apiKey = createAPIKey(request.userEmail(), Duration.ofDays(20));
+    return new ApiKeyResponse(apiKey.apiKey(), request.reason());
+  }
 
   @Transactional
   public ApiKey createAPIKey(
