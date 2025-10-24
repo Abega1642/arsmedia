@@ -131,6 +131,7 @@ public class JwtUtil {
     claims.put(USER_ID_CLAIM, user.getId());
     claims.put("email", user.getEmail());
     claims.put("pseudo", user.getPseudo());
+    claims.put("request_time", LocalDateTime.now().toString());
 
     List<String> roles =
         user.getAuthorities().stream()

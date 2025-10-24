@@ -1,5 +1,9 @@
 package dev.razafindratelo.arsmedia.service;
 
+import static dev.razafindratelo.arsmedia.mapper.TokenMapper.toRest;
+
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.RTokenPair;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.TokenPairRequest;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.token.TokenValidationResult;
 import dev.razafindratelo.arsmedia.exception.*;
 import dev.razafindratelo.arsmedia.mapper.TokenMapper;
@@ -49,6 +53,23 @@ public class TokenService {
 
   @Value("${app.token.max-token-generation-retries:3}")
   private int maxTokenGenerationRetries;
+
+  public RTokenPair generateTokenPair(@NotNull TokenPairRequest request) {
+    var user = userService.findById(request.userId());
+
+    if (!request.userEmail().equals(user.getEmail()))
+      throw new IllegalArgumentException("Invalid user email");
+    var token = generateTokenPair(request.userEmail());
+
+    return new RTokenPair(
+        toRest(token.accessToken()), toRest(token.refreshToken()), token.requestTime());
+  }
+
+  public RTokenPair regenerateTokenPair(@NotNull @NotBlank String refreshTokenValue) {
+    var tokenPair = refreshTokenPair(refreshTokenValue);
+    return new RTokenPair(
+        toRest(tokenPair.accessToken()), toRest(tokenPair.refreshToken()), tokenPair.requestTime());
+  }
 
   public TokenPair generateTokenPair(@Email String userEmail) {
     log.info("Generating token pair for user: {}", userEmail);
@@ -209,7 +230,14 @@ public class TokenService {
         TokenType.REFRESH_TOKEN,
         refreshTokenDuration,
         () -> {
-          Map<String, Object> claims = Map.of("token_type", "REFRESH", "user_id", user.getId());
+          Map<String, Object> claims =
+              Map.of(
+                  "token_type",
+                  "REFRESH",
+                  "user_id",
+                  user.getId(),
+                  "creation",
+                  LocalDateTime.now().toString());
           return jwtUtil.createToken(claims, user.getEmail(), refreshTokenDuration);
         });
   }
@@ -222,7 +250,8 @@ public class TokenService {
 
         if (tokenRepository.existsByValueAndIsValid(tokenValue, true)) {
           log.warn(
-              "Duplicate token generated, retrying... Attempt: {}/{}",
+              "Duplicate token of type {} generated, retrying... Attempt: {}/{}",
+              type,
               attempt,
               maxTokenGenerationRetries);
           continue;
