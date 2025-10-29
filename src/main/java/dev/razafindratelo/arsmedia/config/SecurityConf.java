@@ -64,6 +64,8 @@ public class SecurityConf {
                     .permitAll()
                     .requestMatchers(POST, "/auth/**")
                     .permitAll()
+                    .requestMatchers(POST, "/api/media/**")
+                    .permitAll()
                     .requestMatchers("/api/admin/**")
                     .hasRole("ADMIN")
                     .requestMatchers("/api/users/**")

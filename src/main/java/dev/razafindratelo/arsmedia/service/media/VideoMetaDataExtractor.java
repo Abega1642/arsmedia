@@ -46,7 +46,6 @@ public class VideoMetaDataExtractor implements MediaMetadataExtractor<Video> {
       Video video = new Video();
       video.setId(UUID.randomUUID().toString());
       video.setFileName(file.getName());
-      video.setFilePath(file.getAbsolutePath());
       video.setFileType(FileType.VIDEO);
       video.setSize(file.length());
       video.setSizeType(SizeType.BYTES);
