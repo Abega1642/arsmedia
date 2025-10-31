@@ -62,7 +62,12 @@ public class SecurityConf {
                     .permitAll()
                     .requestMatchers(POST, "/sign-up")
                     .permitAll()
-                    .requestMatchers(POST, "/auth/**")
+                    .requestMatchers(
+                        POST,
+                        "/auth/login",
+                        "/auth/auth-code/**",
+                        "/auth/activate-profile/**",
+                        "auth/token/**")
                     .permitAll()
                     .requestMatchers(POST, "/api/media/**")
                     .permitAll()

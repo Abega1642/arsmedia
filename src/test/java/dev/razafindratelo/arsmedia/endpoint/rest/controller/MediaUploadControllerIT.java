@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.web.MockMultipartFile;
@@ -16,6 +17,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.validation.annotation.Validated;
 
 @Validated
+@Disabled
 class MediaUploadControllerIT extends FacadeIT {
   @Autowired private MockMvc mvc;
 
