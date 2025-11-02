@@ -13,15 +13,18 @@ public class VideoCompressionRequested extends InfraEvent {
 
   private final String videoId;
   private final String bucketKey;
+  private final String owner;
   private final CompressionOptions compressionOptions;
 
   @JsonCreator
   public VideoCompressionRequested(
       @JsonProperty("videoId") String videoId,
       @JsonProperty("bucketKey") String bucketKey,
+      String owner,
       @JsonProperty("compressionOptions") CompressionOptions compressionOptions) {
     this.videoId = videoId;
     this.bucketKey = bucketKey;
+    this.owner = owner;
     this.compressionOptions = compressionOptions;
   }
 

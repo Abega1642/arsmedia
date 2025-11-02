@@ -14,6 +14,7 @@ import dev.razafindratelo.arsmedia.model.classifier.VideoCodec;
 import dev.razafindratelo.arsmedia.repository.CompressedVideoRepository;
 import dev.razafindratelo.arsmedia.repository.VideoRepository;
 import dev.razafindratelo.arsmedia.repository.model.JCompressedVideo;
+import dev.razafindratelo.arsmedia.service.UserService;
 import jakarta.persistence.EntityNotFoundException;
 import java.io.File;
 import java.io.IOException;
@@ -34,13 +35,16 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
   private final FFprobe ffprobe;
   private final BucketComponent bucketComponent;
   private final VideoRepository repository;
+  private final UserService userService;
   private final CompressedVideoRepository compressedVideoRepository;
 
   public VideoCompressionRequestedService(
       BucketComponent bucketComponent,
       VideoRepository repository,
+      UserService userService,
       CompressedVideoRepository compressedVideoRepository)
       throws IOException {
+    this.userService = userService;
     this.compressedVideoRepository = compressedVideoRepository;
     this.ffmpeg = new FFmpeg("/usr/bin/ffmpeg");
     this.ffprobe = new FFprobe("/usr/bin/ffprobe");
@@ -72,6 +76,8 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
                 .orElseThrow(
                     () -> new EntityNotFoundException("Video not found: " + event.getVideoId())));
 
+    var owner = userService.findByEmail(event.getOwner());
+
     log.info("Downloading original video from bucket key: {}", event.getBucketKey());
     File originalFile = bucketComponent.download(event.getBucketKey());
     log.info("Original video downloaded, size: {} bytes", originalFile.length());
@@ -90,6 +96,7 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
         createCompressedVideoEntity(
             originalVideo, compressedFile, compressedBucketKey, event.getCompressionOptions());
     compressedVideo.setId(UUID.randomUUID().toString());
+    compressedVideo.setOwner(owner);
 
     JCompressedVideo jCompressedVideo =
         new JCompressedVideo(UUID.randomUUID().toString(), toJVideo(compressedVideo), now());
