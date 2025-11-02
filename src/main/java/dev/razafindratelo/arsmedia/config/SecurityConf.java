@@ -69,8 +69,6 @@ public class SecurityConf {
                         "/auth/activate-profile/**",
                         "auth/token/**")
                     .permitAll()
-                    .requestMatchers(POST, "/api/media/**")
-                    .permitAll()
                     .requestMatchers("/api/admin/**")
                     .hasRole("ADMIN")
                     .requestMatchers("/api/users/**")

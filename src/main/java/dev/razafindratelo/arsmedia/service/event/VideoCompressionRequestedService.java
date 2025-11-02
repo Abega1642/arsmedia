@@ -2,6 +2,7 @@ package dev.razafindratelo.arsmedia.service.event;
 
 import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toJVideo;
 import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toVideo;
+import static java.time.LocalDateTime.now;
 
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.CompressionOptions;
 import dev.razafindratelo.arsmedia.event.model.VideoCompressionRequested;
@@ -10,11 +11,13 @@ import dev.razafindratelo.arsmedia.model.Video;
 import dev.razafindratelo.arsmedia.model.classifier.AudioCodec;
 import dev.razafindratelo.arsmedia.model.classifier.ContainerFormat;
 import dev.razafindratelo.arsmedia.model.classifier.VideoCodec;
+import dev.razafindratelo.arsmedia.repository.CompressedVideoRepository;
 import dev.razafindratelo.arsmedia.repository.VideoRepository;
+import dev.razafindratelo.arsmedia.repository.model.JCompressedVideo;
 import jakarta.persistence.EntityNotFoundException;
 import java.io.File;
 import java.io.IOException;
-import java.time.LocalDateTime;
+import java.util.UUID;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import net.bramp.ffmpeg.FFmpeg;
@@ -31,9 +34,14 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
   private final FFprobe ffprobe;
   private final BucketComponent bucketComponent;
   private final VideoRepository repository;
+  private final CompressedVideoRepository compressedVideoRepository;
 
   public VideoCompressionRequestedService(
-      BucketComponent bucketComponent, VideoRepository repository) throws IOException {
+      BucketComponent bucketComponent,
+      VideoRepository repository,
+      CompressedVideoRepository compressedVideoRepository)
+      throws IOException {
+    this.compressedVideoRepository = compressedVideoRepository;
     this.ffmpeg = new FFmpeg("/usr/bin/ffmpeg");
     this.ffprobe = new FFprobe("/usr/bin/ffprobe");
     this.bucketComponent = bucketComponent;
@@ -43,7 +51,10 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
   @Override
   public void accept(VideoCompressionRequested event) {
     try {
-      log.info("Processing video compression event for video: {}", event.getVideoId());
+      log.info(
+          "Processing video compression event for video: {} and bucket key = {}",
+          event.getVideoId(),
+          event.getBucketKey());
       processCompression(event);
       log.info("Video compression completed successfully for: {}", event.getVideoId());
 
@@ -61,26 +72,70 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
                 .orElseThrow(
                     () -> new EntityNotFoundException("Video not found: " + event.getVideoId())));
 
+    log.info("Downloading original video from bucket key: {}", event.getBucketKey());
     File originalFile = bucketComponent.download(event.getBucketKey());
+    log.info("Original video downloaded, size: {} bytes", originalFile.length());
+
+    log.info("Starting video compression for video: {}", event.getVideoId());
     File compressedFile =
         createCompressedFile(originalFile, originalVideo, event.getCompressionOptions());
+    log.info("Video compression completed, compressed size: {} bytes", compressedFile.length());
 
     String compressedBucketKey = generateCompressedBucketKey(event.getVideoId());
+    log.info("Uploading compressed video to bucket key: {}", compressedBucketKey);
     bucketComponent.upload(compressedFile, compressedBucketKey);
+    log.info("Compressed video uploaded successfully");
 
     Video compressedVideo =
         createCompressedVideoEntity(
             originalVideo, compressedFile, compressedBucketKey, event.getCompressionOptions());
+    compressedVideo.setId(UUID.randomUUID().toString());
 
+    JCompressedVideo jCompressedVideo =
+        new JCompressedVideo(UUID.randomUUID().toString(), toJVideo(compressedVideo), now());
+
+    log.info(
+        "Compressed video size : {}{}", compressedVideo.getSize(), compressedVideo.getSizeType());
+
+    log.info("Saving compressed video entity to database");
     repository.save(toJVideo(compressedVideo));
+    compressedVideoRepository.save(jCompressedVideo);
 
     cleanupTempFiles(originalFile, compressedFile);
+    log.info("Temporary files cleaned up");
   }
 
   private File createCompressedFile(
       File originalFile, Video originalVideo, CompressionOptions options) throws IOException {
 
     File compressedFile = File.createTempFile("compressed_", ".mp4");
+    log.info("Created temporary output file: {}", compressedFile.getAbsolutePath());
+
+    double frameRate = originalVideo.getFrameRate();
+    if (frameRate <= 0) {
+      frameRate = 30.0;
+      log.info("Invalid frame rate detected, using default: {}", frameRate);
+    } else {
+      log.info("Using frame rate: {}", frameRate);
+    }
+
+    int targetWidth =
+        options.getTargetWidth() != null ? options.getTargetWidth() : originalVideo.getWidth();
+    int targetHeight =
+        options.getTargetHeight() != null ? options.getTargetHeight() : originalVideo.getHeight();
+
+    if (targetWidth % 2 != 0) {
+      targetWidth = targetWidth - 1;
+      log.info(
+          "Adjusting width to be divisible by 2: {} -> {}", originalVideo.getWidth(), targetWidth);
+    }
+    if (targetHeight % 2 != 0) {
+      targetHeight = targetHeight - 1;
+      log.info(
+          "Adjusting height to be divisible by 2: {} -> {}",
+          originalVideo.getHeight(),
+          targetHeight);
+    }
 
     FFmpegBuilder builder =
         new FFmpegBuilder()
@@ -90,23 +145,37 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
             .setFormat("mp4")
             .setVideoCodec("libx264")
             .setConstantRateFactor(options.getCrf())
-            .setVideoFrameRate(originalVideo.getFrameRate())
-            .setAudioCodec("aac")
-            .setAudioChannels(originalVideo.getAudioChannels())
-            .setAudioSampleRate(originalVideo.getAudioSampleRate())
+            .setVideoFrameRate(frameRate)
             .done();
 
-    int targetWidth =
-        options.getTargetWidth() != null ? options.getTargetWidth() : originalVideo.getWidth();
-    int targetHeight =
-        options.getTargetHeight() != null ? options.getTargetHeight() : originalVideo.getHeight();
+    boolean hasAudio =
+        originalVideo.getAudioChannels() > 0 && originalVideo.getAudioSampleRate() > 0;
 
-    if (targetWidth != originalVideo.getWidth() || targetHeight != originalVideo.getHeight()) {
-      builder.setVideoFilter("scale=" + targetWidth + ":" + targetHeight);
+    if (hasAudio) {
+      log.info(
+          "Video has audio with {} channels and {} sample rate",
+          originalVideo.getAudioChannels(),
+          originalVideo.getAudioSampleRate());
+    } else {
+      log.info("Video has no audio");
     }
 
+    if (targetWidth != originalVideo.getWidth() || targetHeight != originalVideo.getHeight()) {
+      log.info(
+          "Rescaling video from {}x{} to {}x{}",
+          originalVideo.getWidth(),
+          originalVideo.getHeight(),
+          targetWidth,
+          targetHeight);
+      builder.setVideoFilter("scale=" + targetWidth + ":" + targetHeight);
+    } else {
+      log.info("Keeping original resolution: {}x{}", targetWidth, targetHeight);
+    }
+
+    log.info("Starting FFmpeg compression with CRF: {}", options.getCrf());
     FFmpegExecutor executor = new FFmpegExecutor(ffmpeg, ffprobe);
     executor.createJob(builder).run();
+    log.info("FFmpeg compression completed");
 
     return compressedFile;
   }
@@ -127,24 +196,53 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
     int targetHeight =
         options.getTargetHeight() != null ? options.getTargetHeight() : originalVideo.getHeight();
 
+    if (targetWidth % 2 != 0) {
+      targetWidth = targetWidth - 1;
+    }
+    if (targetHeight % 2 != 0) {
+      targetHeight = targetHeight - 1;
+    }
+
+    boolean hasAudio =
+        originalVideo.getAudioChannels() > 0 && originalVideo.getAudioSampleRate() > 0;
+
+    double frameRate = originalVideo.getFrameRate();
+    if (frameRate <= 0) {
+      frameRate = 30.0;
+    }
+
     compressedVideo.setFileName("compressed_" + originalVideo.getFileName());
     compressedVideo.setSize(compressedFile.length());
     compressedVideo.setSizeType(originalVideo.getSizeType());
     compressedVideo.setFileType(originalVideo.getFileType());
-    compressedVideo.setCreatedAt(LocalDateTime.now());
+    compressedVideo.setCreatedAt(now());
     compressedVideo.setFilePath(compressedBucketKey);
 
     compressedVideo.setDuration(originalVideo.getDuration());
     compressedVideo.setCodec(VideoCodec.H264);
     compressedVideo.setWidth(targetWidth);
     compressedVideo.setHeight(targetHeight);
-    compressedVideo.setFrameRate(originalVideo.getFrameRate());
+    compressedVideo.setFrameRate(frameRate);
     compressedVideo.setAspectRatio(calculateAspectRatio(targetWidth, targetHeight));
     compressedVideo.setContainerFormat(ContainerFormat.MP4);
     compressedVideo.setBitRate(calculateBitRate(compressedFile, originalVideo.getDuration()));
-    compressedVideo.setAudioCodec(AudioCodec.AAC);
-    compressedVideo.setAudioChannels(originalVideo.getAudioChannels());
-    compressedVideo.setAudioSampleRate(originalVideo.getAudioSampleRate());
+
+    if (hasAudio) {
+      compressedVideo.setAudioCodec(AudioCodec.AAC);
+      compressedVideo.setAudioChannels(originalVideo.getAudioChannels());
+      compressedVideo.setAudioSampleRate(originalVideo.getAudioSampleRate());
+    } else {
+      compressedVideo.setAudioCodec(AudioCodec.NONE);
+      compressedVideo.setAudioChannels(0);
+      compressedVideo.setAudioSampleRate(0);
+    }
+
+    log.info(
+        "Created compressed video entity: {}x{}, {} bytes, audio: {}",
+        targetWidth,
+        targetHeight,
+        compressedFile.length(),
+        hasAudio ? "yes" : "no");
 
     return compressedVideo;
   }

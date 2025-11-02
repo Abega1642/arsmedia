@@ -6,7 +6,10 @@ CREATE TABLE media
     size_type  size_type        NOT NULL,
     file_type  file_type        NOT NULL,
     created_at TIMESTAMP        NOT NULL DEFAULT NOW(),
-    bucket_key TEXT             NOT NULL
+    owner_id   VARCHAR          NOT NULL,
+    bucket_key TEXT             NOT NULL,
+
+    FOREIGN KEY (owner_id) REFERENCES users (id)
 );
 
 

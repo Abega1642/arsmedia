@@ -37,8 +37,10 @@ public class MediaUploadController {
   }
 
   @PostMapping("/videos/upload")
-  public Video uploadVideo(@RequestParam("file") MultipartFile file) throws IOException {
+  public Video uploadVideo(
+      @RequestParam("file") MultipartFile file, @RequestParam("userEmail") String userEmail)
+      throws IOException {
     var videoFile = convertToFile(file);
-    return service.uploadVideo(videoFile);
+    return service.uploadVideo(videoFile, userEmail);
   }
 }

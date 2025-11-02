@@ -20,4 +20,5 @@ public class Media {
   private FileType fileType;
   private LocalDateTime createdAt;
   private String filePath;
+  private User owner;
 }
