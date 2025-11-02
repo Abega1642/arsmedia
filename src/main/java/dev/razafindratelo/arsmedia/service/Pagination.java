@@ -9,7 +9,7 @@ public class Pagination implements BiFunction<Integer, Integer, Map<String, Inte
 
   @Override
   public Map<String, Integer> apply(Integer page, Integer size) {
-    var fPage = (page == null) ? 1 : page;
+    var fPage = (page == null) ? 0 : page;
     var fSize = (size == null) ? 10 : size;
 
     if (fPage < 0) throw new IllegalArgumentException("Page cannot be negative");

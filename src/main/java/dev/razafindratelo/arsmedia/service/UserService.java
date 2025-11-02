@@ -1,12 +1,14 @@
 package dev.razafindratelo.arsmedia.service;
 
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.health.model.RUser;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.UserCreationRequest;
 import dev.razafindratelo.arsmedia.mapper.UserMapper;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.repository.UserRepository;
 import dev.razafindratelo.arsmedia.repository.model.JUser;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,9 +32,17 @@ public class UserService implements UserDetailsService {
   private Pagination paginator;
   private BCryptPasswordEncoder encoder;
 
-  public User findByEmail(@Email String email) {
-    if (email == null || email.isBlank())
-      throw new IllegalArgumentException("Email cannot be null or blank");
+  public User findById(@NotBlank @NotNull String id) {
+
+    var jUser =
+        repository
+            .findById(id)
+            .orElseThrow(() -> new EntityNotFoundException("User with id : " + id + " not found"));
+
+    return UserMapper.toUser(jUser);
+  }
+
+  public User findByEmail(@Email @NotBlank @NotNull String email) {
 
     var jUser =
         repository
@@ -42,7 +52,7 @@ public class UserService implements UserDetailsService {
     return UserMapper.toUser(jUser);
   }
 
-  public User create(RUser user) {
+  public User create(UserCreationRequest user) {
     if (user == null) throw new IllegalArgumentException("User cannot be null");
 
     var jUser = UserMapper.toJUser(UserMapper.toUser(user));
@@ -73,13 +83,15 @@ public class UserService implements UserDetailsService {
     return UserMapper.toUser(repository.save(existing));
   }
 
-  public boolean updateActivationStatusByEmail(@Email String email, boolean isActivated) {
-    if (email == null || email.isBlank())
-      throw new IllegalArgumentException("Email cannot be null or blank");
+  public boolean updateActivationStatusByEmail(
+      @Email @NotBlank @NotNull String email, boolean isActivated) {
+    log.info("Update user {} activity status to {}", email, isActivated);
 
-    int updated = repository.updateActivationByEmail(email, isActivated, LocalDateTime.now());
-    if (updated == 0) throw new EntityNotFoundException("User not found with email: " + email);
-    return true;
+    repository.updateActivationByEmail(email, isActivated, LocalDateTime.now());
+    var updatedUser = findByEmail(email);
+    log.info("User infos : { email = {}, isActive = {} }", email, updatedUser.isActivated());
+
+    return updatedUser.isActivated() == isActivated;
   }
 
   public Page<User> findAll(Integer page, Integer size) {

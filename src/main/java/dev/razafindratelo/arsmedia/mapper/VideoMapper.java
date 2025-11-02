@@ -26,6 +26,7 @@ public class VideoMapper {
     video.setSizeType(jVideo.getSizeType());
     video.setFileType(jVideo.getFileType());
     video.setCreatedAt(jVideo.getCreatedAt());
+    video.setOwner(UserMapper.toUser(jVideo.getOwner()));
 
     return video;
   }
@@ -34,6 +35,7 @@ public class VideoMapper {
     JVideo jVideo = new JVideo();
     jVideo.setId(video.getId());
     jVideo.setFileName(video.getFileName());
+    jVideo.setOwner(UserMapper.toJUser(video.getOwner()));
     jVideo.setSize(video.getSize());
     jVideo.setSizeType(video.getSizeType());
     jVideo.setBucketKey(video.getFilePath());

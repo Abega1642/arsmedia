@@ -42,4 +42,8 @@ public class JMedia {
 
   @Column(name = "bucket_key", nullable = false)
   private String bucketKey;
+
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "owner_id", nullable = false)
+  private JUser owner;
 }

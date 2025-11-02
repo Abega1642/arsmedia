@@ -1,6 +1,7 @@
 package dev.razafindratelo.arsmedia.model.classifier;
 
 public enum AudioCodec {
+  NONE,
   AAC,
   MP3,
   MP2,

@@ -2,7 +2,6 @@ package dev.razafindratelo.arsmedia.event.consumer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import dev.razafindratelo.arsmedia.InfraGenerated;
 import dev.razafindratelo.arsmedia.event.model.InfraEvent;
 import java.util.concurrent.ExecutorService;
@@ -21,12 +20,9 @@ public class EventConsumer implements Consumer<String> {
   private final ObjectMapper objectMapper;
   private final ExecutorService executor;
 
-  public EventConsumer(EventDispatcher eventHandler) {
+  public EventConsumer(EventDispatcher eventHandler, ObjectMapper objectMapper) {
     this.eventHandler = eventHandler;
-    this.objectMapper =
-        new ObjectMapper()
-            .activateDefaultTyping(
-                LaissezFaireSubTypeValidator.instance, ObjectMapper.DefaultTyping.NON_FINAL);
+    this.objectMapper = objectMapper;
     this.executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
     Runtime.getRuntime()
         .addShutdownHook(

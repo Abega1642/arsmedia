@@ -3,7 +3,7 @@ package dev.razafindratelo.arsmedia.service;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.health.model.RUser;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.UserCreationRequest;
 import dev.razafindratelo.arsmedia.mapper.AuthCodeMapper;
 import dev.razafindratelo.arsmedia.model.classifier.UserRole;
 import dev.razafindratelo.arsmedia.repository.AuthCodeRepository;
@@ -20,7 +20,9 @@ class AuthCodeServiceIT extends FacadeIT {
   @Transactional
   void should_generate_auth_code() {
     var email = "a.razafindratelo@gmail.com";
-    var user = new RUser(email, "ab3g4", "+261 32 92 636 82", UserRole.ADMIN, "dummy-password");
+    var user =
+        new UserCreationRequest(
+            email, "ab3g4", "+261 32 92 636 82", UserRole.ADMIN, "dummy-password");
 
     var savedUser = userService.create(user);
 

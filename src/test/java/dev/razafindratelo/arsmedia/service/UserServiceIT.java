@@ -3,7 +3,7 @@ package dev.razafindratelo.arsmedia.service;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.health.model.RUser;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.UserCreationRequest;
 import dev.razafindratelo.arsmedia.mapper.UserMapper;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.model.classifier.UserRole;
@@ -25,8 +25,8 @@ class UserServiceIT extends FacadeIT {
 
   @Test
   void should_throw_exception() {
-    assertThrows(IllegalArgumentException.class, () -> subject.findByEmail(null));
-    assertThrows(IllegalArgumentException.class, () -> subject.findByEmail(""));
+    assertThrows(ConstraintViolationException.class, () -> subject.findByEmail(null));
+    assertThrows(ConstraintViolationException.class, () -> subject.findByEmail(""));
     assertThrows(ConstraintViolationException.class, () -> subject.findByEmail("invalid-email"));
   }
 
@@ -40,6 +40,18 @@ class UserServiceIT extends FacadeIT {
     assertEquals(expectedUser.getPassword(), actual.getPassword());
     assertEquals(expectedUser.getPseudo(), actual.getPseudo());
     assertEquals(expectedUser.getPhoneNumber(), actual.getPhoneNumber());
+  }
+
+  @Test
+  void should_update_user_status_correctly() {
+    createUser();
+    var before = subject.findByEmail(EMAIL);
+    var isUpdated = subject.updateActivationStatusByEmail(EMAIL, true);
+    var after = subject.findByEmail(EMAIL);
+
+    assertFalse(before.isActivated());
+    assertTrue(after.isActivated());
+    assertTrue(isUpdated);
   }
 
   @Test
@@ -66,7 +78,9 @@ class UserServiceIT extends FacadeIT {
   }
 
   private User createUser() {
-    var user = new RUser(EMAIL, "ab3g4", "+261 32 92 636 82", UserRole.ADMIN, "dummy-password");
+    var user =
+        new UserCreationRequest(
+            EMAIL, "ab3g4", "+261 32 92 636 82", UserRole.ADMIN, "dummy-password");
 
     return subject.create(user);
   }

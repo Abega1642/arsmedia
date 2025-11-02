@@ -2,7 +2,8 @@ package dev.razafindratelo.arsmedia.mapper;
 
 import static java.time.LocalDateTime.now;
 
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.health.model.RUser;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.RUser;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.UserCreationRequest;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.repository.model.JUser;
 import java.util.UUID;
@@ -22,8 +23,8 @@ public class UserMapper {
         jUser.getUpdatedAt());
   }
 
-  public static JUser toJUser(RUser rUser) {
-    return toJUser(toUser(rUser));
+  public static JUser toJUser(UserCreationRequest userCreationRequest) {
+    return toJUser(toUser(userCreationRequest));
   }
 
   public static JUser toJUser(User user) {
@@ -40,15 +41,25 @@ public class UserMapper {
         user.getUpdatedAt());
   }
 
-  public static User toUser(RUser rUser) {
+  public static RUser toRUser(User user) {
+    return new RUser(
+        user.getId(),
+        user.getEmail(),
+        user.getPhoneNumber(),
+        user.getPseudo(),
+        user.getImageProfileBucketKey(),
+        user.getRole());
+  }
+
+  public static User toUser(UserCreationRequest userCreationRequest) {
     return new User(
         UUID.randomUUID().toString(),
-        rUser.email(),
-        rUser.pseudo(),
-        rUser.phoneNumber(),
+        userCreationRequest.email(),
+        userCreationRequest.pseudo(),
+        userCreationRequest.phoneNumber(),
         "no-image-profile",
-        rUser.role(),
-        rUser.password(),
+        userCreationRequest.role(),
+        userCreationRequest.password(),
         false,
         now(),
         now());

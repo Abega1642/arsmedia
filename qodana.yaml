@@ -1,0 +1,26 @@
+version: "1.0"
+
+profile:
+  name: qodana.starter
+
+projectJDK: "21"
+linter: jetbrains/qodana-jvm-community:2025.1
+
+include:
+  - name: NullableProblemsInspection
+  - name: UnusedDeclarationInspection
+  - name: DuplicatedCodeInspection
+  - name: SecurityInspection
+  - name: VulnerableLibrariesInspection
+  - name: SpringJavaInspection
+
+exclude:
+  - name: CodeStyleInspection
+  - name: RedundantModifierInspection
+  - name: UnnecessarySemicolonInspection
+  - name: SpellCheckingInspection
+
+failureConditions:
+  severityThresholds:
+    any: 10
+    critical: 3

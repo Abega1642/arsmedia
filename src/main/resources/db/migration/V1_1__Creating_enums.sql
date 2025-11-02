@@ -1,4 +1,5 @@
 CREATE TYPE size_type AS ENUM (
+    'BYTES',
     'KB',
     'MB',
     'GB',

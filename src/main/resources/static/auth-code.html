@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Your Authentication Code</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #f4f4f7;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .email-container {
+            max-width: 600px;
+            background: #ffffff;
+            margin: 40px auto;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background-color: #1a73e8;
+            color: white;
+            text-align: center;
+            padding: 24px;
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .content {
+            padding: 24px;
+            text-align: center;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .code {
+            display: inline-block;
+            margin: 20px 0;
+            padding: 12px 24px;
+            background-color: #e8f0fe;
+            color: #1a73e8;
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 3px;
+            border-radius: 8px;
+        }
+
+        .footer {
+            text-align: center;
+            color: #777;
+            font-size: 13px;
+            padding: 16px;
+        }
+    </style>
+</head>
+<body>
+<div class="email-container">
+    <div class="header">Arsmedia Authentication</div>
+    <div class="content">
+        <p>Hello {{USERNAME}},</p>
+        <p>Here is your authentication code:</p>
+        <div class="code">{{CODE}}</div>
+        <p>This code will expire in 10 minutes.</p>
+        <p>If you did not request this, please ignore this email.</p>
+    </div>
+    <div class="footer">
+        &copy; 2025 Arsmedia. All rights reserved.
+    </div>
+</div>
+</body>
+</html>

@@ -1,11 +1,12 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller;
 
 import dev.razafindratelo.arsmedia.config.RequiresApiKey;
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.health.model.RUser;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.UserCreationRequest;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -32,8 +33,8 @@ public class UserController {
     return service.findByEmail(email);
   }
 
-  @PostMapping("/users/sign-up")
-  public User signUp(@RequestBody @Valid RUser user) {
+  @PostMapping("/sign-up")
+  public User signUp(@RequestBody @Valid @NotNull UserCreationRequest user) {
     return service.create(user);
   }
 }
