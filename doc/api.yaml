@@ -29,6 +29,11 @@ info:
     - Resize, crop, or apply filters.
     - Generate thumbnails.
 
+    **Authentication**
+    - Most endpoints require authentication via JWT Bearer token
+    - Admin endpoints require API Key authentication
+    - Tokens can be obtained from /auth/login or /auth/token/token-pairs
+
     The health endpoints check if the storage bucket and event messaging system are operational.
 
   version: "1.0.0"
@@ -40,12 +45,20 @@ info:
 servers:
   - url: https://arsmedia.onrender.com
     description: Production server
+  - url: http://localhost:8080
+    description: Local development server
 
 tags:
+  - name: Authentication
+    description: Authentication and authorization endpoints (public access for login/signup)
+  - name: User
+    description: User management endpoints (requires authentication)
+  - name: Video
+    description: Video upload, processing, and compression endpoints (requires authentication)
   - name: Health
-    description: Endpoints to verify system and bucket health
+    description: Endpoints to verify system and bucket health (public access)
   - name: Events
-    description: Endpoints for health event generation and messaging
+    description: Endpoints for health event generation and messaging (public access)
   - name: Docs
     description: API documentation endpoints and redirects
 
@@ -56,8 +69,9 @@ paths:
       tags:
         - Docs
       summary: Redirect root path to Swagger UI
+      security: [ ]
       responses:
-        302:
+        "302":
           description: Redirects to /doc
           headers:
             Location:
@@ -72,8 +86,9 @@ paths:
       tags:
         - Health
       summary: Check if the server is alive
+      security: [ ]
       responses:
-        200:
+        "200":
           description: A message showing that the server is alive
           content:
             application/json:
@@ -90,34 +105,32 @@ paths:
       description: >
         This endpoint uploads a randomly generated text file to the storage bucket, 
         verifies its content by downloading it, and returns a presigned URL for the file.
+      security: [ ]
       responses:
-        200:
+        "200":
           description: Successfully uploaded, verified, and presigned file.
           content:
             application/json:
               schema:
                 type: string
                 example: "https://arsmedia-bucket.s3.amazonaws.com/health/uuid.txt?X-Amz-Signature=..."
-        500:
+        "500":
           description: Uploaded and downloaded content mismatch or other error occurred.
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: Uploaded and downloaded content mismatch
+                $ref: "#/components/schemas/ErrorResponse"
 
   /health/message:
     get:
       operationId: triggerDummyEvents
       tags:
-        - Health
+        - Events
       summary: Trigger dummy health check events
       description: >
         This endpoint triggers one or more dummy events through the event producer 
         for testing the messaging system (e.g., RabbitMQ or Kafka).
+      security: [ ]
       parameters:
         - name: nbEvent
           in: query
@@ -137,7 +150,7 @@ paths:
             default: 2
             minimum: 1
       responses:
-        200:
+        "200":
           description: List of UUIDs corresponding to triggered dummy events
           content:
             application/json:
@@ -148,13 +161,1048 @@ paths:
                 example:
                   - "c91f2c9b-9c8e-4e7f-84e2-09c95edff3e4"
                   - "51af4d2b-745a-465d-b9a2-bf0b1c1ffb23"
-        400:
-          description: Invalid parameter values (e.g., nbEvent not in 1–500)
+        "400":
+          description: Invalid parameter values
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: nbEvent must be between 1 and 500
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /health/email:
+    get:
+      operationId: sendHealthEmail
+      tags:
+        - Health
+      summary: Send health check email
+      description: Sends a test email to verify email service functionality
+      security: [ ]
+      parameters:
+        - name: to
+          in: query
+          required: true
+          description: Email address to send the health check email to
+          schema:
+            type: string
+            format: email
+      responses:
+        "200":
+          description: Email sent successfully
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "Email sent successfully"
+        "400":
+          description: Invalid email address
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /sign-up:
+    post:
+      operationId: signUp
+      tags:
+        - User
+      summary: Register a new user
+      description: Creates a new user account with email, password, and phone number. This endpoint is public and does not require authentication.
+      security: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCreationRequest"
+      responses:
+        "200":
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Invalid request data or constraint violation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users:
+    get:
+      operationId: findUsers
+      tags:
+        - User
+      summary: Get paginated list of users (ADMIN only)
+      description: >
+        Retrieves a paginated list of all users. 
+        **Requires ADMIN role and API Key authentication.**
+        Protected by @PreAuthorize("hasRole('ADMIN')") and @RequiresApiKey.
+      security:
+        - ApiKeyAuth: [ ]
+          BearerAuth: [ ]
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 20
+      responses:
+        "200":
+          description: Paginated list of users
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageUser"
+        "401":
+          description: Unauthorized - missing or invalid authentication token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - user does not have ADMIN role or missing/invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/{email}:
+    get:
+      operationId: findUser
+      tags:
+        - User
+      summary: Get user by email
+      description: >
+        Retrieves a specific user by their email address.
+        **Requires Bearer token authentication.**
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+            format: email
+      responses:
+        "200":
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Invalid email format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags:
+        - Authentication
+      summary: User login
+      description: >
+        Authenticates a user with email and password. Returns user information.
+        This endpoint is public and does not require authentication.
+        After login, use /auth/token/token-pairs to get JWT tokens.
+      security: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Authentication failed - invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: User account is not activated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/token/token-pairs:
+    post:
+      operationId: generateTokenPair
+      tags:
+        - Authentication
+      summary: Generate access and refresh token pair
+      description: >
+        Generates a new pair of access and refresh tokens for authenticated requests.
+        This endpoint is public but requires valid user credentials from login.
+      security: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TokenPairRequest"
+      responses:
+        "200":
+          description: Token pair generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RTokenPair"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Token generation conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/token/refresh-token-pairs:
+    post:
+      operationId: refreshTokenPair
+      tags:
+        - Authentication
+      summary: Refresh access token using refresh token
+      description: >
+        Generates a new access token using a valid refresh token.
+        This endpoint is public but requires a valid refresh token.
+      security: [ ]
+      parameters:
+        - name: refresh_token
+          in: query
+          required: true
+          description: The refresh token to use for generating new tokens
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RTokenPair"
+        "400":
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/auth-code/{userId}:
+    post:
+      operationId: sendAuthCode
+      tags:
+        - Authentication
+      summary: Send authentication code to user
+      description: >
+        Sends an authentication code to the user's email for account activation.
+        This endpoint is public and does not require authentication.
+      security: [ ]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: ID of the user to send authentication code to
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Authentication code sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthCodeResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/activate-profile/{userId}:
+    patch:
+      operationId: activateUserProfile
+      tags:
+        - Authentication
+      summary: Activate user profile with authentication code
+      description: >
+        Activates a user profile by verifying the authentication code sent to their email.
+        This endpoint is public and does not require authentication.
+      security: [ ]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: ID of the user to activate
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthCodeRequest"
+      responses:
+        "200":
+          description: Profile activated successfully
+          content:
+            application/json:
+              schema:
+                type: boolean
+        "400":
+          description: Invalid authentication code or request format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/api-keys/generate:
+    post:
+      operationId: generateApiKey
+      tags:
+        - Authentication
+      summary: Generate API key
+      description: >
+        Generates a new API key for programmatic access.
+        **Requires Bearer token authentication.**
+      security:
+        - BearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApiKeyRequest"
+      responses:
+        "200":
+          description: API key generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiKeyResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/media/videos/upload:
+    post:
+      operationId: uploadVideo
+      tags:
+        - Video
+      summary: Upload a video file
+      description: >
+        Uploads a video file to the storage bucket.
+        **Requires Bearer token authentication.**
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - name: userEmail
+          in: query
+          required: true
+          description: Email of the user uploading the video
+          schema:
+            type: string
+            format: email
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Video file to upload
+              required:
+                - file
+      responses:
+        "200":
+          description: Video uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Video"
+        "400":
+          description: Invalid request or file
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error during upload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/media/videos/compress/{userEmail}:
+    post:
+      operationId: compressVideo
+      tags:
+        - Video
+      summary: Compress a video
+      description: >
+        Compresses a video file using FFmpeg.
+        **Requires Bearer token authentication.**
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - name: userEmail
+          in: path
+          required: true
+          description: Email of the user who owns the video
+          schema:
+            type: string
+            format: email
+        - name: bucket_key
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+          description: The storage bucket key of the video to compress
+      responses:
+        "200":
+          description: Video compressed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProcessSuccessResponse"
+        "400":
+          description: Invalid request - missing or invalid bucket_key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Video not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error during compression
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: When the error occurred
+        status:
+          type: integer
+          description: HTTP status code
+          example: 400
+        error:
+          type: string
+          description: HTTP status reason phrase
+          example: "Bad Request"
+        message:
+          type: string
+          description: Detailed error message
+          example: "Validation failed"
+        path:
+          type: string
+          description: Request path where error occurred
+          example: "/sign-up"
+        errorCode:
+          type: string
+          nullable: true
+          description: Application-specific error code
+          enum:
+            - AUTHORIZATION_DENIED
+            - ENTITY_NOT_FOUND
+            - CONSTRAINT_VIOLATION_ON_FIELDS
+            - TOKEN_UNIQUENESS_CONFLICT
+            - BAD_FORM
+            - MISSING_AUTHORIZATION
+            - INVALID_AUTHORIZATION_FORMAT
+            - INVALID_TOKEN
+            - TOKEN_NOT_FOUND
+            - USER_DEACTIVATED
+            - AUTHENTICATION_FAILED
+            - INTERNAL_SERVER_ERROR
+      required:
+        - timestamp
+        - status
+        - error
+        - message
+        - path
+
+    UserCreationRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+          description: User's email address (must be unique)
+        phoneNumber:
+          type: string
+          minLength: 1
+          description: User's phone number
+        pseudo:
+          type: string
+          nullable: true
+          description: User's display name (optional)
+        role:
+          type: string
+          enum:
+            - ADMIN
+            - USER
+          description: User's role in the system
+        password:
+          type: string
+          minLength: 1
+          format: password
+          description: User's password
+      required:
+        - email
+        - password
+        - phoneNumber
+        - role
+
+    GrantedAuthority:
+      type: object
+      properties:
+        authority:
+          type: string
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        pseudo:
+          type: string
+          nullable: true
+        phoneNumber:
+          type: string
+        imageProfileBucketKey:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum:
+            - ADMIN
+            - USER
+        password:
+          type: string
+          format: password
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        username:
+          type: string
+        authorities:
+          type: array
+          items:
+            $ref: "#/components/schemas/GrantedAuthority"
+        activated:
+          type: boolean
+        enabled:
+          type: boolean
+        accountNonExpired:
+          type: boolean
+        accountNonLocked:
+          type: boolean
+        credentialsNonExpired:
+          type: boolean
+
+    TokenPairRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+          minLength: 1
+          description: ID of the user requesting tokens
+        userEmail:
+          type: string
+          format: email
+          minLength: 1
+          description: Email of the user requesting tokens
+      required:
+        - userEmail
+        - userId
+
+    RToken:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        creation:
+          type: string
+          format: date-time
+        expiration:
+          type: string
+          format: date-time
+        isValid:
+          type: boolean
+        value:
+          type: string
+          description: The actual token string
+
+    RTokenPair:
+      type: object
+      properties:
+        accessToken:
+          $ref: "#/components/schemas/RToken"
+        refreshToken:
+          $ref: "#/components/schemas/RToken"
+        requestTime:
+          type: string
+          format: date-time
+      required:
+        - accessToken
+        - refreshToken
+        - requestTime
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+          description: User's email address
+        password:
+          type: string
+          minLength: 1
+          format: password
+          description: User's password
+      required:
+        - email
+        - password
+
+    LoginResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Login status message
+        email:
+          type: string
+          format: email
+        requestTime:
+          type: string
+          format: date-time
+        user:
+          $ref: "#/components/schemas/RUser"
+
+    RUser:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+          minLength: 1
+        phoneNumber:
+          type: string
+          minLength: 1
+        pseudo:
+          type: string
+          minLength: 1
+        imageProfileBucketKey:
+          type: string
+          minLength: 1
+        role:
+          type: string
+          enum:
+            - ADMIN
+            - USER
+      required:
+        - email
+        - id
+        - imageProfileBucketKey
+        - phoneNumber
+        - pseudo
+        - role
+
+    AuthCodeResponse:
+      type: object
+      properties:
+        sentTo:
+          type: string
+          format: email
+          minLength: 1
+          description: Email address where the code was sent
+        sentAt:
+          type: string
+          format: date-time
+          description: Timestamp when the code was sent
+      required:
+        - sentTo
+
+    ApiKeyRequest:
+      type: object
+      properties:
+        userEmail:
+          type: string
+          format: email
+          minLength: 1
+          description: Email of the user requesting the API key
+        reason:
+          type: string
+          description: Reason for generating the API key
+      required:
+        - reason
+        - userEmail
+
+    ApiKeyResponse:
+      type: object
+      properties:
+        apiKeyValue:
+          type: string
+          description: The generated API key value
+        createdAt:
+          type: string
+          format: date-time
+          description: When the API key was created
+
+    AuthCodeRequest:
+      type: object
+      properties:
+        userEmail:
+          type: string
+          format: email
+          minLength: 1
+          description: Email of the user
+        code:
+          type: string
+          minLength: 1
+          description: Authentication code received via email
+      required:
+        - code
+        - userEmail
+
+    Video:
+      type: object
+      properties:
+        id:
+          type: string
+        fileName:
+          type: string
+        size:
+          type: number
+          format: double
+        sizeType:
+          type: string
+          enum:
+            - BYTES
+            - KB
+            - MB
+            - GB
+            - TB
+            - PB
+            - EB
+        fileType:
+          type: string
+          enum:
+            - VIDEO
+            - IMAGE
+            - AUDIO
+        createdAt:
+          type: string
+          format: date-time
+        filePath:
+          type: string
+          description: Path to the file in storage
+        owner:
+          $ref: "#/components/schemas/User"
+        duration:
+          type: number
+          format: double
+          description: Video duration in seconds
+        codec:
+          type: string
+          enum:
+            - H264
+            - H265
+            - MPEG1
+            - MPEG2
+            - MPEG4
+            - VP8
+            - VP9
+            - AV1
+            - THEORA
+            - WMV1
+            - WMV2
+            - WMV3
+            - MJPEG
+            - PRORES
+            - DNXHD
+            - CINEFORM
+            - DV
+            - XVID
+            - DIVX
+            - HEVC
+            - UNKNOWN
+        width:
+          type: integer
+          format: int32
+        height:
+          type: integer
+          format: int32
+        frameRate:
+          type: number
+          format: double
+        aspectRatio:
+          type: string
+        containerFormat:
+          type: string
+          enum:
+            - MP4
+            - MKV
+            - MOV
+            - AVI
+            - FLV
+            - WMV
+            - WEBM
+            - MPEG_TS
+            - MPEG_PS
+            - THREEGP
+            - OGG
+            - M4A
+            - WAV
+            - FLAC
+            - ASF
+            - APE
+            - AIFF
+            - UNKNOWN
+        bitRate:
+          type: number
+          format: double
+        audioCodec:
+          type: string
+          enum:
+            - NONE
+            - AAC
+            - MP3
+            - MP2
+            - AC3
+            - EAC3
+            - DTS
+            - PCM
+            - PCM_S16LE
+            - PCM_S24LE
+            - FLAC
+            - OPUS
+            - VORBIS
+            - WMA
+            - ALAC
+            - AMR_NB
+            - AMR_WB
+            - G711
+            - G722
+            - UNKNOWN
+        audioChannels:
+          type: integer
+          format: int32
+        audioSampleRate:
+          type: integer
+          format: int32
+
+    ProcessSuccessResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Success message
+        path:
+          type: string
+          description: Path or URL to the processed file
+
+    PageUser:
+      type: object
+      properties:
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        number:
+          type: integer
+          format: int32
+        sort:
+          $ref: "#/components/schemas/SortObject"
+        numberOfElements:
+          type: integer
+          format: int32
+        pageable:
+          $ref: "#/components/schemas/PageableObject"
+        first:
+          type: boolean
+        last:
+          type: boolean
+        empty:
+          type: boolean
+
+    PageableObject:
+      type: object
+      properties:
+        offset:
+          type: integer
+          format: int64
+        sort:
+          $ref: "#/components/schemas/SortObject"
+        paged:
+          type: boolean
+        pageNumber:
+          type: integer
+          format: int32
+        pageSize:
+          type: integer
+          format: int32
+        unpaged:
+          type: boolean
+
+    SortObject:
+      type: object
+      properties:
+        empty:
+          type: boolean
+        sorted:
+          type: boolean
+        unsorted:
+          type: boolean
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        JWT token obtained from /auth/token/token-pairs after login.
+        Include in Authorization header as: `Bearer <token>`
+
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: >
+        API key obtained from /auth/api-keys/generate.
+        Required for admin endpoints like /users.
+        Include in X-API-Key header.
+
+security:
+  - BearerAuth: [ ]

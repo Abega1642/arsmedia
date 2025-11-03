@@ -32,6 +32,7 @@ CREATE TYPE video_codec AS ENUM (
     );
 
 CREATE TYPE audio_codec AS ENUM (
+    'NONE',
     'AAC',
     'MP3',
     'AC3',
