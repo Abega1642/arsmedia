@@ -57,8 +57,7 @@ public class SecurityConf {
                     .permitAll()
                     .requestMatchers(GET, "/")
                     .permitAll()
-                    .requestMatchers(
-                        "/", "/doc", "/swagger-ui/**", "/v3/api-docs/**", "/v3/api-docs.yaml")
+                    .requestMatchers("/", "/doc", "/swagger-ui/**", "/doc/**", "/v3/api-docs/**")
                     .permitAll()
                     .requestMatchers(POST, "/sign-up")
                     .permitAll()

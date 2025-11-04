@@ -57,8 +57,6 @@ tags:
     description: Video upload, processing, and compression endpoints (requires authentication)
   - name: Health
     description: Endpoints to verify system and bucket health (public access)
-  - name: Events
-    description: Endpoints for health event generation and messaging (public access)
   - name: Docs
     description: API documentation endpoints and redirects
 
@@ -125,7 +123,7 @@ paths:
     get:
       operationId: triggerDummyEvents
       tags:
-        - Events
+        - Health
       summary: Trigger dummy health check events
       description: >
         This endpoint triggers one or more dummy events through the event producer 
@@ -705,10 +703,9 @@ components:
         path:
           type: string
           description: Request path where error occurred
-          example: "/sign-up"
+          example: "/path/of/the/endpoint"
         errorCode:
           type: string
-          nullable: true
           description: Application-specific error code
           enum:
             - AUTHORIZATION_DENIED
@@ -744,7 +741,6 @@ components:
           description: User's phone number
         pseudo:
           type: string
-          nullable: true
           description: User's display name (optional)
         role:
           type: string
@@ -779,12 +775,10 @@ components:
           format: email
         pseudo:
           type: string
-          nullable: true
         phoneNumber:
           type: string
         imageProfileBucketKey:
           type: string
-          nullable: true
         role:
           type: string
           enum:
