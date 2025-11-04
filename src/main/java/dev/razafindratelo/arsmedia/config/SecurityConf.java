@@ -39,6 +39,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConf {
   private final BCryptPasswordEncoder encoder;
   private final ApiKeyFilter apiKeyFilter;
+  private final ApiClientSecretFilter apiClientSecretFilter;
   private final TokenFilter tokenFilter;
   private final UserDetailsService userDetailsService;
   private final ObjectMapper om;
@@ -76,6 +77,7 @@ public class SecurityConf {
                     .authenticated())
         .sessionManagement(
             configurer -> configurer.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .addFilterBefore(apiClientSecretFilter, BasicAuthenticationFilter.class)
         .addFilterBefore(apiKeyFilter, BasicAuthenticationFilter.class)
         .addFilterBefore(tokenFilter, UsernamePasswordAuthenticationFilter.class)
         .exceptionHandling(

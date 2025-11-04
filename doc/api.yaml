@@ -29,10 +29,11 @@ info:
     - Resize, crop, or apply filters.
     - Generate thumbnails.
 
-    **Authentication**
-    - Most endpoints require authentication via JWT Bearer token
-    - Admin endpoints require API Key authentication
-    - Tokens can be obtained from /auth/login or /auth/token/token-pairs
+    **Authentication & Security**
+    - **Client Authentication**: All non-public endpoints require X-CLIENT-ID and X-CLIENT-SECRET headers for client verification
+    - **User Authentication**: Protected endpoints require JWT Bearer token obtained from /auth/token/token-pairs
+    - **Admin Endpoints**: Require API Key authentication in addition to client credentials and bearer token
+    - Local requests (localhost/127.0.0.1) bypass client secret validation
 
     The health endpoints check if the storage bucket and event messaging system are operational.
 
@@ -50,11 +51,11 @@ servers:
 
 tags:
   - name: Authentication
-    description: Authentication and authorization endpoints (public access for login/signup)
+    description: Authentication and authorization endpoints
   - name: User
-    description: User management endpoints (requires authentication)
+    description: User management endpoints
   - name: Video
-    description: Video upload, processing, and compression endpoints (requires authentication)
+    description: Video upload, processing, and compression endpoints
   - name: Health
     description: Endpoints to verify system and bucket health (public access)
   - name: Docs
@@ -87,7 +88,7 @@ paths:
       security: [ ]
       responses:
         "200":
-          description: A message showing that the server is alive
+          description: Server is alive and responding
           content:
             application/json:
               schema:
@@ -106,18 +107,14 @@ paths:
       security: [ ]
       responses:
         "200":
-          description: Successfully uploaded, verified, and presigned file.
+          description: Successfully uploaded, verified, and presigned file
           content:
             application/json:
               schema:
                 type: string
                 example: "https://arsmedia-bucket.s3.amazonaws.com/health/uuid.txt?X-Amz-Signature=..."
         "500":
-          description: Uploaded and downloaded content mismatch or other error occurred.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/InternalServerError"
 
   /health/message:
     get:
@@ -165,6 +162,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 400
+                error: "Bad Request"
+                message: "nbEvent must be between 1 and 500"
+                path: "/health/message"
+                errorCode: "BAD_FORM"
 
   /health/email:
     get:
@@ -191,11 +195,18 @@ paths:
                 type: string
                 example: "Email sent successfully"
         "400":
-          description: Invalid email address
+          description: Invalid email address format
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 400
+                error: "Bad Request"
+                message: "Invalid email address format"
+                path: "/health/email"
+                errorCode: "BAD_FORM"
 
   /sign-up:
     post:
@@ -203,8 +214,9 @@ paths:
       tags:
         - User
       summary: Register a new user
-      description: Creates a new user account with email, password, and phone number. This endpoint is public and does not require authentication.
-      security: [ ]
+      description: Creates a new user account with email, password, and phone number. Requires client credentials for non-local requests.
+      security:
+        - ClientSecret: [ ]
       requestBody:
         required: true
         content:
@@ -219,17 +231,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/User"
         "400":
-          description: Invalid request data or constraint violation
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/BadRequestValidation"
+        "403":
+          $ref: "#/components/responses/InvalidClientCredentials"
         "409":
-          description: User already exists
+          description: User with this email already exists
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 409
+                error: "Conflict"
+                message: "User with email 'user@example.com' already exists"
+                path: "/sign-up"
+                errorCode: "CONSTRAINT_VIOLATION_ON_FIELDS"
 
   /users:
     get:
@@ -239,10 +256,10 @@ paths:
       summary: Get paginated list of users (ADMIN only)
       description: >
         Retrieves a paginated list of all users. 
-        **Requires ADMIN role and API Key authentication.**
-        Protected by @PreAuthorize("hasRole('ADMIN')") and @RequiresApiKey.
+        **Requires client credentials, ADMIN role, and API Key authentication.**
       security:
-        - ApiKeyAuth: [ ]
+        - ClientSecret: [ ]
+          ApiKeyAuth: [ ]
           BearerAuth: [ ]
       parameters:
         - name: page
@@ -261,23 +278,15 @@ paths:
             default: 20
       responses:
         "200":
-          description: Paginated list of users
+          description: Paginated list of users retrieved successfully
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/PageUser"
         "401":
-          description: Unauthorized - missing or invalid authentication token
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          description: Forbidden - user does not have ADMIN role or missing/invalid API key
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/ForbiddenAdminOrClient"
 
   /users/{email}:
     get:
@@ -287,9 +296,10 @@ paths:
       summary: Get user by email
       description: >
         Retrieves a specific user by their email address.
-        **Requires Bearer token authentication.**
+        **Requires client credentials and Bearer token authentication.**
       security:
-        - BearerAuth: [ ]
+        - ClientSecret: [ ]
+          BearerAuth: [ ]
       parameters:
         - name: email
           in: path
@@ -299,7 +309,7 @@ paths:
             format: email
       responses:
         "200":
-          description: User found
+          description: User found and returned successfully
           content:
             application/json:
               schema:
@@ -310,18 +320,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 400
+                error: "Bad Request"
+                message: "Email format is invalid"
+                path: "/users/invalid-email"
+                errorCode: "BAD_FORM"
         "401":
-          description: Unauthorized - missing or invalid token
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/InvalidClientCredentials"
         "404":
-          description: User not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/UserNotFound"
 
   /auth/login:
     post:
@@ -331,9 +342,9 @@ paths:
       summary: User login
       description: >
         Authenticates a user with email and password. Returns user information.
-        This endpoint is public and does not require authentication.
-        After login, use /auth/token/token-pairs to get JWT tokens.
-      security: [ ]
+        Requires client credentials for non-local requests. After login, use /auth/token/token-pairs to get JWT tokens.
+      security:
+        - ClientSecret: [ ]
       requestBody:
         required: true
         content:
@@ -342,29 +353,28 @@ paths:
               $ref: "#/components/schemas/LoginRequest"
       responses:
         "200":
-          description: Login successful
+          description: Login successful - user authenticated
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/LoginResponse"
         "400":
-          description: Invalid request format
+          description: Invalid request format or missing required fields
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 400
+                error: "Bad Request"
+                message: "Email and password are required"
+                path: "/auth/login"
+                errorCode: "BAD_FORM"
         "401":
-          description: Authentication failed - invalid credentials
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/AuthenticationFailed"
         "403":
-          description: User account is not activated
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/ForbiddenLoginOrClient"
 
   /auth/token/token-pairs:
     post:
@@ -374,8 +384,9 @@ paths:
       summary: Generate access and refresh token pair
       description: >
         Generates a new pair of access and refresh tokens for authenticated requests.
-        This endpoint is public but requires valid user credentials from login.
-      security: [ ]
+        Requires client credentials and valid user credentials from login.
+      security:
+        - ClientSecret: [ ]
       requestBody:
         required: true
         content:
@@ -390,23 +401,35 @@ paths:
               schema:
                 $ref: "#/components/schemas/RTokenPair"
         "400":
-          description: Invalid request
+          description: Invalid request - missing required fields
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 400
+                error: "Bad Request"
+                message: "userId and userEmail are required"
+                path: "/auth/token/token-pairs"
+                errorCode: "BAD_FORM"
+        "403":
+          $ref: "#/components/responses/InvalidClientCredentials"
         "404":
-          description: User not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/UserNotFound"
         "409":
-          description: Token generation conflict
+          description: Token generation conflict - duplicate token
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 409
+                error: "Conflict"
+                message: "Token already exists for this user"
+                path: "/auth/token/token-pairs"
+                errorCode: "TOKEN_UNIQUENESS_CONFLICT"
 
   /auth/token/refresh-token-pairs:
     post:
@@ -416,8 +439,9 @@ paths:
       summary: Refresh access token using refresh token
       description: >
         Generates a new access token using a valid refresh token.
-        This endpoint is public but requires a valid refresh token.
-      security: [ ]
+        Requires client credentials and valid refresh token.
+      security:
+        - ClientSecret: [ ]
       parameters:
         - name: refresh_token
           in: query
@@ -434,17 +458,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/RTokenPair"
         "400":
-          description: Invalid request format
+          description: Invalid request - refresh token not provided
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 400
+                error: "Bad Request"
+                message: "Refresh token is required"
+                path: "/auth/token/refresh-token-pairs"
+                errorCode: "BAD_FORM"
         "401":
-          description: Invalid or expired refresh token
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/InvalidRefreshToken"
+        "403":
+          $ref: "#/components/responses/InvalidClientCredentials"
 
   /auth/auth-code/{userId}:
     post:
@@ -454,8 +483,9 @@ paths:
       summary: Send authentication code to user
       description: >
         Sends an authentication code to the user's email for account activation.
-        This endpoint is public and does not require authentication.
-      security: [ ]
+        Requires client credentials for non-local requests.
+      security:
+        - ClientSecret: [ ]
       parameters:
         - name: userId
           in: path
@@ -471,17 +501,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/AuthCodeResponse"
         "400":
-          description: Invalid request
+          description: Invalid user ID format
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 400
+                error: "Bad Request"
+                message: "Invalid user ID format"
+                path: "/auth/auth-code/invalid-id"
+                errorCode: "BAD_FORM"
+        "403":
+          $ref: "#/components/responses/InvalidClientCredentials"
         "404":
-          description: User not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/UserNotFound"
 
   /auth/activate-profile/{userId}:
     patch:
@@ -491,8 +526,9 @@ paths:
       summary: Activate user profile with authentication code
       description: >
         Activates a user profile by verifying the authentication code sent to their email.
-        This endpoint is public and does not require authentication.
-      security: [ ]
+        Requires client credentials for non-local requests.
+      security:
+        - ClientSecret: [ ]
       parameters:
         - name: userId
           in: path
@@ -519,12 +555,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 400
+                error: "Bad Request"
+                message: "Invalid authentication code format or code does not match"
+                path: "/auth/activate-profile/123"
+                errorCode: "BAD_FORM"
+        "403":
+          $ref: "#/components/responses/InvalidClientCredentials"
         "404":
-          description: User not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/UserNotFound"
 
   /auth/api-keys/generate:
     post:
@@ -534,9 +575,10 @@ paths:
       summary: Generate API key
       description: >
         Generates a new API key for programmatic access.
-        **Requires Bearer token authentication.**
+        **Requires client credentials and Bearer token authentication.**
       security:
-        - BearerAuth: [ ]
+        - ClientSecret: [ ]
+          BearerAuth: [ ]
       requestBody:
         required: true
         content:
@@ -551,17 +593,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiKeyResponse"
         "400":
-          description: Invalid request
+          description: Invalid request - missing required fields
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 400
+                error: "Bad Request"
+                message: "userEmail and reason are required"
+                path: "/auth/api-keys/generate"
+                errorCode: "BAD_FORM"
         "401":
-          description: Unauthorized - missing or invalid token
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/InvalidClientCredentials"
 
   /api/media/videos/upload:
     post:
@@ -571,9 +618,10 @@ paths:
       summary: Upload a video file
       description: >
         Uploads a video file to the storage bucket.
-        **Requires Bearer token authentication.**
+        **Requires client credentials and Bearer token authentication.**
       security:
-        - BearerAuth: [ ]
+        - ClientSecret: [ ]
+          BearerAuth: [ ]
       parameters:
         - name: userEmail
           in: query
@@ -603,23 +651,24 @@ paths:
               schema:
                 $ref: "#/components/schemas/Video"
         "400":
-          description: Invalid request or file
+          description: Invalid request - missing file or invalid email
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 400
+                error: "Bad Request"
+                message: "Video file is required and userEmail must be valid"
+                path: "/api/media/videos/upload"
+                errorCode: "BAD_FORM"
         "401":
-          description: Unauthorized - missing or invalid token
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/InvalidClientCredentials"
         "500":
-          description: Internal server error during upload
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/InternalServerError"
 
   /api/media/videos/compress/{userEmail}:
     post:
@@ -629,9 +678,10 @@ paths:
       summary: Compress a video
       description: >
         Compresses a video file using FFmpeg.
-        **Requires Bearer token authentication.**
+        **Requires client credentials and Bearer token authentication.**
       security:
-        - BearerAuth: [ ]
+        - ClientSecret: [ ]
+          BearerAuth: [ ]
       parameters:
         - name: userEmail
           in: path
@@ -649,7 +699,7 @@ paths:
           description: The storage bucket key of the video to compress
       responses:
         "200":
-          description: Video compressed successfully
+          description: Video compression initiated successfully
           content:
             application/json:
               schema:
@@ -660,26 +710,216 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 400
+                error: "Bad Request"
+                message: "bucket_key parameter is required and cannot be empty"
+                path: "/api/media/videos/compress/user@example.com"
+                errorCode: "BAD_FORM"
         "401":
-          description: Unauthorized - missing or invalid token
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/InvalidClientCredentials"
         "404":
           description: Video not found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 404
+                error: "Not Found"
+                message: "Video with bucket key 'video-123.mp4' not found"
+                path: "/api/media/videos/compress/user@example.com"
+                errorCode: "ENTITY_NOT_FOUND"
         "500":
-          description: Internal server error during compression
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+          $ref: "#/components/responses/InternalServerError"
 
 components:
+  securitySchemes:
+    ClientSecret:
+      type: apiKey
+      in: header
+      name: X-CLIENT-SECRET
+      description: >
+        Client secret for API access. Must be provided along with X-CLIENT-ID header.
+        Local requests (localhost/127.0.0.1) bypass this requirement.
+        Contact API administrator to obtain client credentials.
+
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        JWT token obtained from /auth/token/token-pairs after login.
+        Include in Authorization header as: `Bearer <token>`
+
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: >
+        API key obtained from /auth/api-keys/generate.
+        Required for admin endpoints like /users.
+        Include in X-API-Key header.
+
+  responses:
+    Unauthorized:
+      description: Authentication required - missing or invalid bearer token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            timestamp: "2025-11-04T10:30:00Z"
+            status: 401
+            error: "Unauthorized"
+            message: "Authentication required"
+            path: "/api/endpoint"
+            errorCode: "MISSING_AUTHORIZATION"
+
+    AuthenticationFailed:
+      description: Authentication failed - invalid credentials
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            timestamp: "2025-11-04T10:30:00Z"
+            status: 401
+            error: "Unauthorized"
+            message: "Invalid email or password"
+            path: "/auth/login"
+            errorCode: "AUTHENTICATION_FAILED"
+
+    InvalidRefreshToken:
+      description: Invalid or expired refresh token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            timestamp: "2025-11-04T10:30:00Z"
+            status: 401
+            error: "Unauthorized"
+            message: "Refresh token is invalid or has expired"
+            path: "/auth/token/refresh-token-pairs"
+            errorCode: "INVALID_TOKEN"
+
+    InvalidClientCredentials:
+      description: Invalid or missing client credentials
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            timestamp: "2025-11-04T10:30:00Z"
+            status: 403
+            error: "Forbidden"
+            message: "Invalid or missing client credentials"
+            path: "/api/endpoint"
+            errorCode: "AUTHORIZATION_DENIED"
+
+    ForbiddenLoginOrClient:
+      description: User account is not activated or invalid client credentials
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            userDeactivated:
+              value:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 403
+                error: "Forbidden"
+                message: "User account is not activated. Please check your email for activation code"
+                path: "/auth/login"
+                errorCode: "USER_DEACTIVATED"
+            invalidClientCredentials:
+              value:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 403
+                error: "Forbidden"
+                message: "Invalid or missing client credentials"
+                path: "/auth/login"
+                errorCode: "AUTHORIZATION_DENIED"
+
+    ForbiddenAdminOrClient:
+      description: Access denied - ADMIN role required, missing API key, or invalid client credentials
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            missingApiKey:
+              value:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 403
+                error: "Forbidden"
+                message: "Valid API key is required for this endpoint"
+                path: "/users"
+                errorCode: "AUTHORIZATION_DENIED"
+            insufficientRole:
+              value:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 403
+                error: "Forbidden"
+                message: "Access denied - ADMIN role required"
+                path: "/users"
+                errorCode: "AUTHORIZATION_DENIED"
+            invalidClientCredentials:
+              value:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 403
+                error: "Forbidden"
+                message: "Invalid or missing client credentials"
+                path: "/users"
+                errorCode: "AUTHORIZATION_DENIED"
+
+    UserNotFound:
+      description: User not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            timestamp: "2025-11-04T10:30:00Z"
+            status: 404
+            error: "Not Found"
+            message: "User not found"
+            path: "/api/endpoint"
+            errorCode: "ENTITY_NOT_FOUND"
+
+    BadRequestValidation:
+      description: Invalid request data or validation failure
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            timestamp: "2025-11-04T10:30:00Z"
+            status: 400
+            error: "Bad Request"
+            message: "Email format is invalid or password does not meet requirements"
+            path: "/sign-up"
+            errorCode: "CONSTRAINT_VIOLATION_ON_FIELDS"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            timestamp: "2025-11-04T10:30:00Z"
+            status: 500
+            error: "Internal Server Error"
+            message: "An unexpected error occurred"
+            path: "/api/endpoint"
+            errorCode: "INTERNAL_SERVER_ERROR"
+
   schemas:
     ErrorResponse:
       type: object
@@ -1179,24 +1419,6 @@ components:
           type: boolean
         unsorted:
           type: boolean
-
-  securitySchemes:
-    BearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: >
-        JWT token obtained from /auth/token/token-pairs after login.
-        Include in Authorization header as: `Bearer <token>`
-
-    ApiKeyAuth:
-      type: apiKey
-      in: header
-      name: X-API-Key
-      description: >
-        API key obtained from /auth/api-keys/generate.
-        Required for admin endpoints like /users.
-        Include in X-API-Key header.
 
 security:
   - BearerAuth: [ ]
