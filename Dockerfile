@@ -7,7 +7,7 @@ COPY gradle ./gradle
 COPY gradlew ./
 
 RUN ./gradlew dependencies --no-daemon || true
-
+COPY doc ./doc
 COPY src ./src
 
 RUN ./gradlew bootJar --no-daemon
@@ -21,6 +21,7 @@ RUN apk update && apk add --no-cache ffmpeg
 RUN addgroup -S spring && adduser -S spring -G spring
 
 COPY --from=build /app/build/libs/*.jar app.jar
+COPY --from=build /app/doc ./doc
 
 RUN echo '#!/bin/sh' > /app/start.sh && \
     echo 'exec java -jar /app/app.jar "$@"' >> /app/start.sh && \
