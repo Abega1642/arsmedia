@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.Nullable;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -22,8 +23,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Slf4j
 public class ApiKeyFilter extends OncePerRequestFilter {
   private static final String[] SECURE_PATHS = {"/users"};
-  private final ApiKeyService service;
-  private final UserService userService;
+  private final @Lazy ApiKeyService service;
+  private final @Lazy UserService userService;
   private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
   @Override

@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'jacoco'
     id 'org.springframework.boot' version '3.5.6'
     id 'io.spring.dependency-management' version '1.1.7'
 }
@@ -72,8 +73,11 @@ dependencies {
 
 }
 
-tasks.named('test') {
+
+test {
+    maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
     useJUnitPlatform()
+    finalizedBy jacocoTestCoverageVerification
 
     jvmArgs(
             '-XX:+EnableDynamicAgentLoading',
@@ -89,4 +93,56 @@ tasks.named('test') {
         showCauses = true
         showStackTraces = true
     }
+}
+
+jacocoTestCoverageVerification {
+    dependsOn test
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                    "**/gen/**"
+            ])
+        }))
+    }
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                minimum = 0.5
+            }
+        }
+    }
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                    "**/gen/**"
+            ])
+        }))
+    }
+    doLast {
+        def coverageReportFile = layout.buildDirectory.file("reports/jacoco/test/jacocoTestReport.xml").get().asFile
+        if (!coverageReportFile.exists()) {
+            println "No JaCoCo coverage report found."
+            return
+        }
+
+        def xmlText = coverageReportFile.text
+        def matcher = xmlText =~ /<counter type="LINE" missed="(\d+)" covered="(\d+)"\/>/
+        if (matcher.find()) {
+            def missed = matcher.group(1).toInteger()
+            def covered = matcher.group(2).toInteger()
+            def total = missed + covered
+            def rate = (covered / total) * 100
+            println "Total Line Coverage Rate: ${rate.round(2)}%"
+        }
+    }
+
 }
