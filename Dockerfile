@@ -7,7 +7,7 @@ COPY gradle ./gradle
 COPY gradlew ./
 
 RUN ./gradlew dependencies --no-daemon || true
-
+COPY doc ./doc
 COPY src ./src
 
 RUN ./gradlew bootJar --no-daemon
