@@ -78,6 +78,38 @@ public class ApiExceptionHandler {
     return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
   }
 
+  @ExceptionHandler(VideoProcessingException.class)
+  public ResponseEntity<ErrorResponse> handleVideoProcessingException(
+      VideoProcessingException ex, WebRequest request) {
+
+    log.error("Video processing failed: {}", ex.getMessage(), ex);
+
+    var errorResponse =
+        ErrorResponse.of(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            ex.getMessage(),
+            getRequestPath(request),
+            "VIDEO_PROCESSING_FAILED");
+
+    return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+
+  @ExceptionHandler(HmacCalculationException.class)
+  public ResponseEntity<ErrorResponse> handleHmacCalculationException(
+      HmacCalculationException ex, WebRequest request) {
+
+    log.error("HmacCalculationException : {}", ex.getMessage(), ex);
+
+    var errorResponse =
+        ErrorResponse.of(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            ex.getMessage(),
+            getRequestPath(request),
+            "HMAC_CALCULATION_FAILED");
+
+    return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+
   @ExceptionHandler(EntityNotFoundException.class)
   public ResponseEntity<ErrorResponse> handleEntityNotFoundException(
       EntityNotFoundException ex, WebRequest request) {

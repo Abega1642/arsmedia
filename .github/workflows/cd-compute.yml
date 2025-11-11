@@ -2,8 +2,8 @@ name: CD - Health check
 
 on:
   schedule:
-    # Runs every 10 minutes
-    - cron: '*/10 * * * *'
+    # Runs every 8 minutes
+    - cron: '*/8 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -18,7 +18,6 @@ jobs:
         id: health_check
         run: |
           URLS=(
-            "https://arsmedia.onrender.com/ping"
             "https://wooden-cristie-razafindratelo-9e0e4bcf.koyeb.app/ping"
           )
           
@@ -33,9 +32,9 @@ jobs:
             echo "HTTP Status for $URL: $HTTP_STATUS"
           
             if [ "$HTTP_STATUS" -eq 200 ]; then
-              echo "✓ Success! $URL returned status 200"
+              echo "Success! $URL returned status 200"
             else
-              echo "✗ Failed! $URL returned status $HTTP_STATUS"
+              echo "Failed! $URL returned status $HTTP_STATUS"
               FAILED_URLS+=("$URL")
               FAILED_STATUSES+=("$HTTP_STATUS")
             fi
@@ -44,7 +43,7 @@ jobs:
           
           if [ ${#FAILED_URLS[@]} -gt 0 ]; then
             echo "failed=true" >> $GITHUB_OUTPUT
-            # Save failed URLs and statuses for the issue creation step
+          
             echo "FAILED_URLS=${FAILED_URLS[*]}" >> $GITHUB_ENV
             echo "FAILED_STATUSES=${FAILED_STATUSES[*]}" >> $GITHUB_ENV
             exit 1

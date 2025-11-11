@@ -27,8 +27,8 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @AllArgsConstructor
 public class MediaService {
+  private static final String PREFIX_VIDEO_BUCKET_KEY = "videos";
   private final BucketComponent bucket;
-  private final String PREFIX_VIDEO_BUCKET_KEY = "videos";
   private final VideoMetaDataExtractor videoExtractor;
   private final VideoRepository videoRepository;
   private final UserService userService;

@@ -1,8 +1,11 @@
 package dev.razafindratelo.arsmedia.service;
 
 import dev.razafindratelo.arsmedia.exception.ApiKeyGenerationException;
+import dev.razafindratelo.arsmedia.exception.HmacCalculationException;
 import dev.razafindratelo.arsmedia.model.User;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.function.BiFunction;
@@ -32,12 +35,16 @@ public class ApiKeyGenerator implements BiFunction<User, LocalDateTime, String> 
     }
   }
 
-  private String calculateHmac(String data, String key) throws Exception {
-    Mac hmac = Mac.getInstance(ALGORITHM);
-    SecretKeySpec secretKey = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), ALGORITHM);
-    hmac.init(secretKey);
-    byte[] hmacBytes = hmac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-    return bytesToHex(hmacBytes).substring(0, 16);
+  private String calculateHmac(String data, String key) {
+    try {
+      Mac hmac = Mac.getInstance(ALGORITHM);
+      SecretKeySpec secretKey = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), ALGORITHM);
+      hmac.init(secretKey);
+      byte[] hmacBytes = hmac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+      return bytesToHex(hmacBytes).substring(0, 16);
+    } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+      throw new HmacCalculationException("Failed to calculate HMAC", e);
+    }
   }
 
   private String bytesToHex(byte[] bytes) {

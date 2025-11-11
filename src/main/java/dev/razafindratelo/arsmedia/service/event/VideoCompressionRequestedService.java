@@ -268,7 +268,7 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
   private double calculateBitRate(File file, double durationInSeconds) {
     if (durationInSeconds <= 0) return 0;
     long fileSizeBits = file.length() * 8;
-    return (double) fileSizeBits / durationInSeconds / 1000;
+    return fileSizeBits / durationInSeconds / 1000;
   }
 
   private void cleanupTempFiles(File... files) {
