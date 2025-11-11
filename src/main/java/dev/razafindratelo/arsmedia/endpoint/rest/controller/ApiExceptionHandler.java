@@ -1,6 +1,5 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.ErrorResponse;
 import dev.razafindratelo.arsmedia.exception.*;
 import jakarta.persistence.EntityNotFoundException;
@@ -20,8 +19,7 @@ import org.springframework.web.context.request.WebRequest;
 @ControllerAdvice
 @Slf4j
 @RequiredArgsConstructor
-public class ApiException {
-  private final ObjectMapper om;
+public class ApiExceptionHandler {
 
   @ExceptionHandler(AuthorizationDeniedException.class)
   public ResponseEntity<ErrorResponse> handleAuthorizationDeniedException(
@@ -30,6 +28,54 @@ public class ApiException {
         ErrorResponse.of(
             HttpStatus.FORBIDDEN, ex.getMessage(), getRequestPath(request), "AUTHORIZATION_DENIED");
     return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
+  }
+
+  @ExceptionHandler(DirectoryUploadException.class)
+  public ResponseEntity<ErrorResponse> handleDirectoryUploadException(
+      DirectoryUploadException ex, WebRequest request) {
+
+    log.error("Directory upload failed: {}", ex.getMessage(), ex);
+
+    var errorResponse =
+        ErrorResponse.of(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            ex.getMessage(),
+            getRequestPath(request),
+            "DIRECTORY_UPLOAD_FAILED");
+
+    return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+
+  @ExceptionHandler(TemplateLoadingException.class)
+  public ResponseEntity<ErrorResponse> handleTemplateLoadingException(
+      TemplateLoadingException ex, WebRequest request) {
+
+    log.error("Template loading failed: {}", ex.getMessage(), ex);
+
+    var errorResponse =
+        ErrorResponse.of(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            ex.getMessage(),
+            getRequestPath(request),
+            "TEMPLATE_LOADING_FAILED");
+
+    return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+
+  @ExceptionHandler(ApiKeyGenerationException.class)
+  public ResponseEntity<ErrorResponse> handleApiKeyGenerationException(
+      ApiKeyGenerationException ex, WebRequest request) {
+
+    log.error("API key generation failed: {}", ex.getMessage(), ex);
+
+    var errorResponse =
+        ErrorResponse.of(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            ex.getMessage(),
+            getRequestPath(request),
+            "API_KEY_GENERATION_FAILED");
+
+    return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
   }
 
   @ExceptionHandler(EntityNotFoundException.class)

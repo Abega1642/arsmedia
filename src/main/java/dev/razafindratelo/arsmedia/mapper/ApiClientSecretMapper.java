@@ -7,6 +7,11 @@ import dev.razafindratelo.arsmedia.model.ApiClientSecret;
 import dev.razafindratelo.arsmedia.repository.model.JApiClientSecret;
 
 public class ApiClientSecretMapper {
+
+  private ApiClientSecretMapper() {
+    throw new UnsupportedOperationException("Utility class");
+  }
+
   public static ApiClientSecret toApiClientSecret(JApiClientSecret jApiClientSecret) {
     return new ApiClientSecret(
         jApiClientSecret.getId(),

@@ -37,7 +37,7 @@ class ApiKeyServiceIT extends FacadeIT {
     entityManager.flush();
     entityManager.clear();
 
-    var expected = subject.createAPIKey(user.email(), Duration.ofDays(5));
+    var expected = subject.createApiKeyWithUserEmailAndDuration(user.email(), Duration.ofDays(5));
     var actual = subject.findByAPIKeyValue(expected.apiKey());
 
     assertEquals(expected.id(), actual.id());
@@ -50,7 +50,7 @@ class ApiKeyServiceIT extends FacadeIT {
   void should_not_allow_apiKey_generation_for_not_activated_account() {
     assertThrows(
         UserNotActivatedException.class,
-        () -> subject.createAPIKey(user.email(), Duration.ofDays(5)));
+        () -> subject.createApiKeyWithUserEmailAndDuration(user.email(), Duration.ofDays(5)));
     userRepository.deleteByEmail(user.email());
   }
 }

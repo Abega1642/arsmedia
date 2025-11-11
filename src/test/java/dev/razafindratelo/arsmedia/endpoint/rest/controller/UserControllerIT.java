@@ -41,7 +41,8 @@ class UserControllerIT extends FacadeIT {
     userService.create(adminUser);
     userService.updateActivationStatusByEmail(ADMIN_USER_EMAIL, true);
 
-    var apiKeyModel = apiKeyService.createAPIKey(ADMIN_USER_EMAIL, Duration.ofDays(10));
+    var apiKeyModel =
+        apiKeyService.createApiKeyWithUserEmailAndDuration(ADMIN_USER_EMAIL, Duration.ofDays(10));
     adminApiKey = apiKeyModel.apiKey();
   }
 

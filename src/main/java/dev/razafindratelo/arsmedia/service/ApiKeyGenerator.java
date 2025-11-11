@@ -1,5 +1,6 @@
 package dev.razafindratelo.arsmedia.service;
 
+import dev.razafindratelo.arsmedia.exception.ApiKeyGenerationException;
 import dev.razafindratelo.arsmedia.model.User;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -27,7 +28,7 @@ public class ApiKeyGenerator implements BiFunction<User, LocalDateTime, String> 
 
       return encodeBase64(data + SEPARATOR + signature);
     } catch (Exception e) {
-      throw new RuntimeException("Failed to generate API key", e);
+      throw new ApiKeyGenerationException("Failed to generate API key", e);
     }
   }
 

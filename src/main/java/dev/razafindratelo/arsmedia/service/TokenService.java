@@ -309,14 +309,12 @@ public class TokenService {
       var tokensToInvalidate = (int) (activeTokenCount - maxActiveTokensPerUser + 1);
 
       var tokensToUpdate =
-          oldestTokens.stream()
-              .limit(tokensToInvalidate)
-              .peek(
-                  token -> {
-                    token.setValid(false);
-                    log.debug("Invalidating old token for user: {}", userEmail);
-                  })
-              .collect(Collectors.toList());
+          oldestTokens.stream().limit(tokensToInvalidate).collect(Collectors.toList());
+
+      for (var token : tokensToUpdate) {
+        token.setValid(false);
+        log.debug("Invalidating old token for user: {}", userEmail);
+      }
 
       if (!tokensToUpdate.isEmpty()) {
         tokenRepository.saveAll(tokensToUpdate);
@@ -382,6 +380,6 @@ public class TokenService {
 
   @FunctionalInterface
   private interface TokenValueGenerator {
-    String generate() throws Exception;
+    String generate() throws TokenGenerationException;
   }
 }

@@ -64,11 +64,7 @@ public class Mailer implements Consumer<Email> {
 
       if (email.attachments() != null) {
         for (File file : email.attachments()) {
-          try {
-            helper.addAttachment(file.getName(), file);
-          } catch (Exception ex) {
-            log.warn("Failed to attach file {}: {}", file.getName(), ex.getMessage(), ex);
-          }
+          addAttachmentSafely(helper, file);
         }
       }
 
@@ -87,6 +83,14 @@ public class Mailer implements Consumer<Email> {
           email.to().getAddress(),
           e.getMessage(),
           e);
+    }
+  }
+
+  private void addAttachmentSafely(MimeMessageHelper helper, File file) {
+    try {
+      helper.addAttachment(file.getName(), file);
+    } catch (Exception ex) {
+      log.warn("Failed to attach file {}: {}", file.getName(), ex.getMessage(), ex);
     }
   }
 }

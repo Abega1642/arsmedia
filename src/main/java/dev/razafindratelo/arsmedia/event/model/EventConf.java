@@ -59,7 +59,7 @@ public class EventConf {
   }
 
   @Bean
-  public ListGrouper<?> listGrouper() {
+  public ListGrouper<InfraEvent> listGrouper() {
     return new ListGrouper<>();
   }
 }

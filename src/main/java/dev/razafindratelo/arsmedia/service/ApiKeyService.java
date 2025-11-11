@@ -4,7 +4,7 @@ import static java.time.LocalDateTime.now;
 
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.ApiKeyRequest;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.ApiKeyResponse;
-import dev.razafindratelo.arsmedia.exception.APIKeyException;
+import dev.razafindratelo.arsmedia.exception.ApiKeyException;
 import dev.razafindratelo.arsmedia.exception.UserNotActivatedException;
 import dev.razafindratelo.arsmedia.mapper.ApiKeyMapper;
 import dev.razafindratelo.arsmedia.mapper.UserMapper;
@@ -37,12 +37,12 @@ public class ApiKeyService {
   private final Pagination paginator;
 
   public ApiKeyResponse createApiKey(@NotNull @Valid ApiKeyRequest request) {
-    var apiKey = createAPIKey(request.userEmail(), Duration.ofDays(20));
+    var apiKey = createApiKeyWithUserEmailAndDuration(request.userEmail(), Duration.ofDays(20));
     return new ApiKeyResponse(apiKey.apiKey(), request.reason());
   }
 
   @Transactional
-  public ApiKey createAPIKey(
+  public ApiKey createApiKeyWithUserEmailAndDuration(
       @Email @NotNull @NotBlank String userEmail, @NotNull Duration duration) {
     var owner = userService.findByEmail(userEmail);
     log.info("Attempt to generate API key for user {}", userEmail);
@@ -91,7 +91,7 @@ public class ApiKeyService {
     var jApiKey =
         repository
             .findByApiKey(apiKey)
-            .orElseThrow(() -> new APIKeyException("No API key found with that value"));
+            .orElseThrow(() -> new ApiKeyException("No API key found with that value"));
     return ApiKeyMapper.toModel(jApiKey);
   }
 

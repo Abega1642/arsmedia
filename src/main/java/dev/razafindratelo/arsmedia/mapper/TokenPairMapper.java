@@ -4,6 +4,11 @@ import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.RTokenPair;
 import dev.razafindratelo.arsmedia.model.token.TokenPair;
 
 public class TokenPairMapper {
+
+  private TokenPairMapper() {
+    throw new UnsupportedOperationException("Utility class");
+  }
+
   public static RTokenPair toRest(TokenPair tokenPair) {
     return new RTokenPair(
         TokenMapper.toRest(tokenPair.accessToken()),

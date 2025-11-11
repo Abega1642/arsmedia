@@ -1,5 +1,6 @@
 package dev.razafindratelo.arsmedia.service;
 
+import dev.razafindratelo.arsmedia.exception.TemplateLoadingException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -22,7 +23,7 @@ public class HtmlTemplateLoader implements BiFunction<String, Map<String, String
     try (var inputStream = new ClassPathResource("static/" + fileName).getInputStream()) {
       return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
     } catch (IOException e) {
-      throw new RuntimeException("Failed to load HTML template: " + fileName, e);
+      throw new TemplateLoadingException("Failed to load HTML template: " + fileName, e);
     }
   }
 

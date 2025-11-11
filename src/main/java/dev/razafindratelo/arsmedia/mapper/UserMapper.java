@@ -9,6 +9,11 @@ import dev.razafindratelo.arsmedia.repository.model.JUser;
 import java.util.UUID;
 
 public class UserMapper {
+
+  private UserMapper() {
+    throw new UnsupportedOperationException("Utility class");
+  }
+
   public static User toUser(JUser jUser) {
     return new User(
         jUser.getId(),
