@@ -5,6 +5,11 @@ import dev.razafindratelo.arsmedia.model.token.Token;
 import dev.razafindratelo.arsmedia.repository.model.token.JToken;
 
 public class TokenMapper {
+
+  private TokenMapper() {
+    throw new UnsupportedOperationException("Utility class");
+  }
+
   public static Token toModel(JToken jToken) {
     return new Token(
         jToken.getId(),

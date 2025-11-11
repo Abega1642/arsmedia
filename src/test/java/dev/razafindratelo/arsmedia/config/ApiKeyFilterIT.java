@@ -38,10 +38,12 @@ class ApiKeyFilterIT extends FacadeIT {
     userService.create(adminUser);
     userService.updateActivationStatusByEmail(TEST_USER_EMAIL, true);
 
-    var validApiKeyModel = apiKeyService.createAPIKey(TEST_USER_EMAIL, Duration.ofDays(10));
+    var validApiKeyModel =
+        apiKeyService.createApiKeyWithUserEmailAndDuration(TEST_USER_EMAIL, Duration.ofDays(10));
     validApiKey = validApiKeyModel.apiKey();
 
-    var expiredApiKeyModel = apiKeyService.createAPIKey(TEST_USER_EMAIL, Duration.ofMillis(1));
+    var expiredApiKeyModel =
+        apiKeyService.createApiKeyWithUserEmailAndDuration(TEST_USER_EMAIL, Duration.ofMillis(1));
     expiredApiKey = expiredApiKeyModel.apiKey();
 
     try {
@@ -130,7 +132,8 @@ class ApiKeyFilterIT extends FacadeIT {
       var createdUser = userService.create(nonAdminUser);
       userService.updateActivationStatusByEmail(nonAdminEmail, true);
 
-      var apiKeyModel = apiKeyService.createAPIKey(nonAdminEmail, Duration.ofDays(1));
+      var apiKeyModel =
+          apiKeyService.createApiKeyWithUserEmailAndDuration(nonAdminEmail, Duration.ofDays(1));
       String nonAdminApiKey = apiKeyModel.apiKey();
 
       try {

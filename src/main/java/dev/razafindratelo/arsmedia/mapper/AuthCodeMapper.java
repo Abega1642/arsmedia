@@ -4,6 +4,11 @@ import dev.razafindratelo.arsmedia.model.AuthCode;
 import dev.razafindratelo.arsmedia.repository.model.JAuthCode;
 
 public class AuthCodeMapper {
+
+  private AuthCodeMapper() {
+    throw new UnsupportedOperationException("Utility class");
+  }
+
   public static AuthCode toModel(JAuthCode jAuthCode) {
     return new AuthCode(
         jAuthCode.getId(),

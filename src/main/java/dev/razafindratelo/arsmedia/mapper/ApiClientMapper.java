@@ -4,6 +4,11 @@ import dev.razafindratelo.arsmedia.model.ApiClient;
 import dev.razafindratelo.arsmedia.repository.model.JApiClient;
 
 public class ApiClientMapper {
+
+  private ApiClientMapper() {
+    throw new UnsupportedOperationException("Utility class");
+  }
+
   public static ApiClient toApiClient(JApiClient jApiClient) {
     return new ApiClient(
         jApiClient.getId(),

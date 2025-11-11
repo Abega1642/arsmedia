@@ -18,11 +18,11 @@ import org.springframework.web.bind.annotation.RestController;
 @AllArgsConstructor
 public class HealthBucketController {
 
-  private final BucketComponent bucketComponent;
   private static final String HEALTH_KEY = "health";
+  private final BucketComponent bucketComponent;
 
   @GetMapping("/health/bucket")
-  public ResponseEntity<String> file_can_be_uploaded_then_signed() throws IOException {
+  public ResponseEntity<String> fileCanBeUploadedThenSigned() throws IOException {
     String fileSuffix = ".txt";
     String filePrefix = UUID.randomUUID().toString();
     File fileToUpload = Files.createTempFile(filePrefix, fileSuffix).toFile();
@@ -33,7 +33,7 @@ public class HealthBucketController {
 
     File downloaded = bucketComponent.download(fileBucketKey);
     if (!Files.readString(fileToUpload.toPath()).equals(Files.readString(downloaded.toPath()))) {
-      throw new RuntimeException("Uploaded and downloaded content mismatch");
+      throw new IllegalArgumentException("Uploaded and downloaded content mismatch");
     }
 
     String dirPrefix = "dir-" + UUID.randomUUID();

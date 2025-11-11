@@ -4,6 +4,11 @@ import dev.razafindratelo.arsmedia.model.ApiKey;
 import dev.razafindratelo.arsmedia.repository.model.JApiKey;
 
 public class ApiKeyMapper {
+
+  private ApiKeyMapper() {
+    throw new UnsupportedOperationException("Utility class");
+  }
+
   public static ApiKey toModel(JApiKey jApiKey) {
     return new ApiKey(
         jApiKey.getId(),

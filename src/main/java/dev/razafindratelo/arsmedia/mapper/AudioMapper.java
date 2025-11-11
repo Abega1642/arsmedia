@@ -4,6 +4,11 @@ import dev.razafindratelo.arsmedia.model.Audio;
 import dev.razafindratelo.arsmedia.repository.model.JAudio;
 
 public class AudioMapper {
+
+  private AudioMapper() {
+    throw new UnsupportedOperationException("Utility class");
+  }
+
   public static Audio toAudio(JAudio jAudio) {
     Audio audio =
         new Audio(

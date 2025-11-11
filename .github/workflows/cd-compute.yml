@@ -1,0 +1,91 @@
+name: CD - Health check
+
+on:
+  schedule:
+    # Runs every 10 minutes
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check-urls:
+    runs-on: ubuntu-latest
+
+    permissions:
+      issues: write
+
+    steps:
+      - name: Check URL Status
+        id: health_check
+        run: |
+          URLS=(
+            "https://arsmedia.onrender.com/ping"
+            "https://wooden-cristie-razafindratelo-9e0e4bcf.koyeb.app/ping"
+          )
+          
+          FAILED_URLS=()
+          FAILED_STATUSES=()
+          
+          for URL in "${URLS[@]}"; do
+            echo "Checking $URL..."
+          
+            HTTP_STATUS=$(curl -L -o /dev/null -s -w "%{http_code}" --max-time 30 "$URL")
+          
+            echo "HTTP Status for $URL: $HTTP_STATUS"
+          
+            if [ "$HTTP_STATUS" -eq 200 ]; then
+              echo "✓ Success! $URL returned status 200"
+            else
+              echo "✗ Failed! $URL returned status $HTTP_STATUS"
+              FAILED_URLS+=("$URL")
+              FAILED_STATUSES+=("$HTTP_STATUS")
+            fi
+            echo "---"
+          done
+          
+          if [ ${#FAILED_URLS[@]} -gt 0 ]; then
+            echo "failed=true" >> $GITHUB_OUTPUT
+            # Save failed URLs and statuses for the issue creation step
+            echo "FAILED_URLS=${FAILED_URLS[*]}" >> $GITHUB_ENV
+            echo "FAILED_STATUSES=${FAILED_STATUSES[*]}" >> $GITHUB_ENV
+            exit 1
+          else
+            echo "failed=false" >> $GITHUB_OUTPUT
+            echo "All health checks passed!"
+            exit 0
+          fi
+
+      - name: Create Issue on Failure
+        if: failure()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const failedUrls = process.env.FAILED_URLS.split(' ');
+            const failedStatuses = process.env.FAILED_STATUSES.split(' ');
+            
+            let failureDetails = '';
+            for (let i = 0; i < failedUrls.length; i++) {
+              failureDetails += `- **${failedUrls[i]}** - Status: ${failedStatuses[i]}\n`;
+            }
+            
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Health Check Failed - ' + new Date().toISOString(),
+              body: `## Health Check Failure Report
+            
+              **Time:** ${new Date().toLocaleString()}
+              **Workflow Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}
+            
+              ### Failed URLs:
+              ${failureDetails}
+            
+              ### Possible Causes:
+              - Service is down
+              - Service is restarting (Render/Koyeb free tier spin-up)
+              - Network issues
+              - Server error
+            
+              Please investigate and resolve the issue.`,
+              labels: ['bug', 'health-check']
+            });
+            console.log('Created issue:', issue.data.number);

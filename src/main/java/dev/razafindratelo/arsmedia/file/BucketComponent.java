@@ -2,6 +2,7 @@ package dev.razafindratelo.arsmedia.file;
 
 import dev.razafindratelo.arsmedia.InfraGenerated;
 import dev.razafindratelo.arsmedia.config.BucketConf;
+import dev.razafindratelo.arsmedia.exception.DirectoryUploadException;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -45,7 +46,7 @@ public class BucketComponent {
                 uploadFile(path.toFile(), relativeKey);
               });
     } catch (IOException e) {
-      throw new RuntimeException("Failed to upload directory: " + directory, e);
+      throw new DirectoryUploadException("Failed to upload directory: " + directory, e);
     }
     return new FileHash("NONE", null);
   }
@@ -63,7 +64,7 @@ public class BucketComponent {
       var completed = upload.completionFuture().join();
       return new FileHash("SHA-256", completed.response().checksumSHA256());
     } catch (Exception e) {
-      throw new RuntimeException("Upload failed for key: " + bucketKey, e);
+      throw new DirectoryUploadException("Upload failed for key: " + bucketKey, e);
     }
   }
 
@@ -83,7 +84,7 @@ public class BucketComponent {
       bucketConf.getS3TransferManager().downloadFile(request).completionFuture().join();
       return destination;
     } catch (Exception e) {
-      throw new RuntimeException("Download failed for key: " + bucketKey, e);
+      throw new DirectoryUploadException("Download failed for key: " + bucketKey, e);
     }
   }
 

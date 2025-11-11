@@ -4,6 +4,11 @@ import dev.razafindratelo.arsmedia.model.Video;
 import dev.razafindratelo.arsmedia.repository.model.JVideo;
 
 public class VideoMapper {
+
+  private VideoMapper() {
+    throw new UnsupportedOperationException("Utility class");
+  }
+
   public static Video toVideo(JVideo jVideo) {
     Video video =
         new Video(

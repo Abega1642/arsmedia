@@ -11,7 +11,7 @@ public enum SizeType {
 
   public static double convert(long bytes, SizeType targetUnit) {
     return switch (targetUnit) {
-      case BYTES -> (double) bytes;
+      case BYTES -> bytes;
       case KB -> bytes / 1_024.0;
       case MB -> bytes / 1_048_576.0;
       case GB -> bytes / 1_073_741_824.0;

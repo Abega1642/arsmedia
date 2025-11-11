@@ -18,6 +18,7 @@ import dev.razafindratelo.arsmedia.service.UserService;
 import jakarta.persistence.EntityNotFoundException;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.UUID;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class VideoCompressionRequestedService implements Consumer<VideoCompressionRequested> {
 
+  public static final String PREFIX = "compressed_";
   private final FFmpeg ffmpeg;
   private final FFprobe ffprobe;
   private final BucketComponent bucketComponent;
@@ -115,7 +117,7 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
   private File createCompressedFile(
       File originalFile, Video originalVideo, CompressionOptions options) throws IOException {
 
-    File compressedFile = File.createTempFile("compressed_", ".mp4");
+    File compressedFile = File.createTempFile(PREFIX, ".mp4");
     log.info("Created temporary output file: {}", compressedFile.getAbsolutePath());
 
     double frameRate = originalVideo.getFrameRate();
@@ -188,7 +190,7 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
   }
 
   private String generateCompressedBucketKey(String videoId) {
-    return "compressed_" + videoId + "_" + System.currentTimeMillis();
+    return PREFIX + videoId + "_" + System.currentTimeMillis();
   }
 
   private Video createCompressedVideoEntity(
@@ -218,7 +220,7 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
       frameRate = 30.0;
     }
 
-    compressedVideo.setFileName("compressed_" + originalVideo.getFileName());
+    compressedVideo.setFileName(PREFIX + originalVideo.getFileName());
     compressedVideo.setSize(compressedFile.length());
     compressedVideo.setSizeType(originalVideo.getSizeType());
     compressedVideo.setFileType(originalVideo.getFileType());
@@ -272,8 +274,14 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
   private void cleanupTempFiles(File... files) {
     for (File file : files) {
       if (file != null && file.exists()) {
-        if (!file.delete()) {
-          log.warn("Failed to delete temporary file: {}", file.getAbsolutePath());
+        try {
+          Files.delete(file.toPath());
+        } catch (IOException e) {
+          log.warn(
+              "Failed to delete temporary file: {}. Reason: {}",
+              file.getAbsolutePath(),
+              e.getMessage(),
+              e);
         }
       }
     }

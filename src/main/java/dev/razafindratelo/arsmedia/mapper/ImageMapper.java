@@ -4,6 +4,11 @@ import dev.razafindratelo.arsmedia.model.Image;
 import dev.razafindratelo.arsmedia.repository.model.JImage;
 
 public class ImageMapper {
+
+  private ImageMapper() {
+    throw new UnsupportedOperationException("Utility class");
+  }
+
   public static Image toImage(JImage j) {
     var img =
         new Image(

@@ -7,6 +7,11 @@ import dev.razafindratelo.arsmedia.model.Media;
 import dev.razafindratelo.arsmedia.repository.model.JMedia;
 
 public class MediaMapper {
+
+  private MediaMapper() {
+    throw new UnsupportedOperationException("Utility class");
+  }
+
   public static Media toMedia(JMedia jMedia) {
     return new Media(
         jMedia.getId(),

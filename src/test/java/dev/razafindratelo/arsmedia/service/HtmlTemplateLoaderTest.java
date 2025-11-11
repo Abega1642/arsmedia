@@ -2,6 +2,7 @@ package dev.razafindratelo.arsmedia.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import dev.razafindratelo.arsmedia.exception.TemplateLoadingException;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -42,7 +43,8 @@ class HtmlTemplateLoaderTest {
 
   @Test
   void should_throw_if_template_missing() {
-    assertThrows(RuntimeException.class, () -> subject.apply("nonexistent.html", Map.of("A", "B")));
+    assertThrows(
+        TemplateLoadingException.class, () -> subject.apply("nonexistent.html", Map.of("A", "B")));
   }
 
   @Test

@@ -104,7 +104,7 @@ public class JwtUtil {
   }
 
   private String buildToken(Map<String, Object> claims, String subject, Duration duration) {
-    validateTokenGenerationParameters(claims, subject, duration);
+    validateTokenGenerationParameters(subject, duration);
 
     return Jwts.builder()
         .claims(claims)
@@ -142,8 +142,7 @@ public class JwtUtil {
     return claims;
   }
 
-  private void validateTokenGenerationParameters(
-      Map<String, Object> claims, String subject, @NotNull Duration duration) {
+  private void validateTokenGenerationParameters(String subject, @NotNull Duration duration) {
     if (subject == null || subject.trim().isEmpty())
       throw new IllegalArgumentException("JWT subject cannot be null or empty");
 

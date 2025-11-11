@@ -16,9 +16,8 @@ FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
-RUN apk update && apk add --no-cache ffmpeg
-
-RUN addgroup -S spring && adduser -S spring -G spring
+RUN apk update && apk add --no-cache ffmpeg && \
+    addgroup -S spring && adduser -S spring -G spring
 
 COPY --from=build /app/build/libs/*.jar app.jar
 COPY --from=build /app/doc ./doc
