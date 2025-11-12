@@ -1,8 +1,11 @@
 package dev.razafindratelo.arsmedia.repository.model;
 
+import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "compressed_videos")
@@ -21,4 +24,9 @@ public class JCompressedVideo {
 
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
+
+  @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+  @Column(name = "process_status")
+  private ProcessStatus status;
 }

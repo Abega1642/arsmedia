@@ -2,10 +2,13 @@ package dev.razafindratelo.arsmedia.service.event;
 
 import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toJVideo;
 import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toVideo;
+import static dev.razafindratelo.arsmedia.model.classifier.ProcessStatus.COMPLETED;
+import static dev.razafindratelo.arsmedia.model.classifier.ProcessStatus.PROGRESSING;
 import static java.time.LocalDateTime.now;
 
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.CompressionOptions;
 import dev.razafindratelo.arsmedia.event.model.VideoCompressionRequested;
+import dev.razafindratelo.arsmedia.exception.VideoProcessingException;
 import dev.razafindratelo.arsmedia.file.BucketComponent;
 import dev.razafindratelo.arsmedia.model.Video;
 import dev.razafindratelo.arsmedia.model.classifier.AudioCodec;
@@ -61,16 +64,17 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
           "Processing video compression event for video: {} and bucket key = {}",
           event.getVideoId(),
           event.getBucketKey());
-      processCompression(event);
+      var compressedVideo = processCompression(event);
+      compressedVideoRepository.updateCompressedVideoStatus(COMPLETED, compressedVideo.getId());
       log.info("Video compression completed successfully for: {}", event.getVideoId());
 
     } catch (Exception e) {
       log.error("Video compression failed for video: {}", event.getVideoId(), e);
-      throw new RuntimeException("Video compression processing failed", e);
+      throw new VideoProcessingException("Video compression processing failed", e);
     }
   }
 
-  private void processCompression(VideoCompressionRequested event) throws IOException {
+  private JCompressedVideo processCompression(VideoCompressionRequested event) throws IOException {
     Video originalVideo =
         toVideo(
             repository
@@ -101,17 +105,18 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
     compressedVideo.setOwner(owner);
 
     JCompressedVideo jCompressedVideo =
-        new JCompressedVideo(UUID.randomUUID().toString(), toJVideo(compressedVideo), now());
+        new JCompressedVideo(
+            UUID.randomUUID().toString(), toJVideo(compressedVideo), now(), PROGRESSING);
 
     log.info(
         "Compressed video size : {}{}", compressedVideo.getSize(), compressedVideo.getSizeType());
 
     log.info("Saving compressed video entity to database");
     repository.save(toJVideo(compressedVideo));
-    compressedVideoRepository.save(jCompressedVideo);
 
     cleanupTempFiles(originalFile, compressedFile);
     log.info("Temporary files cleaned up");
+    return compressedVideoRepository.save(jCompressedVideo);
   }
 
   private File createCompressedFile(
