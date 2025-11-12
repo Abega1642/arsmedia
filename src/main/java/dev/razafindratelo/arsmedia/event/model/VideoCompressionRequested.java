@@ -5,9 +5,11 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.CompressionOptions;
 import java.time.Duration;
+import lombok.Builder;
 import lombok.Getter;
 
 @Getter
+@Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class VideoCompressionRequested extends InfraEvent {
 
