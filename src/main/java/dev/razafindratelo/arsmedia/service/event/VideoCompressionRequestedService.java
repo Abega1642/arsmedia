@@ -2,8 +2,6 @@ package dev.razafindratelo.arsmedia.service.event;
 
 import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toJVideo;
 import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toVideo;
-import static dev.razafindratelo.arsmedia.model.classifier.ProcessStatus.COMPLETED;
-import static dev.razafindratelo.arsmedia.model.classifier.ProcessStatus.PROGRESSING;
 import static java.time.LocalDateTime.now;
 
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.CompressionOptions;
@@ -13,15 +11,18 @@ import dev.razafindratelo.arsmedia.file.BucketComponent;
 import dev.razafindratelo.arsmedia.model.Video;
 import dev.razafindratelo.arsmedia.model.classifier.AudioCodec;
 import dev.razafindratelo.arsmedia.model.classifier.ContainerFormat;
+import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
 import dev.razafindratelo.arsmedia.model.classifier.VideoCodec;
 import dev.razafindratelo.arsmedia.repository.CompressedVideoRepository;
 import dev.razafindratelo.arsmedia.repository.VideoRepository;
 import dev.razafindratelo.arsmedia.repository.model.JCompressedVideo;
+import dev.razafindratelo.arsmedia.repository.model.JVideo;
 import dev.razafindratelo.arsmedia.service.UserService;
 import jakarta.persistence.EntityNotFoundException;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
@@ -59,22 +60,72 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
 
   @Override
   public void accept(VideoCompressionRequested event) {
+    String jobId = event.getJobId();
+
     try {
       log.info(
-          "Processing video compression event for video: {} and bucket key = {}",
+          "Processing video compression event for video: {}, bucket key: {}, job_id: {}, attempt:"
+              + " {}",
           event.getVideoId(),
-          event.getBucketKey());
-      var compressedVideo = processCompression(event);
-      compressedVideoRepository.updateCompressedVideoStatus(COMPLETED, compressedVideo.getId());
-      log.info("Video compression completed successfully for: {}", event.getVideoId());
+          event.getBucketKey(),
+          jobId,
+          event.getAttemptNb());
+
+      updateJobStatus(jobId, ProcessStatus.PROGRESSING, event.getAttemptNb(), null);
+
+      var compressedVideo = processCompression(event, jobId);
+
+      log.info(
+          "Video compression completed successfully for video: {}, job_id: {}",
+          event.getVideoId(),
+          jobId);
 
     } catch (Exception e) {
-      log.error("Video compression failed for video: {}", event.getVideoId(), e);
+      log.error(
+          "Video compression failed for video: {}, job_id: {}, attempt: {}",
+          event.getVideoId(),
+          jobId,
+          event.getAttemptNb(),
+          e);
+
+      String errorMessage =
+          String.format(
+              "Compression failed on attempt %d: %s", event.getAttemptNb(), e.getMessage());
+      updateJobStatus(jobId, ProcessStatus.FAILED, event.getAttemptNb(), errorMessage);
+
       throw new VideoProcessingException("Video compression processing failed", e);
     }
   }
 
-  private JCompressedVideo processCompression(VideoCompressionRequested event) throws IOException {
+  private void updateJobStatus(
+      String jobId, ProcessStatus status, int attemptCount, String errorMessage) {
+    try {
+      JCompressedVideo job =
+          compressedVideoRepository
+              .findById(jobId)
+              .orElseThrow(
+                  () -> new EntityNotFoundException("Compression job not found: " + jobId));
+
+      job.setStatus(status);
+      job.setAttemptCount(attemptCount);
+
+      if (errorMessage != null) {
+        job.setErrorMessage(errorMessage);
+      }
+
+      if (status == ProcessStatus.COMPLETED || status == ProcessStatus.FAILED) {
+        job.setCompletedAt(LocalDateTime.now());
+      }
+
+      compressedVideoRepository.save(job);
+      log.info("Updated compression job {} status to: {}", jobId, status);
+    } catch (Exception e) {
+      log.error("Failed to update compression job status for job_id: {}", jobId, e);
+    }
+  }
+
+  private JCompressedVideo processCompression(VideoCompressionRequested event, String jobId)
+      throws IOException {
     Video originalVideo =
         toVideo(
             repository
@@ -104,19 +155,28 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
     compressedVideo.setId(UUID.randomUUID().toString());
     compressedVideo.setOwner(owner);
 
-    JCompressedVideo jCompressedVideo =
-        new JCompressedVideo(
-            UUID.randomUUID().toString(), toJVideo(compressedVideo), now(), PROGRESSING);
-
     log.info(
         "Compressed video size : {}{}", compressedVideo.getSize(), compressedVideo.getSizeType());
 
     log.info("Saving compressed video entity to database");
-    repository.save(toJVideo(compressedVideo));
+    JVideo savedCompressedVideo = repository.save(toJVideo(compressedVideo));
+
+    JCompressedVideo job =
+        compressedVideoRepository
+            .findById(jobId)
+            .orElseThrow(() -> new EntityNotFoundException("Compression job not found: " + jobId));
+
+    job.setStatus(ProcessStatus.COMPLETED);
+    job.setCompressedVideo(savedCompressedVideo);
+    job.setCompletedAt(LocalDateTime.now());
+
+    JCompressedVideo savedJob = compressedVideoRepository.save(job);
+    log.info("Updated compression job {} status to: COMPLETED", jobId);
 
     cleanupTempFiles(originalFile, compressedFile);
     log.info("Temporary files cleaned up");
-    return compressedVideoRepository.save(jCompressedVideo);
+
+    return savedJob;
   }
 
   private File createCompressedFile(

@@ -4,13 +4,17 @@ import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.ErrorResponse;
 import dev.razafindratelo.arsmedia.exception.*;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.ServletWebRequest;
@@ -20,6 +24,64 @@ import org.springframework.web.context.request.WebRequest;
 @Slf4j
 @RequiredArgsConstructor
 public class ApiExceptionHandler {
+
+  @ExceptionHandler(MissingServletRequestParameterException.class)
+  public ResponseEntity<ErrorResponse> handleMissingServletRequestParameter(
+      MissingServletRequestParameterException ex, WebRequest request) {
+
+    var errorResponse =
+        ErrorResponse.of(
+            HttpStatus.BAD_REQUEST,
+            "Required parameter '" + ex.getParameterName() + "' is missing",
+            getRequestPath(request),
+            "MISSING_REQUIRED_PARAMETER");
+
+    return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+  }
+
+  @ExceptionHandler(ConstraintViolationException.class)
+  public ResponseEntity<ErrorResponse> handleConstraintViolationException(
+      ConstraintViolationException ex, WebRequest request) {
+
+    String message =
+        ex.getConstraintViolations().stream()
+            .map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
+            .collect(Collectors.joining(", "));
+
+    var errorResponse =
+        ErrorResponse.of(
+            HttpStatus.BAD_REQUEST, message, getRequestPath(request), "INVALID_PARAMETER");
+
+    return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+  }
+
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(
+      HttpMessageNotReadableException ex, WebRequest request) {
+
+    var errorResponse =
+        ErrorResponse.of(
+            HttpStatus.BAD_REQUEST,
+            "Malformed JSON request",
+            getRequestPath(request),
+            "MALFORMED_JSON");
+
+    return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+  }
+
+  @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+  public ResponseEntity<ErrorResponse> handleMethodNotSupported(
+      HttpRequestMethodNotSupportedException ex, WebRequest request) {
+
+    var errorResponse =
+        ErrorResponse.of(
+            HttpStatus.METHOD_NOT_ALLOWED,
+            "HTTP method not supported for this endpoint",
+            getRequestPath(request),
+            "METHOD_NOT_ALLOWED");
+
+    return new ResponseEntity<>(errorResponse, HttpStatus.METHOD_NOT_ALLOWED);
+  }
 
   @ExceptionHandler(AuthorizationDeniedException.class)
   public ResponseEntity<ErrorResponse> handleAuthorizationDeniedException(
@@ -117,19 +179,6 @@ public class ApiExceptionHandler {
         ErrorResponse.of(
             HttpStatus.NOT_FOUND, ex.getMessage(), getRequestPath(request), "ENTITY_NOT_FOUND");
     return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
-  }
-
-  @ExceptionHandler(ConstraintViolationException.class)
-  public ResponseEntity<ErrorResponse> handleConstraintViolationException(
-      ConstraintViolationException ex, WebRequest request) {
-    var errorResponse =
-        ErrorResponse.of(
-            HttpStatus.BAD_REQUEST,
-            ex.getMessage(),
-            getRequestPath(request),
-            "CONSTRAINT_VIOLATION_ON_FIELDS");
-
-    return ResponseEntity.badRequest().body(errorResponse);
   }
 
   @ExceptionHandler(TokenGenerationException.class)

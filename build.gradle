@@ -70,9 +70,7 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testImplementation 'com.icegreen:greenmail:2.0.1'
     testImplementation 'com.icegreen:greenmail-junit5:2.0.1'
-
 }
-
 
 test {
     maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
@@ -88,10 +86,47 @@ test {
     testLogging {
         events "passed", "skipped", "failed"
         exceptionFormat "full"
-        showStandardStreams = false
+        showStandardStreams = true
         showExceptions = true
         showCauses = true
         showStackTraces = true
+
+        info {
+            events "failed", "skipped"
+            exceptionFormat "full"
+        }
+
+        debug {
+            events "started", "failed"
+            exceptionFormat "full"
+        }
+    }
+
+    failFast = true
+
+    afterTest { descriptor, result ->
+        if (result.resultType == TestResult.ResultType.FAILURE) {
+            logger.lifecycle("\tTEST FAILED: ${descriptor.className}.${descriptor.name}")
+            logger.lifecycle("\tDuration: ${result.endTime - result.startTime}ms")
+        }
+    }
+
+    afterSuite { desc, result ->
+        if (!desc.parent) {
+            println "\nTEST SUMMARY:"
+            println "\tResults: ${result.resultType} (${result.testCount} tests, ${result.successfulTestCount} passed, ${result.failedTestCount} failed, ${result.skippedTestCount} skipped)"
+            println "\tTime: ${(result.endTime - result.startTime) / 1000} seconds"
+
+            if (result.failedTestCount > 0) {
+                println "\nFAILED TESTS:"
+                result.testResults.findAll { it.resultType == TestResult.ResultType.FAILURE }.each { testResult ->
+                    println "\t- ${testResult.className}.${testResult.name}"
+                    if (testResult.exception) {
+                        println "\t\tReason: ${testResult.exception.message}"
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -116,6 +151,7 @@ jacocoTestCoverageVerification {
 }
 
 jacocoTestReport {
+    dependsOn test
     reports {
         xml.required = true
         html.required = true
@@ -130,19 +166,73 @@ jacocoTestReport {
     doLast {
         def coverageReportFile = layout.buildDirectory.file("reports/jacoco/test/jacocoTestReport.xml").get().asFile
         if (!coverageReportFile.exists()) {
-            println "No JaCoCo coverage report found."
+            println "No JaCoCo coverage report found at: ${coverageReportFile.absolutePath}"
             return
         }
 
         def xmlText = coverageReportFile.text
-        def matcher = xmlText =~ /<counter type="LINE" missed="(\d+)" covered="(\d+)"\/>/
-        if (matcher.find()) {
-            def missed = matcher.group(1).toInteger()
-            def covered = matcher.group(2).toInteger()
+        println "\nJACOCO COVERAGE REPORT"
+        println "=" * 50
+
+        def lineMatcher = xmlText =~ /<counter type="LINE" missed="(\d+)" covered="(\d+)"\/>/
+        if (lineMatcher.find()) {
+            def missed = lineMatcher.group(1).toInteger()
+            def covered = lineMatcher.group(2).toInteger()
             def total = missed + covered
-            def rate = (covered / total) * 100
-            println "Total Line Coverage Rate: ${rate.round(2)}%"
+            def rate = total > 0 ? (covered / total) * 100 : 0
+            println "Line Coverage: ${rate.round(2)}% (${covered}/${total} lines)"
+        }
+
+        def branchMatcher = xmlText =~ /<counter type="BRANCH" missed="(\d+)" covered="(\d+)"\/>/
+        if (branchMatcher.find()) {
+            def missed = branchMatcher.group(1).toInteger()
+            def covered = branchMatcher.group(2).toInteger()
+            def total = missed + covered
+            def rate = total > 0 ? (covered / total) * 100 : 0
+            println "Branch Coverage: ${rate.round(2)}% (${covered}/${total} branches)"
+        }
+
+        def methodMatcher = xmlText =~ /<counter type="METHOD" missed="(\d+)" covered="(\d+)"\/>/
+        if (methodMatcher.find()) {
+            def missed = methodMatcher.group(1).toInteger()
+            def covered = methodMatcher.group(2).toInteger()
+            def total = missed + covered
+            def rate = total > 0 ? (covered / total) * 100 : 0
+            println "Method Coverage: ${rate.round(2)}% (${covered}/${total} methods)"
+        }
+
+        def classMatcher = xmlText =~ /<counter type="CLASS" missed="(\d+)" covered="(\d+)"\/>/
+        if (classMatcher.find()) {
+            def missed = classMatcher.group(1).toInteger()
+            def covered = classMatcher.group(2).toInteger()
+            def total = missed + covered
+            def rate = total > 0 ? (covered / total) * 100 : 0
+            println "Class Coverage: ${rate.round(2)}% (${covered}/${total} classes)"
+        }
+
+        println "=" * 50
+        println "Detailed HTML report: ${layout.buildDirectory.file('reports/jacoco/test/html/index.html').get().asFile.absolutePath}"
+
+        def lineCoverageMatcher = xmlText =~ /<counter type="LINE" missed="(\d+)" covered="(\d+)"\/>/
+        if (lineCoverageMatcher.find()) {
+            def missed = lineCoverageMatcher.group(1).toInteger()
+            def covered = lineCoverageMatcher.group(2).toInteger()
+            def total = missed + covered
+            def rate = total > 0 ? (covered / total) * 100 : 0
+
+            if (rate < 50) {
+                println "WARNING: Line coverage (${rate.round(2)}%) is below 50% minimum!"
+            } else {
+                println "Line coverage meets minimum requirement of 50%"
+            }
         }
     }
-
 }
+
+tasks.register('testWithCoverage') {
+    group = 'verification'
+    description = 'Run tests with detailed reporting and coverage'
+    dependsOn test, jacocoTestReport
+}
+
+test.finalizedBy jacocoTestReport
