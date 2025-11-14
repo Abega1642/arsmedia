@@ -73,7 +73,7 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
 
       updateJobStatus(jobId, ProcessStatus.PROGRESSING, event.getAttemptNb(), null);
 
-      var compressedVideo = processCompression(event, jobId);
+      processCompression(event, jobId);
 
       log.info(
           "Video compression completed successfully for video: {}, job_id: {}",

@@ -51,6 +51,11 @@ public class VideoService {
 
     var user = userService.findByEmail(email);
 
+    if (!videoInst.getOwner().getEmail().equals(user.getEmail())) {
+      throw new IllegalArgumentException(
+          "Can not perform compression because of invalid information");
+    }
+
     JCompressedVideo compressionJob = new JCompressedVideo();
     compressionJob.setId(UUID.randomUUID().toString());
     compressionJob.setParent(videoInst);
@@ -64,7 +69,7 @@ public class VideoService {
         new VideoCompressionRequested(
             videoInst.getId(),
             bucketKey,
-            email,
+            user.getEmail(),
             CompressionOptions.defaults(),
             compressionJob.getId());
 
