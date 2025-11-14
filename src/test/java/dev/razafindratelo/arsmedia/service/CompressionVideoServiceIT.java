@@ -1,15 +1,14 @@
 package dev.razafindratelo.arsmedia.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import dev.razafindratelo.arsmedia.model.Video;
 import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
-import dev.razafindratelo.arsmedia.repository.CompressedVideoRepository;
-import dev.razafindratelo.arsmedia.repository.model.JCompressedVideo;
+import dev.razafindratelo.arsmedia.repository.VideoCompressionJobRepository;
 import dev.razafindratelo.arsmedia.repository.model.JUser;
 import dev.razafindratelo.arsmedia.repository.model.JVideo;
+import dev.razafindratelo.arsmedia.repository.model.VideoCompressionJob;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,12 +22,12 @@ class CompressionVideoServiceTest {
   private static final String EXISTING_EMAIL = "user@example.com";
   private static final String NON_EXISTING_EMAIL = "notfound@example.com";
 
-  @Mock private CompressedVideoRepository repository;
+  @Mock private VideoCompressionJobRepository repository;
 
   @InjectMocks private CompressionVideoService service;
 
-  private JCompressedVideo cmp1;
-  private JCompressedVideo cmp2;
+  private VideoCompressionJob cmp1;
+  private VideoCompressionJob cmp2;
 
   @BeforeEach
   void setUp() {
@@ -66,7 +65,7 @@ class CompressionVideoServiceTest {
     verifyNoMoreInteractions(repository);
   }
 
-  private JCompressedVideo createCompressedVideo(
+  private VideoCompressionJob createCompressedVideo(
       String compressedId, String videoId, String ownerEmail) {
     JUser owner = new JUser();
     owner.setId("user-" + ownerEmail.hashCode());
@@ -76,7 +75,7 @@ class CompressionVideoServiceTest {
     parent.setId(videoId);
     parent.setOwner(owner);
 
-    return new JCompressedVideo(
+    return new VideoCompressionJob(
         compressedId,
         parent,
         null,

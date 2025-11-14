@@ -8,23 +8,16 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 @Entity
-@Table(name = "compressed_videos")
+@Table(name = "job")
+@Inheritance(strategy = InheritanceType.JOINED)
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Setter
 @EqualsAndHashCode
 @ToString
-public class JCompressedVideo {
+public class Job {
   @Id private String id;
-
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "video_id", nullable = false)
-  private JVideo parent;
-
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "compressed_video_id")
-  private JVideo compressedVideo;
 
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;

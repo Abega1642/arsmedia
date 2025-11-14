@@ -140,6 +140,22 @@ public class ApiExceptionHandler {
     return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
   }
 
+  @ExceptionHandler(AudioExtractionException.class)
+  public ResponseEntity<ErrorResponse> handleVAudioExtractionException(
+      AudioExtractionException ex, WebRequest request) {
+
+    log.error("Audio extraction process failed: {}", ex.getMessage(), ex);
+
+    var errorResponse =
+        ErrorResponse.of(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            ex.getMessage(),
+            getRequestPath(request),
+            "AUDIO_EXTRACTION_PROCESS_FAILED");
+
+    return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+
   @ExceptionHandler(VideoProcessingException.class)
   public ResponseEntity<ErrorResponse> handleVideoProcessingException(
       VideoProcessingException ex, WebRequest request) {

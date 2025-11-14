@@ -1,6 +1,7 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller;
 
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.CompressionJobStatusResponse;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.AudioExtractionJobStatusResponse;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.VideoCompressionJobStatusResponse;
 import dev.razafindratelo.arsmedia.model.Video;
 import dev.razafindratelo.arsmedia.service.CompressionVideoService;
 import dev.razafindratelo.arsmedia.service.VideoService;
@@ -21,7 +22,7 @@ public class VideoController {
   private CompressionVideoService compressionService;
 
   @PostMapping("/compress/{userEmail}")
-  public CompressionJobStatusResponse compress(
+  public VideoCompressionJobStatusResponse compress(
       @PathVariable(name = "userEmail") @Email @NotBlank String userEmail,
       @RequestParam(name = "bucket_key") @NotNull @NotBlank String bucketKey) {
     return service.compress(userEmail, bucketKey);
@@ -34,14 +35,21 @@ public class VideoController {
   }
 
   @GetMapping("/compression-status/{jobId}")
-  public CompressionJobStatusResponse getCompressionStatus(
+  public VideoCompressionJobStatusResponse getCompressionStatus(
       @PathVariable(name = "jobId") @NotBlank String jobId) {
     return service.getCompressionStatus(jobId);
   }
 
   @GetMapping("/compression-jobs/{videoId}")
-  public List<CompressionJobStatusResponse> getCompressionJobsByVideoId(
+  public List<VideoCompressionJobStatusResponse> getCompressionJobsByVideoId(
       @PathVariable(name = "videoId") @NotBlank String videoId) {
     return service.getCompressionJobsByVideoId(videoId);
+  }
+
+  @PostMapping("/extract-audio/{userEmail}")
+  public AudioExtractionJobStatusResponse extractAudio(
+      @PathVariable(name = "userEmail") @Email @NotBlank String userEmail,
+      @RequestParam(name = "bucket_key") @NotNull @NotBlank String bucketKey) {
+    return service.extractAudio(userEmail, bucketKey);
   }
 }

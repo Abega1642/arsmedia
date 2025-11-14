@@ -14,10 +14,10 @@ import dev.razafindratelo.arsmedia.file.BucketComponent;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.model.Video;
 import dev.razafindratelo.arsmedia.model.classifier.*;
-import dev.razafindratelo.arsmedia.repository.CompressedVideoRepository;
+import dev.razafindratelo.arsmedia.repository.VideoCompressionJobRepository;
 import dev.razafindratelo.arsmedia.repository.VideoRepository;
-import dev.razafindratelo.arsmedia.repository.model.JCompressedVideo;
 import dev.razafindratelo.arsmedia.repository.model.JVideo;
+import dev.razafindratelo.arsmedia.repository.model.VideoCompressionJob;
 import dev.razafindratelo.arsmedia.service.UserService;
 import java.io.File;
 import java.io.IOException;
@@ -49,7 +49,7 @@ class VideoCompressionRequestedServiceIT {
   @Mock private BucketComponent bucketComponent;
   @Mock private VideoRepository repository;
   @Mock private UserService userService;
-  @Mock private CompressedVideoRepository compressedVideoRepository;
+  @Mock private VideoCompressionJobRepository videoCompressionJobRepository;
 
   private VideoCompressionRequestedService service;
   private File interceptedCompressedFile;
@@ -58,7 +58,7 @@ class VideoCompressionRequestedServiceIT {
   void setUp() throws IOException {
     service =
         new VideoCompressionRequestedService(
-            bucketComponent, repository, userService, compressedVideoRepository);
+            bucketComponent, repository, userService, videoCompressionJobRepository);
   }
 
   @Test
@@ -71,7 +71,7 @@ class VideoCompressionRequestedServiceIT {
 
     File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE);
     JVideo originalJVideo = createMockJVideo(videoId, 1920, 1080, 30.0, true);
-    JCompressedVideo compressionJob =
+    VideoCompressionJob compressionJob =
         createMockCompressedVideo(jobId, originalJVideo, ProcessStatus.PENDING);
 
     setupMocks(
@@ -99,7 +99,7 @@ class VideoCompressionRequestedServiceIT {
 
     File originalFile = createMockVideoFile(8_000_000);
     JVideo originalJVideo = createMockJVideoWithoutAudio(videoId);
-    JCompressedVideo compressionJob =
+    VideoCompressionJob compressionJob =
         createMockCompressedVideo(jobId, originalJVideo, ProcessStatus.PENDING);
 
     setupMocks(
@@ -126,7 +126,7 @@ class VideoCompressionRequestedServiceIT {
 
     File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE);
     JVideo originalJVideo = createMockJVideo(videoId, 1920, 1080, 30.0, true);
-    JCompressedVideo compressionJob =
+    VideoCompressionJob compressionJob =
         createMockCompressedVideo(jobId, originalJVideo, ProcessStatus.PENDING);
 
     setupMocks(
@@ -152,7 +152,7 @@ class VideoCompressionRequestedServiceIT {
 
     File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE);
     JVideo originalJVideo = createMockJVideo(videoId, 1920, 1080, 30.0, true);
-    JCompressedVideo compressionJob =
+    VideoCompressionJob compressionJob =
         createMockCompressedVideo(jobId, originalJVideo, ProcessStatus.PENDING);
 
     setupMocks(
@@ -174,15 +174,15 @@ class VideoCompressionRequestedServiceIT {
     var jobId = UUID.randomUUID().toString();
     var event = createCompressionEvent(videoId, jobId, "key", "owner@example.com", 23, null, null);
 
-    JCompressedVideo compressionJob =
+    VideoCompressionJob compressionJob =
         createMockCompressedVideo(jobId, new JVideo(), ProcessStatus.PENDING);
 
-    when(compressedVideoRepository.findById(jobId)).thenReturn(Optional.of(compressionJob));
+    when(videoCompressionJobRepository.findById(jobId)).thenReturn(Optional.of(compressionJob));
     when(repository.findById(videoId)).thenReturn(Optional.empty());
 
     assertThrows(VideoProcessingException.class, () -> service.accept(event));
 
-    verify(compressedVideoRepository, atLeast(1)).save(any(JCompressedVideo.class));
+    verify(videoCompressionJobRepository, atLeast(1)).save(any(VideoCompressionJob.class));
     verifyNoSuccessfulCompressionOperations();
   }
 
@@ -194,18 +194,18 @@ class VideoCompressionRequestedServiceIT {
         createCompressionEvent(videoId, jobId, "failing_key", "owner@example.com", 23, null, null);
 
     JVideo originalJVideo = createMockJVideo(videoId, 1920, 1080, 30.0, true);
-    JCompressedVideo compressionJob =
+    VideoCompressionJob compressionJob =
         createMockCompressedVideo(jobId, originalJVideo, ProcessStatus.PENDING);
 
-    when(compressedVideoRepository.findById(jobId)).thenReturn(Optional.of(compressionJob));
+    when(videoCompressionJobRepository.findById(jobId)).thenReturn(Optional.of(compressionJob));
     when(repository.findById(videoId)).thenReturn(Optional.of(originalJVideo));
     when(bucketComponent.download(event.getBucketKey()))
         .thenThrow(new DirectoryUploadException("Download failed"));
 
     assertThrows(VideoProcessingException.class, () -> service.accept(event));
 
-    ArgumentCaptor<JCompressedVideo> captor = ArgumentCaptor.forClass(JCompressedVideo.class);
-    verify(compressedVideoRepository, atLeast(1)).save(captor.capture());
+    ArgumentCaptor<VideoCompressionJob> captor = ArgumentCaptor.forClass(VideoCompressionJob.class);
+    verify(videoCompressionJobRepository, atLeast(1)).save(captor.capture());
 
     boolean hasFailed =
         captor.getAllValues().stream().anyMatch(job -> job.getStatus() == ProcessStatus.FAILED);
@@ -223,7 +223,7 @@ class VideoCompressionRequestedServiceIT {
 
     File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE);
     JVideo originalJVideo = createMockJVideoWithInvalidFrameRate(videoId);
-    JCompressedVideo compressionJob =
+    VideoCompressionJob compressionJob =
         createMockCompressedVideo(jobId, originalJVideo, ProcessStatus.PENDING);
 
     setupMocks(
@@ -253,7 +253,7 @@ class VideoCompressionRequestedServiceIT {
 
     File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE);
     JVideo originalJVideo = createMockJVideo(videoId, 1920, 1080, 30.0, true);
-    JCompressedVideo compressionJob =
+    VideoCompressionJob compressionJob =
         createMockCompressedVideo(jobId, originalJVideo, ProcessStatus.PENDING);
 
     setupMocks(
@@ -274,10 +274,11 @@ class VideoCompressionRequestedServiceIT {
 
       assertThrows(VideoProcessingException.class, () -> service.accept(event));
 
-      ArgumentCaptor<JCompressedVideo> captor = ArgumentCaptor.forClass(JCompressedVideo.class);
-      verify(compressedVideoRepository, atLeast(1)).save(captor.capture());
+      ArgumentCaptor<VideoCompressionJob> captor =
+          ArgumentCaptor.forClass(VideoCompressionJob.class);
+      verify(videoCompressionJobRepository, atLeast(1)).save(captor.capture());
 
-      Optional<JCompressedVideo> failedJob =
+      Optional<VideoCompressionJob> failedJob =
           captor.getAllValues().stream()
               .filter(job -> job.getStatus() == ProcessStatus.FAILED)
               .findFirst();
@@ -297,10 +298,10 @@ class VideoCompressionRequestedServiceIT {
 
     File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE);
     JVideo originalJVideo = createMockJVideo(videoId, 1920, 1080, 30.0, true);
-    JCompressedVideo compressionJob =
+    VideoCompressionJob compressionJob =
         createMockCompressedVideo(jobId, originalJVideo, ProcessStatus.PENDING);
 
-    when(compressedVideoRepository.findById(jobId)).thenReturn(Optional.of(compressionJob));
+    when(videoCompressionJobRepository.findById(jobId)).thenReturn(Optional.of(compressionJob));
     when(repository.findById(videoId)).thenReturn(Optional.of(originalJVideo));
     when(userService.findByEmail(event.getOwner())).thenReturn(createMockUser(event.getOwner()));
     when(bucketComponent.download(event.getBucketKey())).thenReturn(originalFile);
@@ -314,8 +315,9 @@ class VideoCompressionRequestedServiceIT {
 
       verify(repository, never()).save(any(JVideo.class));
 
-      ArgumentCaptor<JCompressedVideo> captor = ArgumentCaptor.forClass(JCompressedVideo.class);
-      verify(compressedVideoRepository, atLeast(1)).save(captor.capture());
+      ArgumentCaptor<VideoCompressionJob> captor =
+          ArgumentCaptor.forClass(VideoCompressionJob.class);
+      verify(videoCompressionJobRepository, atLeast(1)).save(captor.capture());
 
       boolean hasFailed =
           captor.getAllValues().stream().anyMatch(job -> job.getStatus() == ProcessStatus.FAILED);
@@ -331,20 +333,20 @@ class VideoCompressionRequestedServiceIT {
     event.setAttemptNb(3);
 
     JVideo originalJVideo = createMockJVideo(videoId, 1920, 1080, 30.0, true);
-    JCompressedVideo compressionJob =
+    VideoCompressionJob compressionJob =
         createMockCompressedVideo(jobId, originalJVideo, ProcessStatus.PENDING);
 
-    when(compressedVideoRepository.findById(jobId)).thenReturn(Optional.of(compressionJob));
+    when(videoCompressionJobRepository.findById(jobId)).thenReturn(Optional.of(compressionJob));
     when(repository.findById(videoId)).thenReturn(Optional.of(originalJVideo));
     when(bucketComponent.download(event.getBucketKey()))
         .thenThrow(new DirectoryUploadException("Download failed"));
 
     assertThrows(VideoProcessingException.class, () -> service.accept(event));
 
-    ArgumentCaptor<JCompressedVideo> captor = ArgumentCaptor.forClass(JCompressedVideo.class);
-    verify(compressedVideoRepository, atLeast(1)).save(captor.capture());
+    ArgumentCaptor<VideoCompressionJob> captor = ArgumentCaptor.forClass(VideoCompressionJob.class);
+    verify(videoCompressionJobRepository, atLeast(1)).save(captor.capture());
 
-    Optional<JCompressedVideo> failedJob =
+    Optional<VideoCompressionJob> failedJob =
         captor.getAllValues().stream()
             .filter(job -> job.getStatus() == ProcessStatus.FAILED)
             .findFirst();
@@ -380,13 +382,13 @@ class VideoCompressionRequestedServiceIT {
       User owner,
       String bucketKey,
       File originalFile,
-      JCompressedVideo compressedVideo) {
+      VideoCompressionJob compressedVideo) {
 
     lenient()
-        .when(compressedVideoRepository.findById(compressedVideo.getId()))
+        .when(videoCompressionJobRepository.findById(compressedVideo.getId()))
         .thenAnswer(
             invocation -> {
-              JCompressedVideo copy = new JCompressedVideo();
+              VideoCompressionJob copy = new VideoCompressionJob();
               copy.setId(compressedVideo.getId());
               copy.setParent(compressedVideo.getParent());
               copy.setCompressedVideo(compressedVideo.getCompressedVideo());
@@ -403,17 +405,17 @@ class VideoCompressionRequestedServiceIT {
     lenient().when(bucketComponent.download(bucketKey)).thenReturn(originalFile);
 
     lenient()
-        .when(compressedVideoRepository.save(any(JCompressedVideo.class)))
+        .when(videoCompressionJobRepository.save(any(VideoCompressionJob.class)))
         .thenAnswer(
             invocation -> {
-              JCompressedVideo job = invocation.getArgument(0);
+              VideoCompressionJob job = invocation.getArgument(0);
               compressedVideo.setStatus(job.getStatus());
               compressedVideo.setCompressedVideo(job.getCompressedVideo());
               compressedVideo.setCompletedAt(job.getCompletedAt());
               compressedVideo.setErrorMessage(job.getErrorMessage());
               compressedVideo.setAttemptCount(job.getAttemptCount());
 
-              JCompressedVideo snapshot = new JCompressedVideo();
+              VideoCompressionJob snapshot = new VideoCompressionJob();
               snapshot.setId(job.getId());
               snapshot.setParent(job.getParent());
               snapshot.setCompressedVideo(job.getCompressedVideo());
@@ -547,11 +549,11 @@ class VideoCompressionRequestedServiceIT {
   }
 
   private void verifyStatusUpdates(String jobId, ProcessStatus... expectedStatuses) {
-    ArgumentCaptor<JCompressedVideo> captor = ArgumentCaptor.forClass(JCompressedVideo.class);
-    verify(compressedVideoRepository, atLeast(expectedStatuses.length)).save(captor.capture());
+    ArgumentCaptor<VideoCompressionJob> captor = ArgumentCaptor.forClass(VideoCompressionJob.class);
+    verify(videoCompressionJobRepository, atLeast(expectedStatuses.length)).save(captor.capture());
 
     List<ProcessStatus> actualStatuses =
-        captor.getAllValues().stream().map(JCompressedVideo::getStatus).toList();
+        captor.getAllValues().stream().map(VideoCompressionJob::getStatus).toList();
 
     for (ProcessStatus expectedStatus : expectedStatuses) {
       assertTrue(
@@ -623,9 +625,9 @@ class VideoCompressionRequestedServiceIT {
     return toJVideo(video);
   }
 
-  private JCompressedVideo createMockCompressedVideo(
+  private VideoCompressionJob createMockCompressedVideo(
       String jobId, JVideo parent, ProcessStatus status) {
-    JCompressedVideo job = new JCompressedVideo();
+    VideoCompressionJob job = new VideoCompressionJob();
     job.setId(jobId);
     job.setParent(parent);
     job.setCreatedAt(LocalDateTime.now());

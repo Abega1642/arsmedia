@@ -1,7 +1,7 @@
 package dev.razafindratelo.arsmedia.repository;
 
 import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
-import dev.razafindratelo.arsmedia.repository.model.JCompressedVideo;
+import dev.razafindratelo.arsmedia.repository.model.VideoCompressionJob;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -10,20 +10,21 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface CompressedVideoRepository extends JpaRepository<JCompressedVideo, String> {
+public interface VideoCompressionJobRepository extends JpaRepository<VideoCompressionJob, String> {
+
   @Modifying
-  @Query("UPDATE JCompressedVideo cmp SET cmp.status = :process_status WHERE cmp.id = :id")
+  @Query("UPDATE VideoCompressionJob cmp SET cmp.status = :process_status WHERE cmp.id = :id")
   int updateCompressedVideoStatus(
       @Param("process_status") ProcessStatus processStatus, @Param("id") String id);
 
   @Query(
       """
       SELECT cmp
-      FROM JCompressedVideo cmp
+      FROM VideoCompressionJob cmp
       WHERE cmp.status = dev.razafindratelo.arsmedia.model.classifier.ProcessStatus.COMPLETED
         AND cmp.parent.owner.email = :email
       """)
-  List<JCompressedVideo> findAllCompletedByOwnerEmail(@Param("email") String email);
+  List<VideoCompressionJob> findAllCompletedByOwnerEmail(@Param("email") String email);
 
-  List<JCompressedVideo> findByParentId(String parentId);
+  List<VideoCompressionJob> findByParentId(String parentId);
 }

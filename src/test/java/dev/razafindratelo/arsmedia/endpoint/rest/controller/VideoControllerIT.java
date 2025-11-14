@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.CompressionJobStatusResponse;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.VideoCompressionJobStatusResponse;
 import dev.razafindratelo.arsmedia.model.Video;
 import dev.razafindratelo.arsmedia.model.classifier.*;
 import dev.razafindratelo.arsmedia.service.*;
@@ -39,7 +39,7 @@ class VideoControllerIT extends FacadeIT {
   void should_compress_video_and_return_job_status() throws Exception {
     var jobId = UUID.randomUUID().toString();
     var expectedResponse =
-        new CompressionJobStatusResponse(
+        new VideoCompressionJobStatusResponse(
             jobId, ProcessStatus.PENDING, LocalDateTime.now(), null, null, null, null, 0);
 
     when(videoService.compress(USER_EMAIL, BUCKET_KEY)).thenReturn(expectedResponse);
@@ -259,8 +259,8 @@ class VideoControllerIT extends FacadeIT {
   void should_compress_video_with_special_characters_in_email() throws Exception {
     var specialEmail = "test+user@example.com";
     var jobId = UUID.randomUUID().toString();
-    CompressionJobStatusResponse expectedResponse =
-        new CompressionJobStatusResponse(
+    VideoCompressionJobStatusResponse expectedResponse =
+        new VideoCompressionJobStatusResponse(
             jobId, ProcessStatus.PENDING, LocalDateTime.now(), null, null, null, null, 0);
 
     when(videoService.compress(specialEmail, BUCKET_KEY)).thenReturn(expectedResponse);
@@ -286,7 +286,7 @@ class VideoControllerIT extends FacadeIT {
     var specialBucketKey = "videos/user_123/video-name_2024.mp4";
     var jobId = UUID.randomUUID().toString();
     var expectedResponse =
-        new CompressionJobStatusResponse(
+        new VideoCompressionJobStatusResponse(
             jobId, ProcessStatus.PENDING, LocalDateTime.now(), null, null, null, null, 0);
 
     when(videoService.compress(USER_EMAIL, specialBucketKey)).thenReturn(expectedResponse);
@@ -310,7 +310,7 @@ class VideoControllerIT extends FacadeIT {
   void should_get_compression_job_status_by_job_id() throws Exception {
     var jobId = UUID.randomUUID().toString();
     var expectedResponse =
-        new CompressionJobStatusResponse(
+        new VideoCompressionJobStatusResponse(
             jobId,
             ProcessStatus.COMPLETED,
             LocalDateTime.now().minusMinutes(5),
@@ -363,7 +363,7 @@ class VideoControllerIT extends FacadeIT {
   void should_get_compression_job_with_progressing_status() throws Exception {
     var jobId = UUID.randomUUID().toString();
     var expectedResponse =
-        new CompressionJobStatusResponse(
+        new VideoCompressionJobStatusResponse(
             jobId,
             ProcessStatus.PROGRESSING,
             LocalDateTime.now().minusMinutes(2),
@@ -394,8 +394,8 @@ class VideoControllerIT extends FacadeIT {
   @Test
   void should_get_compression_job_with_failed_status() throws Exception {
     String jobId = UUID.randomUUID().toString();
-    CompressionJobStatusResponse expectedResponse =
-        new CompressionJobStatusResponse(
+    VideoCompressionJobStatusResponse expectedResponse =
+        new VideoCompressionJobStatusResponse(
             jobId,
             ProcessStatus.FAILED,
             LocalDateTime.now().minusMinutes(10),
@@ -427,7 +427,7 @@ class VideoControllerIT extends FacadeIT {
     var videoId = UUID.randomUUID().toString();
     var jobs =
         List.of(
-            new CompressionJobStatusResponse(
+            new VideoCompressionJobStatusResponse(
                 UUID.randomUUID().toString(),
                 ProcessStatus.COMPLETED,
                 LocalDateTime.now().minusHours(2),
@@ -436,7 +436,7 @@ class VideoControllerIT extends FacadeIT {
                 "s3://bucket/compressed1.mp4",
                 null,
                 1),
-            new CompressionJobStatusResponse(
+            new VideoCompressionJobStatusResponse(
                 UUID.randomUUID().toString(),
                 ProcessStatus.FAILED,
                 LocalDateTime.now().minusMinutes(30),
@@ -445,7 +445,7 @@ class VideoControllerIT extends FacadeIT {
                 null,
                 "Upload failed",
                 2),
-            new CompressionJobStatusResponse(
+            new VideoCompressionJobStatusResponse(
                 UUID.randomUUID().toString(),
                 ProcessStatus.PROGRESSING,
                 LocalDateTime.now().minusMinutes(5),

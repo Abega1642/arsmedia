@@ -67,7 +67,7 @@ public class SecurityConf {
                         "/auth/login",
                         "/auth/auth-code/**",
                         "/auth/activate-profile/**",
-                        "auth/token/**")
+                        "/auth/token/**")
                     .permitAll()
                     .requestMatchers("/api/admin/**")
                     .hasRole("ADMIN")
