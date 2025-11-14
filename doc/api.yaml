@@ -12,7 +12,7 @@ info:
     - Resize, crop, rotate, or flip videos.
     - Add subtitles or burn them into the video.
     - Apply filters: blur, sharpen, grayscale, watermark.
-    - Record screen or webcam.
+    - **Video compression**
 
     **Audio Capabilities**
     - Convert between audio formats: .mp3 → .wav, .flac → .aac, etc.
@@ -55,7 +55,7 @@ tags:
   - name: User
     description: User management endpoints
   - name: Video
-    description: Video upload, processing, and compression endpoints
+    description: Video upload, processing, compression, and management endpoints
   - name: Health
     description: Endpoints to verify system and bucket health (public access)
   - name: Docs
@@ -670,6 +670,128 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/media/videos/compression-status/{jobId}:
+    get:
+      operationId: getCompressionStatus
+      tags:
+        - Video
+      summary: Get compression job status by job ID
+      description: >
+        Retrieves the current status and details of a specific compression job by its unique job ID.
+        **Requires client credentials and Bearer token authentication.**
+      security:
+        - ClientSecret: [ ]
+          BearerAuth: [ ]
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          description: Unique identifier of the compression job
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Compression job status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompressionJobStatusResponse"
+        "400":
+          description: Invalid request - jobId is blank or missing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 400
+                error: "Bad Request"
+                message: "jobId parameter is required and cannot be blank"
+                path: "/api/media/videos/compression-status/"
+                errorCode: "BAD_FORM"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/InvalidClientCredentials"
+        "404":
+          description: Compression job not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 404
+                error: "Not Found"
+                message: "Compression job with ID 'job-123' not found"
+                path: "/api/media/videos/compression-status/job-123"
+                errorCode: "ENTITY_NOT_FOUND"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/media/videos/compression-jobs/{videoId}:
+    get:
+      operationId: getCompressionJobsByVideoId
+      tags:
+        - Video
+      summary: Get all compression jobs for a video
+      description: >
+        Retrieves a list of all compression jobs associated with a specific video ID.
+        **Requires client credentials and Bearer token authentication.**
+      security:
+        - ClientSecret: [ ]
+          BearerAuth: [ ]
+      parameters:
+        - name: videoId
+          in: path
+          required: true
+          description: Unique identifier of the video
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: List of compression jobs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CompressionJobStatusResponse"
+        "400":
+          description: Invalid request - videoId is blank or missing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 400
+                error: "Bad Request"
+                message: "videoId parameter is required and cannot be blank"
+                path: "/api/media/videos/compression-jobs/"
+                errorCode: "BAD_FORM"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/InvalidClientCredentials"
+        "404":
+          description: Video not found or no compression jobs found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 404
+                error: "Not Found"
+                message: "No compression jobs found for video with ID 'video-123'"
+                path: "/api/media/videos/compression-jobs/video-123"
+                errorCode: "ENTITY_NOT_FOUND"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/media/videos/compress/{userEmail}:
     post:
       operationId: compressVideo
@@ -677,7 +799,7 @@ paths:
         - Video
       summary: Compress a video
       description: >
-        Compresses a video file using FFmpeg.
+        Initiates video compression process and returns job status with tracking information.
         **Requires client credentials and Bearer token authentication.**
       security:
         - ClientSecret: [ ]
@@ -703,9 +825,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ProcessSuccessResponse"
+                $ref: "#/components/schemas/CompressionJobStatusResponse"
         "400":
-          description: Invalid request - missing or invalid bucket_key
+          description: Invalid request - missing or invalid parameters
           content:
             application/json:
               schema:
@@ -734,6 +856,55 @@ paths:
                 message: "Video with bucket key 'video-123.mp4' not found"
                 path: "/api/media/videos/compress/user@example.com"
                 errorCode: "ENTITY_NOT_FOUND"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/media/videos/compressed:
+    get:
+      operationId: getAllCompressedVideosOfUser
+      tags:
+        - Video
+      summary: Get all compressed videos for a user
+      description: >
+        Retrieves a list of all compressed videos belonging to a specific user.
+        **Requires client credentials and Bearer token authentication.**
+      security:
+        - ClientSecret: [ ]
+          BearerAuth: [ ]
+      parameters:
+        - name: userEmail
+          in: query
+          required: true
+          description: Email of the user to retrieve compressed videos for
+          schema:
+            type: string
+            format: email
+      responses:
+        "200":
+          description: List of compressed videos retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Video"
+        "400":
+          description: Invalid request - missing or invalid userEmail parameter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 400
+                error: "Bad Request"
+                message: "userEmail parameter is required and must be a valid email"
+                path: "/api/media/videos/compressed"
+                errorCode: "BAD_FORM"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/InvalidClientCredentials"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
@@ -960,12 +1131,58 @@ components:
             - USER_DEACTIVATED
             - AUTHENTICATION_FAILED
             - INTERNAL_SERVER_ERROR
+            - MISSING_REQUIRED_PARAMETER
+            - INVALID_PARAMETER
+            - MALFORMED_JSON
+            - METHOD_NOT_ALLOWED
       required:
         - timestamp
         - status
         - error
         - message
         - path
+
+    CompressionJobStatusResponse:
+      type: object
+      properties:
+        jobId:
+          type: string
+          description: Unique identifier for the compression job
+        status:
+          type: string
+          enum:
+            - PENDING
+            - PROCESSING
+            - COMPLETED
+            - FAILED
+            - CANCELLED
+          description: Current status of the compression job
+        createdAt:
+          type: string
+          format: date-time
+          description: When the compression job was created
+        completedAt:
+          type: string
+          format: date-time
+          description: When the compression job was completed (if finished)
+        compressedVideoId:
+          type: string
+          description: ID of the compressed video (when compression is successful)
+        compressedVideoUrl:
+          type: string
+          description: URL to access the compressed video (when compression is successful)
+        errorMessage:
+          type: string
+          description: Error message if compression failed
+        attemptCount:
+          type: integer
+          format: int32
+          description: Number of compression attempts made
+      required:
+        - jobId
+        - status
+        - createdAt
+        - attemptCount
 
     UserCreationRequest:
       type: object

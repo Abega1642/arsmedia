@@ -22,11 +22,24 @@ public class JCompressedVideo {
   @JoinColumn(name = "video_id", nullable = false)
   private JVideo parent;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "compressed_video_id")
+  private JVideo compressedVideo;
+
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
+  @Column(name = "completed_at")
+  private LocalDateTime completedAt;
+
   @Enumerated(EnumType.STRING)
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-  @Column(name = "process_status")
+  @Column(name = "process_status", nullable = false)
   private ProcessStatus status;
+
+  @Column(name = "error_message", length = 1000)
+  private String errorMessage;
+
+  @Column(name = "attempt_count", nullable = false)
+  private int attemptCount = 0;
 }
