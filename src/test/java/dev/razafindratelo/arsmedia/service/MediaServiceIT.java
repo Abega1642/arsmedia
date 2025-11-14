@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.UserCreationRequest;
 import dev.razafindratelo.arsmedia.exception.UserNotActivatedException;
+import dev.razafindratelo.arsmedia.model.Video;
 import dev.razafindratelo.arsmedia.model.classifier.UserRole;
 import dev.razafindratelo.arsmedia.repository.UserRepository;
 import dev.razafindratelo.arsmedia.repository.VideoRepository;
@@ -19,7 +20,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 @Slf4j
 class MediaServiceIT extends FacadeIT {
-  private final String TEST_EMAIL = "john.doe@gmail.com";
+
+  private static final String TEST_EMAIL = "john.doe@gmail.com";
+  private static final String TEST_PHONE = "1234";
+  private static final String TEST_USERNAME = "johnDoe";
+  private static final String TEST_PASSWORD = "random-password";
+
+  private static final String TEST_VIDEO_PATH = "/videos/test-video-one.webm";
+
+  private static final String LOG_UPLOAD_SUCCESS = "Video uploaded successfully: {}";
+
   @Autowired private MediaService subject;
   @Autowired private UserService userService;
   @Autowired private UserRepository userRepository;
@@ -27,42 +37,63 @@ class MediaServiceIT extends FacadeIT {
 
   @BeforeEach
   void setUp() {
-    var testUser =
-        new UserCreationRequest(TEST_EMAIL, "1234", "johnDoe", UserRole.USER, "random-password");
-    userService.create(testUser);
-    userService.updateActivationStatusByEmail(TEST_EMAIL, true);
+    createAndActivateTestUser();
   }
 
   @AfterEach
   void tearDown() {
-    userRepository.deleteByEmail(TEST_EMAIL);
+    cleanupTestData();
   }
 
   @Test
   void should_upload_video_successfully() throws URISyntaxException {
-    var resource = getClass().getResource("/videos/test-video-one.webm");
-    assertNotNull(resource);
+    File videoFile = getTestVideoFile();
 
-    var subjectVideo = new File(resource.toURI());
-    var actual = subject.uploadVideo(subjectVideo, TEST_EMAIL);
+    var uploadedVideo = subject.uploadVideo(videoFile, TEST_EMAIL);
 
-    log.info(actual.toString());
+    assertVideoUploadedSuccessfully(uploadedVideo);
+    log.info(LOG_UPLOAD_SUCCESS, uploadedVideo);
 
-    assertNotNull(actual);
-    assertNotNull(actual.getId());
-    assertNotNull(actual.getFilePath());
-
-    videoRepository.deleteById(actual.getId());
+    cleanupUploadedVideo(uploadedVideo.getId());
   }
 
   @Test
   void should_not_allow_upload() throws URISyntaxException {
-    userService.updateActivationStatusByEmail(TEST_EMAIL, false);
-    var resource = getClass().getResource("/videos/test-video-one.webm");
-    assertNotNull(resource);
+    deactivateTestUser();
+    File videoFile = getTestVideoFile();
 
-    var subjectVideo = new File(resource.toURI());
-    assertThrows(
-        UserNotActivatedException.class, () -> subject.uploadVideo(subjectVideo, TEST_EMAIL));
+    assertThrows(UserNotActivatedException.class, () -> subject.uploadVideo(videoFile, TEST_EMAIL));
+  }
+
+  private void createAndActivateTestUser() {
+    var testUser =
+        new UserCreationRequest(
+            TEST_EMAIL, TEST_PHONE, TEST_USERNAME, UserRole.USER, TEST_PASSWORD);
+    userService.create(testUser);
+    userService.updateActivationStatusByEmail(TEST_EMAIL, true);
+  }
+
+  private void deactivateTestUser() {
+    userService.updateActivationStatusByEmail(TEST_EMAIL, false);
+  }
+
+  private void cleanupTestData() {
+    userRepository.deleteByEmail(TEST_EMAIL);
+  }
+
+  private void cleanupUploadedVideo(String videoId) {
+    videoRepository.deleteById(videoId);
+  }
+
+  private File getTestVideoFile() throws URISyntaxException {
+    var resource = getClass().getResource(TEST_VIDEO_PATH);
+    assertNotNull(resource, "Test video resource not found at: " + TEST_VIDEO_PATH);
+    return new File(resource.toURI());
+  }
+
+  private void assertVideoUploadedSuccessfully(Video uploadedVideo) {
+    assertNotNull(uploadedVideo, "Uploaded video should not be null");
+    assertNotNull(uploadedVideo.getId(), "Video ID should not be null");
+    assertNotNull(uploadedVideo.getFilePath(), "Video file path should not be null");
   }
 }

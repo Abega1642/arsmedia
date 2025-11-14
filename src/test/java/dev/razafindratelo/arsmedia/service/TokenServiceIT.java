@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.UserCreationRequest;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.token.TokenValidationResult;
 import dev.razafindratelo.arsmedia.exception.InvalidTokenException;
 import dev.razafindratelo.arsmedia.exception.RessourceNotFoundException;
 import dev.razafindratelo.arsmedia.exception.TokenNotFoundException;
@@ -14,12 +15,15 @@ import dev.razafindratelo.arsmedia.exception.UserNotActivatedException;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.model.classifier.UserRole;
 import dev.razafindratelo.arsmedia.model.token.Token;
+import dev.razafindratelo.arsmedia.model.token.TokenPair;
 import dev.razafindratelo.arsmedia.model.token.TokenType;
 import dev.razafindratelo.arsmedia.repository.TokenRepository;
 import dev.razafindratelo.arsmedia.repository.UserRepository;
+import dev.razafindratelo.arsmedia.repository.model.token.JToken;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterEach;
@@ -33,7 +37,32 @@ import org.springframework.context.annotation.Primary;
 @Slf4j
 class TokenServiceIT extends FacadeIT {
 
-  protected final String test_email = "test-email@example.com";
+  private static final String TEST_EMAIL = "test-email@example.com";
+  private static final String INACTIVE_EMAIL = "inactive@example.com";
+  private static final String NONEXISTENT_EMAIL = "nonexistent@example.com";
+  private static final String TEST_PHONE = "+1234567890";
+  private static final String INACTIVE_PHONE = "+1234567891";
+  private static final String TEST_USERNAME = "testuser";
+  private static final String INACTIVE_USERNAME = "inactiveuser";
+  private static final String TEST_PASSWORD = "encodedPassword123";
+  private static final String INACTIVE_PASSWORD = "encodedPassword456";
+
+  private static final String INVALID_TOKEN = "invalid-token";
+  private static final String NONEXISTENT_TOKEN = "nonexistent-token";
+  private static final String MOCK_ACCESS_TOKEN_PREFIX = "mock-access-token-";
+  private static final String MOCK_REFRESH_TOKEN_PREFIX = "mock-refresh-token-";
+
+  private static final String TOKEN_EXPIRED_MSG = "Token expired";
+  private static final String TOKEN_TYPE_MISMATCH_MSG = "Token type mismatch";
+
+  private static final int EXPECTED_TOKEN_PAIR_SIZE = 2;
+  private static final int EXPECTED_THREE_TOKENS = 3;
+  private static final int EXPECTED_TWO_ACCESS_TOKENS = 2;
+  private static final int EXPECTED_ONE_TOKEN = 1;
+  private static final int EXPECTED_ZERO_TOKENS = 0;
+
+  private static final long ONE_HOUR_AGO = 1L;
+
   @Autowired private TokenService subject;
   @Autowired private UserRepository userRepository;
   @Autowired private TokenRepository tokenRepository;
@@ -42,54 +71,28 @@ class TokenServiceIT extends FacadeIT {
 
   @BeforeEach
   void setUp() {
-    tokenRepository.deleteAll();
-    userRepository.deleteByEmail(test_email);
-
-    UserCreationRequest testUserCreationRequest =
-        new UserCreationRequest(
-            test_email, "+1234567890", "testuser", UserRole.USER, "encodedPassword123");
-
-    userService.create(testUserCreationRequest);
-    userService.updateActivationStatusByEmail(test_email, true);
+    cleanupTestData();
+    createAndActivateTestUser();
   }
 
   @AfterEach
   void tearDown() {
-    tokenRepository.deleteAll();
-    userRepository.deleteByEmail(test_email);
+    cleanupTestData();
   }
 
   @Test
   void should_generate_token_pair_successfully() {
-    var tokenPair = subject.generateTokenPair(test_email);
+    var tokenPair = subject.generateTokenPair(TEST_EMAIL);
 
-    assertNotNull(tokenPair);
-    assertNotNull(tokenPair.accessToken());
-    assertNotNull(tokenPair.refreshToken());
-    assertEquals(test_email, tokenPair.accessToken().user().getEmail());
-    assertEquals(test_email, tokenPair.refreshToken().user().getEmail());
-
-    var savedTokens = tokenRepository.findAll();
-    assertEquals(2, savedTokens.size());
-
-    var accessToken =
-        savedTokens.stream().filter(token -> token.getType() == TokenType.ACCESS_TOKEN).findFirst();
-    assertTrue(accessToken.isPresent());
-    assertTrue(accessToken.get().isValid());
-    assertNotNull(accessToken.get().getUser());
-
-    var refreshToken =
-        savedTokens.stream()
-            .filter(token -> token.getType() == TokenType.REFRESH_TOKEN)
-            .findFirst();
-    assertTrue(refreshToken.isPresent());
-    assertTrue(refreshToken.get().isValid());
-    assertNotNull(refreshToken.get().getUser());
+    assertValidTokenPair(tokenPair);
+    verifyTokensStoredInDatabase();
+    verifyAccessTokenStored();
+    verifyRefreshTokenStored();
   }
 
   @Test
   void should_validate_valid_token_successfully() {
-    var tokenPair = subject.generateTokenPair(test_email);
+    var tokenPair = subject.generateTokenPair(TEST_EMAIL);
     var accessTokenValue = tokenPair.accessToken().value();
 
     when(jwtUtil.validateToken(accessTokenValue)).thenReturn(true);
@@ -97,33 +100,27 @@ class TokenServiceIT extends FacadeIT {
     var validationResult = subject.validateToken(accessTokenValue, TokenType.ACCESS_TOKEN);
 
     assertTrue(validationResult.valid());
-    assertEquals(test_email, validationResult.userEmail());
+    assertEquals(TEST_EMAIL, validationResult.userEmail());
   }
 
   @Test
   void should_return_invalid_for_expired_token() {
-    var tokenPair = subject.generateTokenPair(test_email);
+    var tokenPair = subject.generateTokenPair(TEST_EMAIL);
     var accessTokenValue = tokenPair.accessToken().value();
 
     when(jwtUtil.validateToken(accessTokenValue)).thenReturn(true);
 
-    var expiredJToken = tokenRepository.findByValue(accessTokenValue).orElseThrow();
-    expiredJToken.setExpiration(LocalDateTime.now().minusHours(1));
-    tokenRepository.save(expiredJToken);
+    expireToken(accessTokenValue);
 
     var validationResult = subject.validateToken(accessTokenValue, TokenType.ACCESS_TOKEN);
 
-    assertFalse(validationResult.valid());
-    assertEquals("Token expired", validationResult.reason());
-
-    var invalidatedToken = tokenRepository.findByValue(accessTokenValue);
-    assertTrue(invalidatedToken.isPresent());
-    assertFalse(invalidatedToken.get().isValid());
+    assertInvalidTokenWithReason(validationResult);
+    verifyTokenInvalidated(accessTokenValue);
   }
 
   @Test
   void should_return_invalid_for_wrong_token_type() {
-    var tokenPair = subject.generateTokenPair(test_email);
+    var tokenPair = subject.generateTokenPair(TEST_EMAIL);
     var accessTokenValue = tokenPair.accessToken().value();
 
     when(jwtUtil.validateToken(accessTokenValue)).thenReturn(true);
@@ -131,152 +128,130 @@ class TokenServiceIT extends FacadeIT {
     var validationResult = subject.validateToken(accessTokenValue, TokenType.REFRESH_TOKEN);
 
     assertFalse(validationResult.valid());
-    assertTrue(validationResult.reason().contains("Token type mismatch"));
+    assertTrue(validationResult.reason().contains(TOKEN_TYPE_MISMATCH_MSG));
   }
 
   @Test
   void should_refresh_token_pair_successfully() {
-    var originalTokenPair = subject.generateTokenPair(test_email);
+    var originalTokenPair = subject.generateTokenPair(TEST_EMAIL);
     var refreshTokenValue = originalTokenPair.refreshToken().value();
 
-    when(jwtUtil.validateToken(refreshTokenValue)).thenReturn(true);
-    when(jwtUtil.extractUsername(refreshTokenValue)).thenReturn(test_email);
+    mockJwtUtilForRefresh(refreshTokenValue);
 
     var newTokenPair = subject.refreshTokenPair(refreshTokenValue);
 
     assertNotNull(newTokenPair);
     assertNotEquals(originalTokenPair.accessToken().value(), newTokenPair.accessToken().value());
-
-    var oldRefreshToken = tokenRepository.findByValue(refreshTokenValue);
-    assertTrue(oldRefreshToken.isPresent());
-    assertFalse(oldRefreshToken.get().isValid());
+    verifyTokenInvalidated(refreshTokenValue);
   }
 
   @Test
   void should_throw_exception_when_refreshing_invalid_token() {
-    when(jwtUtil.validateToken("invalid-token")).thenReturn(false);
+    when(jwtUtil.validateToken(INVALID_TOKEN)).thenReturn(false);
 
-    assertThrows(InvalidTokenException.class, () -> subject.refreshTokenPair("invalid-token"));
+    assertThrows(InvalidTokenException.class, () -> subject.refreshTokenPair(INVALID_TOKEN));
   }
 
   @Test
   void should_revoke_token_successfully() {
-    var tokenPair = subject.generateTokenPair(test_email);
+    var tokenPair = subject.generateTokenPair(TEST_EMAIL);
     var tokenValue = tokenPair.accessToken().value();
 
-    subject.revokeToken(tokenValue, test_email);
+    subject.revokeToken(tokenValue, TEST_EMAIL);
 
-    var revokedToken = tokenRepository.findByValue(tokenValue);
-    assertTrue(revokedToken.isPresent());
-    assertFalse(revokedToken.get().isValid());
+    verifyTokenInvalidated(tokenValue);
   }
 
   @Test
   void should_throw_exception_when_revoking_nonexistent_token() {
     assertThrows(
-        TokenNotFoundException.class, () -> subject.revokeToken("nonexistent-token", test_email));
+        TokenNotFoundException.class, () -> subject.revokeToken(NONEXISTENT_TOKEN, TEST_EMAIL));
   }
 
   @Test
   void should_revoke_all_user_tokens_successfully() {
-    subject.generateTokenPair(test_email);
-    subject.generateAccessToken(test_email);
+    subject.generateTokenPair(TEST_EMAIL);
+    subject.generateAccessToken(TEST_EMAIL);
 
-    var activeTokensBefore = tokenRepository.findByUserEmailAndIsValid(test_email, true);
-    assertEquals(3, activeTokensBefore.size());
+    verifyActiveTokenCount(EXPECTED_THREE_TOKENS);
 
-    subject.revokeAllUserTokens(test_email);
+    subject.revokeAllUserTokens(TEST_EMAIL);
 
-    var activeTokensAfter = tokenRepository.findByUserEmailAndIsValid(test_email, true);
-    assertTrue(activeTokensAfter.isEmpty());
+    verifyActiveTokenCount(EXPECTED_ZERO_TOKENS);
   }
 
   @Test
   void should_revoke_tokens_by_type_successfully() {
-    subject.generateTokenPair(test_email);
-    subject.generateAccessToken(test_email);
+    subject.generateTokenPair(TEST_EMAIL);
+    subject.generateAccessToken(TEST_EMAIL);
 
-    var accessTokensBefore =
-        tokenRepository.findByUserEmailAndTypeAndIsValid(test_email, TokenType.ACCESS_TOKEN, true);
-    assertEquals(2, accessTokensBefore.size());
+    verifyActiveTokenCountByType(TokenType.ACCESS_TOKEN, EXPECTED_TWO_ACCESS_TOKENS);
 
-    subject.revokeUserTokensByType(test_email, TokenType.ACCESS_TOKEN);
+    subject.revokeUserTokensByType(TEST_EMAIL, TokenType.ACCESS_TOKEN);
 
-    var accessTokensAfter =
-        tokenRepository.findByUserEmailAndTypeAndIsValid(test_email, TokenType.ACCESS_TOKEN, true);
-    assertTrue(accessTokensAfter.isEmpty());
-
-    var refreshTokensAfter =
-        tokenRepository.findByUserEmailAndTypeAndIsValid(test_email, TokenType.REFRESH_TOKEN, true);
-    assertEquals(1, refreshTokensAfter.size());
+    verifyActiveTokenCountByType(TokenType.ACCESS_TOKEN, EXPECTED_ZERO_TOKENS);
+    verifyActiveTokenCountByType(TokenType.REFRESH_TOKEN, EXPECTED_ONE_TOKEN);
   }
 
   @Test
   void should_cleanup_expired_tokens_successfully() {
-    var tokenPair = subject.generateTokenPair(test_email);
+    var tokenPair = subject.generateTokenPair(TEST_EMAIL);
 
-    var expiredJToken = tokenRepository.findByValue(tokenPair.accessToken().value()).orElseThrow();
-    expiredJToken.setExpiration(LocalDateTime.now().minusHours(1));
-    tokenRepository.save(expiredJToken);
+    expireToken(tokenPair.accessToken().value());
 
-    var expiredTokensBefore =
-        tokenRepository.findByIsValidAndExpirationBefore(true, LocalDateTime.now());
-    assertEquals(1, expiredTokensBefore.size());
+    var expiredTokensBefore = findExpiredValidTokens();
+    assertEquals(EXPECTED_ONE_TOKEN, expiredTokensBefore.size());
 
     subject.cleanupExpiredTokens();
 
-    var expiredTokensAfter =
-        tokenRepository.findByIsValidAndExpirationBefore(true, LocalDateTime.now());
+    var expiredTokensAfter = findExpiredValidTokens();
     assertTrue(expiredTokensAfter.isEmpty());
-
-    var cleanedToken = tokenRepository.findByValue(tokenPair.accessToken().value());
-    assertTrue(cleanedToken.isPresent());
-    assertFalse(cleanedToken.get().isValid());
+    verifyTokenInvalidated(tokenPair.accessToken().value());
   }
 
   @Test
   void should_get_active_user_tokens_successfully() {
-    subject.generateTokenPair(test_email);
+    subject.generateTokenPair(TEST_EMAIL);
 
-    var activeTokens = subject.getActiveUserTokens(test_email);
+    var activeTokens = subject.getActiveUserTokens(TEST_EMAIL);
 
-    assertEquals(2, activeTokens.size());
+    assertEquals(EXPECTED_TOKEN_PAIR_SIZE, activeTokens.size());
     assertTrue(activeTokens.stream().allMatch(Token::isValid));
-    assertTrue(activeTokens.stream().allMatch(token -> token.user().getEmail().equals(test_email)));
+    assertTrue(activeTokens.stream().allMatch(token -> token.user().getEmail().equals(TEST_EMAIL)));
   }
 
   @Test
   void should_get_user_tokens_by_type_successfully() {
-    subject.generateTokenPair(test_email);
+    subject.generateTokenPair(TEST_EMAIL);
 
-    var accessTokens = subject.getUserTokensByType(test_email, TokenType.ACCESS_TOKEN);
+    var accessTokens = subject.getUserTokensByType(TEST_EMAIL, TokenType.ACCESS_TOKEN);
 
-    assertEquals(1, accessTokens.size());
+    assertEquals(EXPECTED_ONE_TOKEN, accessTokens.size());
     assertEquals(TokenType.ACCESS_TOKEN, accessTokens.getFirst().type());
-    assertEquals(test_email, accessTokens.getFirst().user().getEmail());
+    assertEquals(TEST_EMAIL, accessTokens.getFirst().user().getEmail());
   }
 
   @Test
   void should_find_token_by_value_successfully() {
-    var tokenPair = subject.generateTokenPair(test_email);
+    var tokenPair = subject.generateTokenPair(TEST_EMAIL);
     var tokenValue = tokenPair.accessToken().value();
 
     var foundToken = subject.findTokenByValue(tokenValue);
 
     assertNotNull(foundToken);
     assertEquals(tokenValue, foundToken.value());
-    assertEquals(test_email, foundToken.user().getEmail());
+    assertEquals(TEST_EMAIL, foundToken.user().getEmail());
   }
 
   @Test
   void should_throw_exception_when_finding_nonexistent_token() {
     assertThrows(
-        RessourceNotFoundException.class, () -> subject.findTokenByValue("nonexistent-token"));
+        RessourceNotFoundException.class, () -> subject.findTokenByValue(NONEXISTENT_TOKEN));
   }
 
   @Test
   void should_check_token_validity_correctly() {
-    var tokenPair = subject.generateTokenPair(test_email);
+    var tokenPair = subject.generateTokenPair(TEST_EMAIL);
     var tokenValue = tokenPair.accessToken().value();
 
     var isValid = subject.isTokenValid(tokenValue);
@@ -286,34 +261,121 @@ class TokenServiceIT extends FacadeIT {
 
   @Test
   void should_return_false_for_invalid_token() {
-    var isValid = subject.isTokenValid("invalid-token");
+    var isValid = subject.isTokenValid(INVALID_TOKEN);
 
     assertFalse(isValid);
   }
 
   @Test
   void should_throw_exception_for_inactive_user() {
-    var inactiveUser =
-        new UserCreationRequest(
-            "inactive@example.com",
-            "+1234567891",
-            "inactiveuser",
-            UserRole.USER,
-            "encodedPassword456");
-    userService.create(inactiveUser);
+    createInactiveUser();
 
-    var jUser = userRepository.findByEmail("inactive@example.com").orElseThrow();
-    jUser.setActivated(false);
-    userRepository.save(jUser);
-
-    assertThrows(
-        UserNotActivatedException.class, () -> subject.generateTokenPair("inactive@example.com"));
+    assertThrows(UserNotActivatedException.class, () -> subject.generateTokenPair(INACTIVE_EMAIL));
   }
 
   @Test
   void should_throw_exception_for_nonexistent_user() {
-    assertThrows(
-        EntityNotFoundException.class, () -> subject.generateTokenPair("nonexistent@example.com"));
+    assertThrows(EntityNotFoundException.class, () -> subject.generateTokenPair(NONEXISTENT_EMAIL));
+  }
+
+  private void cleanupTestData() {
+    tokenRepository.deleteAll();
+    userRepository.deleteByEmail(TEST_EMAIL);
+  }
+
+  private void createAndActivateTestUser() {
+    UserCreationRequest request =
+        new UserCreationRequest(
+            TokenServiceIT.TEST_EMAIL,
+            TokenServiceIT.TEST_PHONE,
+            TokenServiceIT.TEST_USERNAME,
+            UserRole.USER,
+            TokenServiceIT.TEST_PASSWORD);
+    userService.create(request);
+    userService.updateActivationStatusByEmail(TokenServiceIT.TEST_EMAIL, true);
+  }
+
+  private void createInactiveUser() {
+    UserCreationRequest request =
+        new UserCreationRequest(
+            INACTIVE_EMAIL, INACTIVE_PHONE, INACTIVE_USERNAME, UserRole.USER, INACTIVE_PASSWORD);
+    userService.create(request);
+
+    var jUser = userRepository.findByEmail(INACTIVE_EMAIL).orElseThrow();
+    jUser.setActivated(false);
+    userRepository.save(jUser);
+  }
+
+  private void assertValidTokenPair(TokenPair tokenPair) {
+    assertNotNull(tokenPair);
+    assertNotNull(tokenPair.accessToken());
+    assertNotNull(tokenPair.refreshToken());
+    assertEquals(TokenServiceIT.TEST_EMAIL, tokenPair.accessToken().user().getEmail());
+    assertEquals(TokenServiceIT.TEST_EMAIL, tokenPair.refreshToken().user().getEmail());
+  }
+
+  private void assertInvalidTokenWithReason(TokenValidationResult validationResult) {
+    assertFalse(validationResult.valid());
+    assertEquals(TokenServiceIT.TOKEN_EXPIRED_MSG, validationResult.reason());
+  }
+
+  private void verifyTokensStoredInDatabase() {
+    var savedTokens = tokenRepository.findAll();
+    assertEquals(TokenServiceIT.EXPECTED_TOKEN_PAIR_SIZE, savedTokens.size());
+  }
+
+  private void verifyAccessTokenStored() {
+    var accessToken =
+        tokenRepository.findAll().stream()
+            .filter(token -> token.getType() == TokenType.ACCESS_TOKEN)
+            .findFirst();
+
+    assertTrue(accessToken.isPresent());
+    assertTrue(accessToken.get().isValid());
+    assertNotNull(accessToken.get().getUser());
+  }
+
+  private void verifyRefreshTokenStored() {
+    var refreshToken =
+        tokenRepository.findAll().stream()
+            .filter(token -> token.getType() == TokenType.REFRESH_TOKEN)
+            .findFirst();
+
+    assertTrue(refreshToken.isPresent());
+    assertTrue(refreshToken.get().isValid());
+    assertNotNull(refreshToken.get().getUser());
+  }
+
+  private void verifyTokenInvalidated(String tokenValue) {
+    var invalidatedToken = tokenRepository.findByValue(tokenValue);
+    assertTrue(invalidatedToken.isPresent());
+    assertFalse(invalidatedToken.get().isValid());
+  }
+
+  private void verifyActiveTokenCount(int expectedCount) {
+    var activeTokens = tokenRepository.findByUserEmailAndIsValid(TokenServiceIT.TEST_EMAIL, true);
+    assertEquals(expectedCount, activeTokens.size());
+  }
+
+  private void verifyActiveTokenCountByType(TokenType type, int expectedCount) {
+    var tokens =
+        tokenRepository.findByUserEmailAndTypeAndIsValid(TokenServiceIT.TEST_EMAIL, type, true);
+    assertEquals(expectedCount, tokens.size());
+  }
+
+  private void expireToken(String tokenValue) {
+    var jToken = tokenRepository.findByValue(tokenValue).orElseThrow();
+    jToken.setExpiration(LocalDateTime.now().minusHours(ONE_HOUR_AGO));
+    tokenRepository.save(jToken);
+  }
+
+  private List<JToken> findExpiredValidTokens() {
+    return tokenRepository.findByIsValidAndExpirationBefore(true, LocalDateTime.now());
+  }
+
+  private void mockJwtUtilForRefresh(String refreshTokenValue) {
+    when(jwtUtil.validateToken(refreshTokenValue)).thenReturn(true);
+    when(jwtUtil.extractUsername(refreshTokenValue)).thenReturn(TEST_EMAIL);
   }
 
   @TestConfiguration
@@ -328,18 +390,18 @@ class TokenServiceIT extends FacadeIT {
           .thenAnswer(
               invocation -> {
                 var user = invocation.getArgument(0, User.class);
-                return "mock-access-token-" + user.getEmail() + "-" + UUID.randomUUID();
+                return MOCK_ACCESS_TOKEN_PREFIX + user.getEmail() + "-" + UUID.randomUUID();
               });
 
       when(jwtUtil.createToken(anyMap(), anyString(), any(Duration.class)))
           .thenAnswer(
               invocation -> {
                 var subject = invocation.getArgument(1, String.class);
-                return "mock-refresh-token-" + subject + "-" + UUID.randomUUID();
+                return MOCK_REFRESH_TOKEN_PREFIX + subject + "-" + UUID.randomUUID();
               });
 
       when(jwtUtil.validateToken(anyString())).thenReturn(true);
-      when(jwtUtil.extractUsername(anyString())).thenReturn("test-email@example.com");
+      when(jwtUtil.extractUsername(anyString())).thenReturn(TEST_EMAIL);
 
       return jwtUtil;
     }

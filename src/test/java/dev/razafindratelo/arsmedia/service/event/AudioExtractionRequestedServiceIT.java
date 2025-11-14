@@ -48,8 +48,14 @@ class AudioExtractionRequestedServiceIT {
   public static final String PREFIX = "audio_extracted_";
   public static final String TEST_USER = "test@example.com";
   public static final String TEST_BUCKET_KEY = "test_bucket_key";
+  private static final String FFMPEG_PATH = "/usr/bin/ffmpeg";
+  private static final String FFPROBE_PATH = "/usr/bin/ffprobe";
+
   private static final int ORIGINAL_VIDEO_SIZE = 10_000_000;
   private static final int EXTRACTED_AUDIO_SIZE = 2_000_000;
+  private static final String OWNER_EMAIL = "owner@example.com";
+  private static final String VIDEO_KEY = "video_key";
+  private static final String SUFFIX = ".mp3";
   @TempDir File tempDir;
   private File interceptedAudioFile;
   @Mock private BucketComponent bucketComponent;
@@ -77,6 +83,8 @@ class AudioExtractionRequestedServiceIT {
   void setUp() throws IOException {
     service =
         new AudioExtractionRequestedService(
+            FFMPEG_PATH,
+            FFPROBE_PATH,
             bucketComponent,
             videoRepository,
             audioRepository,
@@ -88,16 +96,15 @@ class AudioExtractionRequestedServiceIT {
   void should_successfully_extract_audio_from_video() throws IOException {
     var videoId = UUID.randomUUID().toString();
     var jobId = UUID.randomUUID().toString();
-    var event = createAudioExtractionEvent(videoId, jobId, "video_key", "owner@example.com");
+    var event = createAudioExtractionEvent(videoId, jobId, VIDEO_KEY);
 
     File originalFile = createMockVideoFile(ORIGINAL_VIDEO_SIZE);
     JVideo originalJVideo = createMockJVideoWithAudio(videoId);
-    AudioExtractionJob extractionJob =
-        createMockExtractionJob(jobId, originalJVideo, ProcessStatus.PENDING);
+    AudioExtractionJob extractionJob = createMockExtractionJob(jobId, originalJVideo);
 
     setupMocks(
         originalJVideo,
-        createMockUser("owner@example.com"),
+        createMockUser(OWNER_EMAIL),
         event.getBucketKey(),
         originalFile,
         extractionJob);
@@ -114,16 +121,15 @@ class AudioExtractionRequestedServiceIT {
   void should_extract_audio_with_stereo_channels() throws IOException {
     var videoId = UUID.randomUUID().toString();
     var jobId = UUID.randomUUID().toString();
-    var event = createAudioExtractionEvent(videoId, jobId, "stereo_video_key", "owner@example.com");
+    var event = createAudioExtractionEvent(videoId, jobId, "stereo_video_key");
 
     File originalFile = createMockVideoFile(ORIGINAL_VIDEO_SIZE);
     JVideo originalJVideo = createMockJVideoWithStereoAudio(videoId);
-    AudioExtractionJob extractionJob =
-        createMockExtractionJob(jobId, originalJVideo, ProcessStatus.PENDING);
+    AudioExtractionJob extractionJob = createMockExtractionJob(jobId, originalJVideo);
 
     setupMocks(
         originalJVideo,
-        createMockUser("owner@example.com"),
+        createMockUser(OWNER_EMAIL),
         event.getBucketKey(),
         originalFile,
         extractionJob);
@@ -148,16 +154,15 @@ class AudioExtractionRequestedServiceIT {
   void should_extract_audio_with_mono_channel() throws IOException {
     var videoId = UUID.randomUUID().toString();
     var jobId = UUID.randomUUID().toString();
-    var event = createAudioExtractionEvent(videoId, jobId, "mono_video_key", "owner@example.com");
+    var event = createAudioExtractionEvent(videoId, jobId, "mono_video_key");
 
     File originalFile = createMockVideoFile(ORIGINAL_VIDEO_SIZE);
     JVideo originalJVideo = createMockJVideoWithMonoAudio(videoId);
-    AudioExtractionJob extractionJob =
-        createMockExtractionJob(jobId, originalJVideo, ProcessStatus.PENDING);
+    AudioExtractionJob extractionJob = createMockExtractionJob(jobId, originalJVideo);
 
     setupMocks(
         originalJVideo,
-        createMockUser("owner@example.com"),
+        createMockUser(OWNER_EMAIL),
         event.getBucketKey(),
         originalFile,
         extractionJob);
@@ -179,11 +184,10 @@ class AudioExtractionRequestedServiceIT {
   void should_throw_exception_when_video_has_no_audio() {
     var videoId = UUID.randomUUID().toString();
     var jobId = UUID.randomUUID().toString();
-    var event = createAudioExtractionEvent(videoId, jobId, "no_audio_key", "owner@example.com");
+    var event = createAudioExtractionEvent(videoId, jobId, "no_audio_key");
 
     JVideo videoWithoutAudio = createMockJVideoWithoutAudio(videoId);
-    AudioExtractionJob extractionJob =
-        createMockExtractionJob(jobId, videoWithoutAudio, ProcessStatus.PENDING);
+    AudioExtractionJob extractionJob = createMockExtractionJob(jobId, videoWithoutAudio);
 
     when(audioExtractionJobRepository.findById(jobId)).thenReturn(Optional.of(extractionJob));
     when(videoRepository.findById(videoId)).thenReturn(Optional.of(videoWithoutAudio));
@@ -207,10 +211,9 @@ class AudioExtractionRequestedServiceIT {
   void should_throw_exception_when_video_not_found() {
     var videoId = UUID.randomUUID().toString();
     var jobId = UUID.randomUUID().toString();
-    var event = createAudioExtractionEvent(videoId, jobId, "key", "owner@example.com");
+    var event = createAudioExtractionEvent(videoId, jobId, "key");
 
-    AudioExtractionJob extractionJob =
-        createMockExtractionJob(jobId, new JVideo(), ProcessStatus.PENDING);
+    AudioExtractionJob extractionJob = createMockExtractionJob(jobId, new JVideo());
 
     when(audioExtractionJobRepository.findById(jobId)).thenReturn(Optional.of(extractionJob));
     when(videoRepository.findById(videoId)).thenReturn(Optional.empty());
@@ -226,16 +229,15 @@ class AudioExtractionRequestedServiceIT {
   void should_handle_ffmpeg_execution_failure() throws IOException {
     var videoId = UUID.randomUUID().toString();
     var jobId = UUID.randomUUID().toString();
-    var event = createAudioExtractionEvent(videoId, jobId, "video_key", "owner@example.com");
+    var event = createAudioExtractionEvent(videoId, jobId, VIDEO_KEY);
 
     File originalFile = createMockVideoFile(ORIGINAL_VIDEO_SIZE);
     JVideo originalJVideo = createMockJVideoWithAudio(videoId);
-    AudioExtractionJob extractionJob =
-        createMockExtractionJob(jobId, originalJVideo, ProcessStatus.PENDING);
+    AudioExtractionJob extractionJob = createMockExtractionJob(jobId, originalJVideo);
 
     setupMocks(
         originalJVideo,
-        createMockUser("owner@example.com"),
+        createMockUser(OWNER_EMAIL),
         event.getBucketKey(),
         originalFile,
         extractionJob);
@@ -269,12 +271,11 @@ class AudioExtractionRequestedServiceIT {
   void should_handle_upload_failure() throws IOException {
     var videoId = UUID.randomUUID().toString();
     var jobId = UUID.randomUUID().toString();
-    var event = createAudioExtractionEvent(videoId, jobId, "video_key", "owner@example.com");
+    var event = createAudioExtractionEvent(videoId, jobId, VIDEO_KEY);
 
     File originalFile = createMockVideoFile(ORIGINAL_VIDEO_SIZE);
     JVideo originalJVideo = createMockJVideoWithAudio(videoId);
-    AudioExtractionJob extractionJob =
-        createMockExtractionJob(jobId, originalJVideo, ProcessStatus.PENDING);
+    AudioExtractionJob extractionJob = createMockExtractionJob(jobId, originalJVideo);
 
     when(audioExtractionJobRepository.findById(jobId)).thenReturn(Optional.of(extractionJob));
     when(videoRepository.findById(videoId)).thenReturn(Optional.of(originalJVideo));
@@ -303,12 +304,11 @@ class AudioExtractionRequestedServiceIT {
   void should_track_retry_attempts() {
     var videoId = UUID.randomUUID().toString();
     var jobId = UUID.randomUUID().toString();
-    var event = createAudioExtractionEvent(videoId, jobId, "key", "owner@example.com");
+    var event = createAudioExtractionEvent(videoId, jobId, "key");
     event.setAttemptNb(2);
 
     JVideo originalJVideo = createMockJVideoWithAudio(videoId);
-    AudioExtractionJob extractionJob =
-        createMockExtractionJob(jobId, originalJVideo, ProcessStatus.PENDING);
+    AudioExtractionJob extractionJob = createMockExtractionJob(jobId, originalJVideo);
 
     when(audioExtractionJobRepository.findById(jobId)).thenReturn(Optional.of(extractionJob));
     when(videoRepository.findById(videoId)).thenReturn(Optional.of(originalJVideo));
@@ -333,17 +333,16 @@ class AudioExtractionRequestedServiceIT {
   void should_generate_correct_audio_filename() throws IOException {
     var videoId = UUID.randomUUID().toString();
     var jobId = UUID.randomUUID().toString();
-    var event = createAudioExtractionEvent(videoId, jobId, "video_key", "owner@example.com");
+    var event = createAudioExtractionEvent(videoId, jobId, VIDEO_KEY);
 
     File originalFile = createMockVideoFile(ORIGINAL_VIDEO_SIZE);
     JVideo originalJVideo = createMockJVideoWithAudio(videoId);
     originalJVideo.setFileName("my_awesome_video.mp4");
-    AudioExtractionJob extractionJob =
-        createMockExtractionJob(jobId, originalJVideo, ProcessStatus.PENDING);
+    AudioExtractionJob extractionJob = createMockExtractionJob(jobId, originalJVideo);
 
     setupMocks(
         originalJVideo,
-        createMockUser("owner@example.com"),
+        createMockUser(OWNER_EMAIL),
         event.getBucketKey(),
         originalFile,
         extractionJob);
@@ -356,7 +355,7 @@ class AudioExtractionRequestedServiceIT {
 
       Audio savedAudio = toAudio(audioCaptor.getValue());
       assertTrue(savedAudio.getFileName().startsWith(PREFIX));
-      assertTrue(savedAudio.getFileName().endsWith(".mp3"));
+      assertTrue(savedAudio.getFileName().endsWith(SUFFIX));
       assertTrue(savedAudio.getFileName().contains("my_awesome_video"));
 
       log.info("Audio filename generated correctly: {}", savedAudio.getFileName());
@@ -364,12 +363,12 @@ class AudioExtractionRequestedServiceIT {
   }
 
   private AudioExtractionRequested createAudioExtractionEvent(
-      String videoId, String jobId, String bucketKey, String ownerEmail) {
+      String videoId, String jobId, String bucketKey) {
     return AudioExtractionRequested.builder()
         .videoId(videoId)
         .jobId(jobId)
         .bucketKey(bucketKey)
-        .owner(ownerEmail)
+        .owner(AudioExtractionRequestedServiceIT.OWNER_EMAIL)
         .build();
   }
 
@@ -403,8 +402,7 @@ class AudioExtractionRequestedServiceIT {
               extractionJob.setErrorMessage(job.getErrorMessage());
               extractionJob.setAttemptCount(job.getAttemptCount());
 
-              AudioExtractionJob snapshot = getSnapshot(job);
-              return snapshot;
+              return getSnapshot(job);
             });
 
     lenient()
@@ -434,7 +432,7 @@ class AudioExtractionRequestedServiceIT {
                     File systemTempDir = new File(System.getProperty("java.io.tmpdir"));
                     File[] audioFiles =
                         systemTempDir.listFiles(
-                            (dir, name) -> name.startsWith(PREFIX) && name.endsWith(".mp3"));
+                            (dir, name) -> name.startsWith(PREFIX) && name.endsWith(SUFFIX));
 
                     if (audioFiles != null && audioFiles.length > 0) {
                       File actualOutputFile =
@@ -487,10 +485,10 @@ class AudioExtractionRequestedServiceIT {
 
     String uploadedKey = keyCaptor.getValue();
     assertTrue(uploadedKey.startsWith(PREFIX + videoId));
-    assertTrue(uploadedKey.endsWith(".mp3"));
+    assertTrue(uploadedKey.endsWith(SUFFIX));
 
     assertTrue(savedAudio.getFileName().startsWith(PREFIX));
-    assertTrue(savedAudio.getFileName().endsWith(".mp3"));
+    assertTrue(savedAudio.getFileName().endsWith(SUFFIX));
     assertEquals(AudioCodec.MP3, savedAudio.getCodec());
     assertEquals(ContainerFormat.MP3, savedAudio.getFormat());
     assertEquals(FileType.AUDIO, savedAudio.getFileType());
@@ -579,12 +577,11 @@ class AudioExtractionRequestedServiceIT {
     return user;
   }
 
-  private AudioExtractionJob createMockExtractionJob(
-      String jobId, JVideo parentVideo, ProcessStatus status) {
+  private AudioExtractionJob createMockExtractionJob(String jobId, JVideo parentVideo) {
     AudioExtractionJob job = new AudioExtractionJob();
     job.setId(jobId);
     job.setParent(parentVideo);
-    job.setStatus(status);
+    job.setStatus(ProcessStatus.PENDING);
     job.setCreatedAt(LocalDateTime.now());
     job.setAttemptCount(0);
     return job;

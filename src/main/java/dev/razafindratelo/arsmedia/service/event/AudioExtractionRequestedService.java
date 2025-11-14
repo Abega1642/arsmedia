@@ -27,13 +27,23 @@ import net.bramp.ffmpeg.FFmpeg;
 import net.bramp.ffmpeg.FFmpegExecutor;
 import net.bramp.ffmpeg.FFprobe;
 import net.bramp.ffmpeg.builder.FFmpegBuilder;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
 public class AudioExtractionRequestedService implements Consumer<AudioExtractionRequested> {
 
-  public static final String PREFIX = "audio_extracted_";
+  private static final String PREFIX = "audio_extracted_";
+  private static final String TMP_EXTENSION = ".mp3";
+  private static final String FORMAT_MP3 = "mp3";
+  private static final String CODEC_MP3 = "libmp3lame";
+  private static final String LOG_JOB_NOT_FOUND = "Audio extraction job not found: ";
+  private static final String LOG_VIDEO_NOT_FOUND = "Video not found: ";
+  private static final String LOG_NO_AUDIO_TRACK = "Video does not contain audio track";
+  private static final String LOG_ERROR_UPDATING_JOB =
+      "Failed to update audio extraction job status for job_id: {}";
+
   private final FFmpeg ffmpeg;
   private final FFprobe ffprobe;
   private final BucketComponent bucketComponent;
@@ -43,19 +53,23 @@ public class AudioExtractionRequestedService implements Consumer<AudioExtraction
   private final AudioExtractionJobRepository audioExtractionJobRepository;
 
   public AudioExtractionRequestedService(
+      @Value("${ffmpeg.path}") String ffmpegPath,
+      @Value("${ffprobe.path}") String ffprobePath,
       BucketComponent bucketComponent,
       VideoRepository videoRepository,
       AudioRepository audioRepository,
       UserService userService,
       AudioExtractionJobRepository audioExtractionJobRepository)
       throws IOException {
+
+    this.ffmpeg = new FFmpeg(ffmpegPath);
+    this.ffprobe = new FFprobe(ffprobePath);
+
+    this.bucketComponent = bucketComponent;
+    this.videoRepository = videoRepository;
     this.audioRepository = audioRepository;
     this.userService = userService;
     this.audioExtractionJobRepository = audioExtractionJobRepository;
-    this.ffmpeg = new FFmpeg("/usr/bin/ffmpeg");
-    this.ffprobe = new FFprobe("/usr/bin/ffprobe");
-    this.bucketComponent = bucketComponent;
-    this.videoRepository = videoRepository;
   }
 
   @Override
@@ -73,7 +87,7 @@ public class AudioExtractionRequestedService implements Consumer<AudioExtraction
 
       updateJobStatus(jobId, ProcessStatus.PROGRESSING, event.getAttemptNb(), null);
 
-      Audio extractedAudio = processAudioExtraction(event, jobId);
+      processAudioExtraction(event, jobId);
 
       log.info(
           "Audio extraction completed successfully for video: {}, job_id: {}",
@@ -89,8 +103,9 @@ public class AudioExtractionRequestedService implements Consumer<AudioExtraction
           e);
 
       String errorMessage =
-          String.format(
-              "Audio extraction failed on attempt %d: %s", event.getAttemptNb(), e.getMessage());
+          "Audio extraction failed on attempt %d: %s"
+              .formatted(event.getAttemptNb(), e.getMessage());
+
       updateJobStatus(jobId, ProcessStatus.FAILED, event.getAttemptNb(), errorMessage);
 
       throw new AudioExtractionException("Audio extraction processing failed", e);
@@ -99,12 +114,12 @@ public class AudioExtractionRequestedService implements Consumer<AudioExtraction
 
   private void updateJobStatus(
       String jobId, ProcessStatus status, int attemptCount, String errorMessage) {
+
     try {
       AudioExtractionJob job =
           audioExtractionJobRepository
               .findById(jobId)
-              .orElseThrow(
-                  () -> new EntityNotFoundException("Audio extraction job not found: " + jobId));
+              .orElseThrow(() -> new EntityNotFoundException(LOG_JOB_NOT_FOUND + jobId));
 
       job.setStatus(status);
       job.setAttemptCount(attemptCount);
@@ -119,24 +134,27 @@ public class AudioExtractionRequestedService implements Consumer<AudioExtraction
 
       audioExtractionJobRepository.save(job);
       log.info("Updated audio extraction job {} status to: {}", jobId, status);
+
     } catch (Exception e) {
-      log.error("Failed to update audio extraction job status for job_id: {}", jobId, e);
+      log.error(LOG_ERROR_UPDATING_JOB, jobId, e);
     }
   }
 
   private Audio processAudioExtraction(AudioExtractionRequested event, String jobId)
       throws IOException {
+
     Video originalVideo =
         toVideo(
             videoRepository
                 .findById(event.getVideoId())
                 .orElseThrow(
-                    () -> new EntityNotFoundException("Video not found: " + event.getVideoId())));
+                    () -> new EntityNotFoundException(LOG_VIDEO_NOT_FOUND + event.getVideoId())));
 
     var owner = userService.findByEmail(event.getOwner());
 
-    if (originalVideo.getAudioChannels() <= 0 || originalVideo.getAudioSampleRate() <= 0)
-      throw new IllegalArgumentException("Video does not contain audio track");
+    if (originalVideo.getAudioChannels() <= 0 || originalVideo.getAudioSampleRate() <= 0) {
+      throw new IllegalArgumentException(LOG_NO_AUDIO_TRACK);
+    }
 
     log.info("Downloading original video from bucket key: {}", event.getBucketKey());
     File originalFile = bucketComponent.download(event.getBucketKey());
@@ -152,24 +170,25 @@ public class AudioExtractionRequestedService implements Consumer<AudioExtraction
     log.info("Extracted audio uploaded successfully");
 
     Audio audio = createAudioEntity(originalVideo, extractedAudioFile, audioBucketKey);
+
     audio.setId(UUID.randomUUID().toString());
     audio.setOwner(owner);
 
     log.info("Extracted audio size: {}{}", audio.getSize(), audio.getSizeType());
     log.info("Saving extracted audio entity to database");
+
     JAudio savedAudio = audioRepository.save(toJAudio(audio));
 
     AudioExtractionJob job =
         audioExtractionJobRepository
             .findById(jobId)
-            .orElseThrow(
-                () -> new EntityNotFoundException("Audio extraction job not found: " + jobId));
+            .orElseThrow(() -> new EntityNotFoundException(LOG_JOB_NOT_FOUND + jobId));
 
     job.setStatus(ProcessStatus.COMPLETED);
     job.setExtractedAudio(savedAudio);
     job.setCompletedAt(LocalDateTime.now());
-
     audioExtractionJobRepository.save(job);
+
     log.info("Updated audio extraction job {} status to: COMPLETED", jobId);
 
     cleanupTempFiles(originalFile, extractedAudioFile);
@@ -179,7 +198,7 @@ public class AudioExtractionRequestedService implements Consumer<AudioExtraction
   }
 
   private File extractAudioFile(File originalFile, Video originalVideo) throws IOException {
-    File audioFile = File.createTempFile(PREFIX, ".mp3");
+    File audioFile = File.createTempFile(PREFIX, TMP_EXTENSION);
     log.info("Created temporary output file: {}", audioFile.getAbsolutePath());
 
     log.info(
@@ -192,8 +211,8 @@ public class AudioExtractionRequestedService implements Consumer<AudioExtraction
             .setInput(originalFile.getAbsolutePath())
             .overrideOutputFiles(true)
             .addOutput(audioFile.getAbsolutePath())
-            .setFormat("mp3")
-            .setAudioCodec("libmp3lame")
+            .setFormat(FORMAT_MP3)
+            .setAudioCodec(CODEC_MP3)
             .setAudioQuality(1)
             .setAudioChannels(originalVideo.getAudioChannels())
             .setAudioSampleRate(originalVideo.getAudioSampleRate())
@@ -210,18 +229,18 @@ public class AudioExtractionRequestedService implements Consumer<AudioExtraction
   }
 
   private String generateAudioBucketKey(String videoId) {
-    return PREFIX + videoId + "_" + System.currentTimeMillis() + ".mp3";
+    return PREFIX + videoId + "_" + System.currentTimeMillis() + TMP_EXTENSION;
   }
 
-  private Audio createAudioEntity(Video originalVideo, File audioFile, String audioBucketKey) {
+  private Audio createAudioEntity(Video originalVideo, File audioFile, String bucketKey) {
     Audio audio = new Audio();
 
-    audio.setFileName(PREFIX + originalVideo.getFileName().replaceAll("\\.[^.]+$", ".mp3"));
+    audio.setFileName(PREFIX + originalVideo.getFileName().replaceAll("\\.[^.]+$", TMP_EXTENSION));
     audio.setSize(audioFile.length());
     audio.setSizeType(SizeType.BYTES);
     audio.setFileType(FileType.AUDIO);
     audio.setCreatedAt(LocalDateTime.now());
-    audio.setFilePath(audioBucketKey);
+    audio.setFilePath(bucketKey);
 
     audio.setDuration(originalVideo.getDuration());
     audio.setCodec(AudioCodec.MP3);

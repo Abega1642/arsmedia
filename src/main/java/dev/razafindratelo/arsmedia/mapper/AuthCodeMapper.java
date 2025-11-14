@@ -1,12 +1,14 @@
 package dev.razafindratelo.arsmedia.mapper;
 
+import static dev.razafindratelo.arsmedia.mapper.MapperConstants.UTILITY_CLASS_EXCEPTION_MESSAGE;
+
 import dev.razafindratelo.arsmedia.model.AuthCode;
 import dev.razafindratelo.arsmedia.repository.model.JAuthCode;
 
 public class AuthCodeMapper {
 
   private AuthCodeMapper() {
-    throw new UnsupportedOperationException("Utility class");
+    throw new UnsupportedOperationException(UTILITY_CLASS_EXCEPTION_MESSAGE);
   }
 
   public static AuthCode toModel(JAuthCode jAuthCode) {

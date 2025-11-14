@@ -17,54 +17,49 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 class AuthControllerIT extends FacadeIT {
+
+  private static final String TEST_EMAIL = "a.hello@gmail.com";
+  private static final String VALID_PASSWORD = "this_is_the_password";
+  private static final MediaType JSON = MediaType.APPLICATION_JSON;
+
   @Autowired private MockMvc mvc;
   @Autowired private UserService userService;
   @Autowired private UserRepository userRepository;
 
+  private static String login(String password) {
+    return """
+    {
+      "email": "%s",
+      "password": "%s"
+    }
+    """
+        .formatted(TEST_EMAIL, password);
+  }
+
   @BeforeEach
   void setUp() {
-    var user =
+    var request =
         new UserCreationRequest(
-            "a.hello@gmail.com",
-            "+261 00 0000 000",
-            "abega",
-            UserRole.USER,
-            "this_is_the_password");
-    userService.create(user);
-    userService.updateActivationStatusByEmail(user.email(), true);
+            TEST_EMAIL, "+261 00 0000 000", "abega", UserRole.USER, VALID_PASSWORD);
+    userService.create(request);
+    userService.updateActivationStatusByEmail(TEST_EMAIL, true);
   }
 
   @AfterEach
   void tearDown() {
-    userRepository.deleteByEmail("a.hello@gmail.com");
+    userRepository.deleteByEmail(TEST_EMAIL);
   }
 
   @Test
   void should_be_a_success_login() throws Exception {
-    var loginRequest =
-        """
-        {
-          "email": "a.hello@gmail.com",
-          "password": "this_is_the_password"
-        }
-        """;
-
-    mvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON).content(loginRequest))
+    mvc.perform(post("/auth/login").contentType(JSON).content(login(VALID_PASSWORD)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.message").value("SUCCESS"));
   }
 
   @Test
   void should_denie_authorization() throws Exception {
-    var loginRequest =
-        """
-        {
-          "email": "a.hello@gmail.com",
-          "password": "fake_password"
-        }
-        """;
-
-    mvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON).content(loginRequest))
+    mvc.perform(post("/auth/login").contentType(JSON).content(login("fake_password")))
         .andExpect(status().isUnauthorized());
   }
 }

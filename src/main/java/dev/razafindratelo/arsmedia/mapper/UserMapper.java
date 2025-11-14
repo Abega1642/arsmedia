@@ -1,5 +1,6 @@
 package dev.razafindratelo.arsmedia.mapper;
 
+import static dev.razafindratelo.arsmedia.mapper.MapperConstants.UTILITY_CLASS_EXCEPTION_MESSAGE;
 import static java.time.LocalDateTime.now;
 
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.RUser;
@@ -11,7 +12,7 @@ import java.util.UUID;
 public class UserMapper {
 
   private UserMapper() {
-    throw new UnsupportedOperationException("Utility class");
+    throw new UnsupportedOperationException(UTILITY_CLASS_EXCEPTION_MESSAGE);
   }
 
   public static User toUser(JUser jUser) {

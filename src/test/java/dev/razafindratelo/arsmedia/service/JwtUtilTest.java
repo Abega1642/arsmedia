@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import dev.razafindratelo.arsmedia.exception.JwtProcessingException;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.model.classifier.UserRole;
+import io.jsonwebtoken.Claims;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -13,20 +14,50 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class JwtUtilTest {
-  private final String TEST_EMAIL = "test@example.com";
+
+  private static final String TEST_EMAIL = "test@example.com";
+  private static final String CUSTOM_EMAIL = "custom@example.com";
+  private static final String TEST_USER_ID = "user-123";
+  private static final String CUSTOM_USER_ID = "custom-user-123";
+  private static final String TEST_PSEUDO = "testuser";
+  private static final String TEST_PASSWORD = "password";
+
+  private static final String TEST_SECRET = "test-secret-key-that-is-long-enough-for-hs256-123456";
+  private static final String INVALID_TOKEN = "invalid.token.here";
+  private static final String EMPTY_STRING = "";
+  private static final String WHITESPACE_STRING = "   ";
+
+  private static final String CLAIM_CUSTOM = "custom_claim";
+  private static final String CLAIM_TOKEN_TYPE = "token_type";
+  private static final String CLAIM_USER_ID = "user_id";
+  private static final String CLAIM_PSEUDO = "pseudo";
+  private static final String CLAIM_ROLES = "roles";
+
+  private static final String CUSTOM_VALUE = "custom_value";
+  private static final String TOKEN_TYPE_ACCESS = "ACCESS";
+  private static final String TOKEN_TYPE_REFRESH = "REFRESH";
+
+  private static final String ROLE_USER = "ROLE_USER";
+  private static final String ROLE_ADMIN = "ROLE_ADMIN";
+
+  private static final String FIELD_SECRET_KEY = "secretKey";
+  private static final String FIELD_JWT_PARSER = "jwtParser";
+
+  private static final long TOKEN_GENERATION_DELAY_MS = 1000L;
+  private static final int TOKEN_DURATION_HOURS = 1;
+
   private JwtUtil subject;
 
   @BeforeEach
   void setUp() {
-    String testSecret = "test-secret-key-that-is-long-enough-for-hs256-123456";
-    subject = new JwtUtil(testSecret);
+    subject = new JwtUtil(TEST_SECRET);
   }
 
   @Test
   void should_initialize_with_valid_secret() {
     assertNotNull(subject);
-    assertNotNull(ReflectionTestUtils.getField(subject, "secretKey"));
-    assertNotNull(ReflectionTestUtils.getField(subject, "jwtParser"));
+    assertNotNull(ReflectionTestUtils.getField(subject, FIELD_SECRET_KEY));
+    assertNotNull(ReflectionTestUtils.getField(subject, FIELD_JWT_PARSER));
   }
 
   @Test
@@ -36,7 +67,7 @@ class JwtUtilTest {
 
   @Test
   void should_throw_exception_when_secret_is_empty() {
-    assertThrows(IllegalStateException.class, () -> new JwtUtil(""));
+    assertThrows(IllegalStateException.class, () -> new JwtUtil(EMPTY_STRING));
   }
 
   @Test
@@ -44,9 +75,7 @@ class JwtUtilTest {
     var user = createTestUser();
     var token = subject.generateToken(user);
 
-    assertNotNull(token);
-    assertFalse(token.isEmpty());
-    assertTrue(subject.validateToken(token));
+    assertTokenGeneratedSuccessfully(token);
   }
 
   @Test
@@ -54,43 +83,29 @@ class JwtUtilTest {
     var user = createTestUser();
     var token = subject.generateToken(user);
 
-    assertEquals(user.getEmail(), subject.extractUsername(token));
-    assertEquals(user.getId(), subject.extractUserId(token));
-    assertEquals(user.getPseudo(), subject.extractAllClaims(token).get("pseudo"));
-
-    var roles = subject.extractRoles(token);
-    assertNotNull(roles);
-    assertTrue(roles.contains("ROLE_USER"));
+    assertBaseClaimsPresent(token, user);
+    assertRolesContain(token, ROLE_USER);
   }
 
   @Test
   void should_generate_token_with_additional_claims() {
     var user = createTestUser();
-    var additionalClaims = new HashMap<String, Object>();
-    additionalClaims.put("custom_claim", "custom_value");
-    additionalClaims.put("token_type", "ACCESS");
+    var additionalClaims = createAdditionalClaims();
 
     var token = subject.generateToken(user, additionalClaims);
 
-    assertEquals("custom_value", subject.extractAllClaims(token).get("custom_claim"));
-    assertEquals("ACCESS", subject.extractTokenType(token));
+    assertEquals(CUSTOM_VALUE, subject.extractAllClaims(token).get(CLAIM_CUSTOM));
+    assertEquals(TOKEN_TYPE_ACCESS, subject.extractTokenType(token));
   }
 
   @Test
   void should_create_token_with_custom_subject_and_duration() {
-    var claims = new HashMap<String, Object>();
-    claims.put("user_id", "custom-user-123");
-    var subject = "custom@example.com";
-    var duration = Duration.ofHours(1);
+    var claims = createCustomClaims();
+    var duration = Duration.ofHours(TOKEN_DURATION_HOURS);
 
-    var token = this.subject.createToken(claims, subject, duration);
+    var token = subject.createToken(claims, CUSTOM_EMAIL, duration);
 
-    assertNotNull(token);
-    assertEquals(subject, this.subject.extractUsername(token));
-    assertEquals("custom-user-123", this.subject.extractUserId(token));
-
-    var expiration = this.subject.extractExpiration(token);
-    assertTrue(expiration.isAfter(LocalDateTime.now()));
+    assertCustomTokenCreated(token);
   }
 
   @Test
@@ -103,9 +118,7 @@ class JwtUtilTest {
 
   @Test
   void should_return_false_for_invalid_token() {
-    var invalidToken = "invalid.token.here";
-
-    assertFalse(subject.validateToken(invalidToken));
+    assertFalse(subject.validateToken(INVALID_TOKEN));
   }
 
   @Test
@@ -115,8 +128,8 @@ class JwtUtilTest {
 
   @Test
   void should_return_false_for_empty_token() {
-    assertFalse(subject.validateToken(""));
-    assertFalse(subject.validateToken("   "));
+    assertFalse(subject.validateToken(EMPTY_STRING));
+    assertFalse(subject.validateToken(WHITESPACE_STRING));
   }
 
   @Test
@@ -141,21 +154,18 @@ class JwtUtilTest {
   void should_extract_roles_from_token() {
     var user = createAdminUser();
     var token = subject.generateToken(user);
-    var roles = subject.extractRoles(token);
 
-    assertNotNull(roles);
-    assertTrue(roles.contains("ROLE_ADMIN"));
+    assertRolesContain(token, ROLE_ADMIN);
   }
 
   @Test
   void should_extract_token_type_from_token() {
     var user = createTestUser();
-    var claims = new HashMap<String, Object>();
-    claims.put("token_type", "REFRESH");
+    var claims = createTokenTypeClaims();
     var token = subject.generateToken(user, claims);
     var tokenType = subject.extractTokenType(token);
 
-    assertEquals("REFRESH", tokenType);
+    assertEquals(TOKEN_TYPE_REFRESH, tokenType);
   }
 
   @Test
@@ -164,8 +174,7 @@ class JwtUtilTest {
     var token = subject.generateToken(user);
     var expiration = subject.extractExpiration(token);
 
-    assertNotNull(expiration);
-    assertTrue(expiration.isAfter(LocalDateTime.now()));
+    assertExpirationValid(expiration);
   }
 
   @Test
@@ -182,23 +191,18 @@ class JwtUtilTest {
     var token = subject.generateToken(user);
     var claims = subject.extractAllClaims(token);
 
-    assertNotNull(claims);
-    assertEquals(user.getEmail(), claims.getSubject());
-    assertEquals(user.getId(), claims.get("user_id"));
-    assertNotNull(claims.get("roles"));
+    assertAllClaimsPresent(claims, user);
   }
 
   @Test
   void should_throw_exception_when_extracting_claims_from_invalid_token() {
-    var invalidToken = "invalid.token.here";
-
-    assertThrows(JwtProcessingException.class, () -> subject.extractAllClaims(invalidToken));
+    assertThrows(JwtProcessingException.class, () -> subject.extractAllClaims(INVALID_TOKEN));
   }
 
   @Test
   void should_throw_exception_when_creating_token_with_null_subject() {
     var claims = new HashMap<String, Object>();
-    var duration = Duration.ofHours(1);
+    var duration = Duration.ofHours(TOKEN_DURATION_HOURS);
 
     assertThrows(IllegalArgumentException.class, () -> subject.createToken(claims, null, duration));
   }
@@ -206,9 +210,10 @@ class JwtUtilTest {
   @Test
   void should_throw_exception_when_creating_token_with_empty_subject() {
     var claims = new HashMap<String, Object>();
-    var duration = Duration.ofHours(1);
+    var duration = Duration.ofHours(TOKEN_DURATION_HOURS);
 
-    assertThrows(IllegalArgumentException.class, () -> subject.createToken(claims, "", duration));
+    assertThrows(
+        IllegalArgumentException.class, () -> subject.createToken(claims, EMPTY_STRING, duration));
   }
 
   @Test
@@ -230,23 +235,18 @@ class JwtUtilTest {
 
   @Test
   void should_handle_user_with_null_authorities_gracefully() {
-    var user = new User();
-    user.setId("user-123");
-    user.setEmail(TEST_EMAIL);
-    user.setPseudo("testuser");
-    user.setRole(UserRole.USER);
+    var user = createUserWithoutAuthorities();
 
     var token = subject.generateToken(user);
 
-    assertNotNull(token);
-    assertTrue(subject.validateToken(token));
+    assertTokenGeneratedSuccessfully(token);
   }
 
   @Test
   void should_generate_different_tokens_for_same_user() throws InterruptedException {
     var user = createTestUser();
     var token1 = subject.generateToken(user);
-    Thread.sleep(1000);
+    Thread.sleep(TOKEN_GENERATION_DELAY_MS);
     var token2 = subject.generateToken(user);
 
     assertNotEquals(token1, token2);
@@ -255,21 +255,90 @@ class JwtUtilTest {
   }
 
   private User createTestUser() {
+    return createUser(UserRole.USER);
+  }
+
+  private User createAdminUser() {
+    return createUser(UserRole.ADMIN);
+  }
+
+  private User createUserWithoutAuthorities() {
     var user = new User();
-    user.setId("user-123");
+    user.setId(TEST_USER_ID);
     user.setEmail(TEST_EMAIL);
-    user.setPseudo("testuser");
-    user.setPassword("password");
+    user.setPseudo(TEST_PSEUDO);
     user.setRole(UserRole.USER);
+    return user;
+  }
+
+  private User createUser(UserRole role) {
+    var user = new User();
+    user.setId(JwtUtilTest.TEST_USER_ID);
+    user.setEmail(JwtUtilTest.TEST_EMAIL);
+    user.setPseudo(JwtUtilTest.TEST_PSEUDO);
+    user.setPassword(TEST_PASSWORD);
+    user.setRole(role);
     user.setActivated(true);
     user.setCreatedAt(LocalDateTime.now());
     user.setUpdatedAt(LocalDateTime.now());
     return user;
   }
 
-  private User createAdminUser() {
-    var user = createTestUser();
-    user.setRole(UserRole.ADMIN);
-    return user;
+  private HashMap<String, Object> createAdditionalClaims() {
+    var claims = new HashMap<String, Object>();
+    claims.put(CLAIM_CUSTOM, CUSTOM_VALUE);
+    claims.put(CLAIM_TOKEN_TYPE, TOKEN_TYPE_ACCESS);
+    return claims;
+  }
+
+  private HashMap<String, Object> createCustomClaims() {
+    var claims = new HashMap<String, Object>();
+    claims.put(CLAIM_USER_ID, CUSTOM_USER_ID);
+    return claims;
+  }
+
+  private HashMap<String, Object> createTokenTypeClaims() {
+    var claims = new HashMap<String, Object>();
+    claims.put(CLAIM_TOKEN_TYPE, JwtUtilTest.TOKEN_TYPE_REFRESH);
+    return claims;
+  }
+
+  private void assertTokenGeneratedSuccessfully(String token) {
+    assertNotNull(token);
+    assertFalse(token.isEmpty());
+    assertTrue(subject.validateToken(token));
+  }
+
+  private void assertBaseClaimsPresent(String token, User user) {
+    assertEquals(user.getEmail(), subject.extractUsername(token));
+    assertEquals(user.getId(), subject.extractUserId(token));
+    assertEquals(user.getPseudo(), subject.extractAllClaims(token).get(CLAIM_PSEUDO));
+  }
+
+  private void assertRolesContain(String token, String expectedRole) {
+    var roles = subject.extractRoles(token);
+    assertNotNull(roles);
+    assertTrue(roles.contains(expectedRole));
+  }
+
+  private void assertCustomTokenCreated(String token) {
+    assertNotNull(token);
+    assertEquals(JwtUtilTest.CUSTOM_EMAIL, subject.extractUsername(token));
+    assertEquals(JwtUtilTest.CUSTOM_USER_ID, subject.extractUserId(token));
+
+    var expiration = subject.extractExpiration(token);
+    assertExpirationValid(expiration);
+  }
+
+  private void assertExpirationValid(LocalDateTime expiration) {
+    assertNotNull(expiration);
+    assertTrue(expiration.isAfter(LocalDateTime.now()));
+  }
+
+  private void assertAllClaimsPresent(Claims claims, User user) {
+    assertNotNull(claims);
+    assertEquals(user.getEmail(), claims.getSubject());
+    assertEquals(user.getId(), claims.get(CLAIM_USER_ID));
+    assertNotNull(claims.get(CLAIM_ROLES));
   }
 }
