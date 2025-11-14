@@ -9,10 +9,28 @@ linter: jetbrains/qodana-jvm-community:2025.1
 include:
   - name: NullableProblemsInspection
   - name: UnusedDeclarationInspection
+  - name: UnusedAssignmentInspection
+  - name: UnusedParameterInspection
   - name: DuplicatedCodeInspection
   - name: SecurityInspection
   - name: VulnerableLibrariesInspection
   - name: SpringJavaInspection
+  - name: MethodNamingConventionInspection
+  - name: FieldNamingConventionInspection
+  - name: LocalVariableNamingConventionInspection
+  - name: TooGenericExceptionThrownInspection
+  - name: InterruptedExceptionInControlFlowInspection
+  - name: UtilityClassWithoutPrivateConstructorInspection
+  - name: DuplicateStringLiteralInspection
+  - name: UnnecessaryBracesInspection
+  - name: SimplifyBooleanExpressionInspection
+  - name: MergeIfInspection
+  - name: UseOfSystemOutOrSystemErrInspection
+  - name: EqualsHashCodeInspection
+  - name: ModifierOrderInspection
+  - name: IllegalUnicodeEscapeInspection
+  - name: ConstantValueInspection
+  - name: FinalPrivateFieldInspection
 
 exclude:
   - name: CodeStyleInspection
