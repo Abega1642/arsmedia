@@ -292,7 +292,7 @@ class TokenServiceIT extends FacadeIT {
             UserRole.USER,
             TokenServiceIT.TEST_PASSWORD);
     userService.create(request);
-    userService.updateActivationStatusByEmail(TokenServiceIT.TEST_EMAIL, true);
+    userService.updateActivationStatusByEmail(TEST_EMAIL, true);
   }
 
   private void createInactiveUser() {

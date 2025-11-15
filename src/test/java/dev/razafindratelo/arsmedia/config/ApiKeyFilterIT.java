@@ -1,5 +1,6 @@
 package dev.razafindratelo.arsmedia.config;
 
+import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
@@ -21,6 +22,8 @@ import org.springframework.http.*;
 @Slf4j
 class ApiKeyFilterIT extends FacadeIT {
 
+  private static final String X_API_KEY = "X-API-KEY";
+  private static final String USERS_ENDPOINT = "/users";
   private final String TEST_USER_EMAIL = "apikey-filter-test@example.com";
   @Autowired private TestRestTemplate restTemplate;
   @Autowired private ApiKeyService apiKeyService;
@@ -34,7 +37,11 @@ class ApiKeyFilterIT extends FacadeIT {
   void setUp() {
     var adminUser =
         new UserCreationRequest(
-            TEST_USER_EMAIL, "test-admin", "+261123456789", UserRole.ADMIN, "password");
+            TEST_USER_EMAIL,
+            "test-admin",
+            "+261123456789",
+            UserRole.ADMIN,
+            randomUUID().toString());
     userService.create(adminUser);
     userService.updateActivationStatusByEmail(TEST_USER_EMAIL, true);
 
@@ -85,10 +92,11 @@ class ApiKeyFilterIT extends FacadeIT {
   @Test
   void should_allow_access_to_users_endpoint_with_valid_api_key_and_admin_role() {
     var headers = new HttpHeaders();
-    headers.set("X-API-KEY", validApiKey);
+    headers.set(X_API_KEY, validApiKey);
 
     var response =
-        restTemplate.exchange("/users", HttpMethod.GET, new HttpEntity<>(headers), String.class);
+        restTemplate.exchange(
+            USERS_ENDPOINT, HttpMethod.GET, new HttpEntity<>(headers), String.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
   }
@@ -96,10 +104,11 @@ class ApiKeyFilterIT extends FacadeIT {
   @Test
   void should_deny_access_to_users_endpoint_with_invalid_api_key() {
     var headers = new HttpHeaders();
-    headers.set("X-API-KEY", "invalid-api-key-that-does-not-exist");
+    headers.set(X_API_KEY, "invalid-api-key-that-does-not-exist");
 
     var response =
-        restTemplate.exchange("/users", HttpMethod.GET, new HttpEntity<>(headers), String.class);
+        restTemplate.exchange(
+            USERS_ENDPOINT, HttpMethod.GET, new HttpEntity<>(headers), String.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
   }
@@ -107,17 +116,18 @@ class ApiKeyFilterIT extends FacadeIT {
   @Test
   void should_deny_access_to_users_endpoint_with_expired_api_key() {
     var headers = new HttpHeaders();
-    headers.set("X-API-KEY", expiredApiKey);
+    headers.set(X_API_KEY, expiredApiKey);
 
     var response =
-        restTemplate.exchange("/users", HttpMethod.GET, new HttpEntity<>(headers), String.class);
+        restTemplate.exchange(
+            USERS_ENDPOINT, HttpMethod.GET, new HttpEntity<>(headers), String.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
   }
 
   @Test
   void should_deny_access_to_users_endpoint_without_api_key() {
-    var response = restTemplate.getForEntity("/users", String.class);
+    var response = restTemplate.getForEntity(USERS_ENDPOINT, String.class);
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
   }
 
@@ -128,7 +138,7 @@ class ApiKeyFilterIT extends FacadeIT {
     try {
       var nonAdminUser =
           new UserCreationRequest(
-              nonAdminEmail, "non-admin", "+261987654321", UserRole.USER, "password");
+              nonAdminEmail, "non-admin", "+261987654321", UserRole.USER, randomUUID().toString());
       var createdUser = userService.create(nonAdminUser);
       userService.updateActivationStatusByEmail(nonAdminEmail, true);
 
@@ -143,10 +153,11 @@ class ApiKeyFilterIT extends FacadeIT {
       }
 
       var headers = new HttpHeaders();
-      headers.set("X-API-KEY", nonAdminApiKey);
+      headers.set(X_API_KEY, nonAdminApiKey);
 
       var response =
-          restTemplate.exchange("/users", HttpMethod.GET, new HttpEntity<>(headers), String.class);
+          restTemplate.exchange(
+              USERS_ENDPOINT, HttpMethod.GET, new HttpEntity<>(headers), String.class);
 
       assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     } finally {

@@ -18,7 +18,7 @@ public interface UserRepository extends JpaRepository<JUser, String> {
   @Transactional
   void deleteByEmail(String email);
 
-  @Modifying
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Transactional
   @Query(
       "UPDATE JUser u SET u.isActivated = :isActivated, u.updatedAt = :updatedAt WHERE u.email ="

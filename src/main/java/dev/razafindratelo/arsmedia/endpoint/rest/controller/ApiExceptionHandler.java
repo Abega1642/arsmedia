@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 @ControllerAdvice
 @Slf4j
@@ -35,6 +37,20 @@ public class ApiExceptionHandler {
             "Required parameter '" + ex.getParameterName() + "' is missing",
             getRequestPath(request),
             "MISSING_REQUIRED_PARAMETER");
+
+    return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+  }
+
+  @ExceptionHandler(MissingServletRequestPartException.class)
+  public ResponseEntity<ErrorResponse> handleMissingServletRequestPart(
+      MissingServletRequestPartException ex, WebRequest request) {
+
+    var errorResponse =
+        ErrorResponse.of(
+            HttpStatus.BAD_REQUEST,
+            "Required part '" + ex.getRequestPartName() + "' is not present",
+            getRequestPath(request),
+            "MISSING_REQUIRED_PART");
 
     return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
   }
@@ -295,9 +311,20 @@ public class ApiExceptionHandler {
     return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
   }
 
+  @ExceptionHandler(HandlerMethodValidationException.class)
+  public ResponseEntity<ErrorResponse> handleHandlerMethodValidationException(
+      HandlerMethodValidationException ex, WebRequest request) {
+
+    var errorResponse =
+        ErrorResponse.of(
+            HttpStatus.BAD_REQUEST, ex.getMessage(), getRequestPath(request), "VALIDATION_ERROR");
+
+    return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+  }
+
   private String getRequestPath(WebRequest request) {
     if (request instanceof ServletWebRequest servletWebRequest) {
-      return servletWebRequest.getRequest().getServletPath();
+      return servletWebRequest.getRequest().getRequestURI();
     }
     return "N/A";
   }

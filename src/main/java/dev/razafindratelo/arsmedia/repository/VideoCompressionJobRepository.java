@@ -18,13 +18,14 @@ public interface VideoCompressionJobRepository extends JpaRepository<VideoCompre
       @Param("process_status") ProcessStatus processStatus, @Param("id") String id);
 
   @Query(
-      """
-      SELECT cmp
-      FROM VideoCompressionJob cmp
-      WHERE cmp.status = dev.razafindratelo.arsmedia.model.classifier.ProcessStatus.COMPLETED
-        AND cmp.parent.owner.email = :email
-      """)
-  List<VideoCompressionJob> findAllCompletedByOwnerEmail(@Param("email") String email);
+      "SELECT j FROM VideoCompressionJob j WHERE j.status = :status AND j.parent.owner.email ="
+          + " :email")
+  List<VideoCompressionJob> findByStatusAndOwnerEmail(
+      @Param("status") ProcessStatus status, @Param("email") String email);
+
+  default List<VideoCompressionJob> findAllCompletedByOwnerEmail(String email) {
+    return findByStatusAndOwnerEmail(ProcessStatus.COMPLETED, email);
+  }
 
   List<VideoCompressionJob> findByParentId(String parentId);
 }

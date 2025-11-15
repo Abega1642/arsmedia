@@ -22,6 +22,7 @@ public class ApiClientSecretFilter extends OncePerRequestFilter {
   private static final String[] PUBLIC_PATHS = {
     "/ping", "/", "/health/**", "/swagger-ui/**", "/v3/api-docs/**", "/doc/**", "/actuator/**"
   };
+  private static final String LOCAL_HOST_IP = "127.0.0.1";
 
   private final AntPathMatcher pathMatcher = new AntPathMatcher();
   private final ApiClientSecretService clientService;
@@ -69,8 +70,8 @@ public class ApiClientSecretFilter extends OncePerRequestFilter {
   }
 
   private boolean isLocalRequest(String remoteAddr, String host) {
-    return "127.0.0.1".equals(remoteAddr)
+    return LOCAL_HOST_IP.equals(remoteAddr)
         || "0:0:0:0:0:0:0:1".equals(remoteAddr)
-        || (host != null && (host.startsWith("localhost") || host.startsWith("127.0.0.1")));
+        || (host != null && (host.startsWith("localhost") || host.startsWith(LOCAL_HOST_IP)));
   }
 }

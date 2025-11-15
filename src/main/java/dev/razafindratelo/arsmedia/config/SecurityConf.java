@@ -1,8 +1,9 @@
 package dev.razafindratelo.arsmedia.config;
 
+import static dev.razafindratelo.arsmedia.model.classifier.UserRole.ADMIN;
+import static dev.razafindratelo.arsmedia.model.classifier.UserRole.USER;
 import static java.time.LocalDateTime.now;
-import static org.springframework.http.HttpMethod.GET;
-import static org.springframework.http.HttpMethod.POST;
+import static org.springframework.http.HttpMethod.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.razafindratelo.arsmedia.InfraGenerated;
@@ -70,9 +71,9 @@ public class SecurityConf {
                         "/auth/token/**")
                     .permitAll()
                     .requestMatchers("/api/admin/**")
-                    .hasRole("ADMIN")
+                    .hasRole(ADMIN.toString())
                     .requestMatchers("/api/users/**")
-                    .hasAnyRole("USER", "ADMIN")
+                    .hasAnyRole(USER.toString(), ADMIN.toString())
                     .anyRequest()
                     .authenticated())
         .sessionManagement(
@@ -110,7 +111,8 @@ public class SecurityConf {
   public CorsConfigurationSource corsConfigurationSource() {
     var configuration = new CorsConfiguration();
     configuration.setAllowedOrigins(List.of("*"));
-    configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+    configuration.setAllowedMethods(
+        List.of(GET.name(), POST.name(), PUT.name(), DELETE.name(), OPTIONS.name(), PATCH.name()));
     configuration.setAllowedHeaders(List.of("*"));
     configuration.setExposedHeaders(List.of("Authorization", "X-API-Key"));
 
