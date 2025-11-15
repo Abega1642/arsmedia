@@ -1,12 +1,14 @@
 package dev.razafindratelo.arsmedia.mapper;
 
+import static dev.razafindratelo.arsmedia.mapper.MapperConstants.UTILITY_CLASS_EXCEPTION_MESSAGE;
+
 import dev.razafindratelo.arsmedia.model.Image;
 import dev.razafindratelo.arsmedia.repository.model.JImage;
 
 public class ImageMapper {
 
   private ImageMapper() {
-    throw new UnsupportedOperationException("Utility class");
+    throw new UnsupportedOperationException(UTILITY_CLASS_EXCEPTION_MESSAGE);
   }
 
   public static Image toImage(JImage j) {

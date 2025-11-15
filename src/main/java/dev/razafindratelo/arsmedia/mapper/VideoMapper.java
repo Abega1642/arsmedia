@@ -1,12 +1,14 @@
 package dev.razafindratelo.arsmedia.mapper;
 
+import static dev.razafindratelo.arsmedia.mapper.MapperConstants.UTILITY_CLASS_EXCEPTION_MESSAGE;
+
 import dev.razafindratelo.arsmedia.model.Video;
 import dev.razafindratelo.arsmedia.repository.model.JVideo;
 
 public class VideoMapper {
 
   private VideoMapper() {
-    throw new UnsupportedOperationException("Utility class");
+    throw new UnsupportedOperationException(UTILITY_CLASS_EXCEPTION_MESSAGE);
   }
 
   public static Video toVideo(JVideo jVideo) {

@@ -1,5 +1,6 @@
 package dev.razafindratelo.arsmedia.mapper;
 
+import static dev.razafindratelo.arsmedia.mapper.MapperConstants.UTILITY_CLASS_EXCEPTION_MESSAGE;
 import static dev.razafindratelo.arsmedia.mapper.UserMapper.toJUser;
 import static dev.razafindratelo.arsmedia.mapper.UserMapper.toUser;
 
@@ -9,7 +10,7 @@ import dev.razafindratelo.arsmedia.repository.model.JMedia;
 public class MediaMapper {
 
   private MediaMapper() {
-    throw new UnsupportedOperationException("Utility class");
+    throw new UnsupportedOperationException(UTILITY_CLASS_EXCEPTION_MESSAGE);
   }
 
   public static Media toMedia(JMedia jMedia) {

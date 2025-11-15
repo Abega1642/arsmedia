@@ -4,19 +4,20 @@ import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toJVideo;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.CompressionJobStatusResponse;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.CompressionOptions;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.VideoCompressionJobStatusResponse;
+import dev.razafindratelo.arsmedia.event.model.AudioExtractionRequested;
 import dev.razafindratelo.arsmedia.event.model.EventProducer;
 import dev.razafindratelo.arsmedia.event.model.VideoCompressionRequested;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.model.Video;
 import dev.razafindratelo.arsmedia.model.classifier.*;
-import dev.razafindratelo.arsmedia.repository.CompressedVideoRepository;
+import dev.razafindratelo.arsmedia.repository.AudioExtractionJobRepository;
+import dev.razafindratelo.arsmedia.repository.VideoCompressionJobRepository;
 import dev.razafindratelo.arsmedia.repository.VideoRepository;
-import dev.razafindratelo.arsmedia.repository.model.JCompressedVideo;
 import dev.razafindratelo.arsmedia.repository.model.JVideo;
+import dev.razafindratelo.arsmedia.repository.model.VideoCompressionJob;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -33,36 +34,209 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 @Slf4j
 class VideoServiceIT {
+  private static final String TEST_USER_EMAIL = "user@example.com";
+  private static final String BUCKET_KEY_PREFIX = "video_bucket_key_";
+  private static final String TEST_BUCKET_KEY_123 = BUCKET_KEY_PREFIX + "123";
+  private static final String TEST_BUCKET_KEY_456 = BUCKET_KEY_PREFIX + "456";
+  private static final String NON_EXISTENT_KEY = "non_existent_key";
 
-  public static final String TEST_USER_EMAIL = "user@example.com";
+  private static final String TEST_VIDEO_FILENAME = "test_video.mp4";
+  private static final String S3_BUCKET_PREFIX = "s3://bucket/";
+  private static final String COMPRESSED_VIDEO_PREFIX = "compressed_";
+  private static final String COMPRESSED_KEY = "compressed_key";
+  private static final String ORIGINAL_KEY = "original_key";
+
+  private static final int VIDEO_WIDTH = 1920;
+  private static final int VIDEO_HEIGHT = 1080;
+  private static final double VIDEO_DURATION = 120.0;
+  private static final double VIDEO_FRAME_RATE = 30.0;
+  private static final long VIDEO_SIZE = 10_000_000L;
+  private static final int AUDIO_CHANNELS = 2;
+  private static final int AUDIO_SAMPLE_RATE = 48000;
+
+  private static final int CUSTOM_CRF = 28;
+  private static final int CUSTOM_WIDTH = 1280;
+  private static final int CUSTOM_HEIGHT = 720;
+
+  private static final String NO_VIDEO_FOUND_MSG = "No video instance found";
+  private static final String FFMPEG_ERROR_MSG = "FFmpeg processing failed";
+
+  private static final String LOG_JOB_CREATED =
+      "Compression job created successfully with job_id: {}";
+  private static final String LOG_CUSTOM_OPTIONS =
+      "Compression job created with custom options - CRF: {}, Resolution: {}x{}";
+  private static final String LOG_EXCEPTION_THROWN =
+      "Correctly threw exception for non-existent video with bucket_key: {}";
+  private static final String LOG_STATUS_RETRIEVED =
+      "Retrieved compression job status: {} - Status: {}, Attempts: {}";
+  private static final String LOG_JOBS_RETRIEVED =
+      "Retrieved {} compression jobs for video {}: COMPLETED={}, FAILED={}, PROGRESSING={}";
+
   @Mock private VideoRepository videoRepository;
   @Mock private UserService userService;
-  @Mock private EventProducer<VideoCompressionRequested> eventProducer;
-  @Mock private CompressedVideoRepository compressedVideoRepository;
+  @Mock private EventProducer<VideoCompressionRequested> vcEventProducer;
+  @Mock private EventProducer<AudioExtractionRequested> aeEventProducer;
+  @Mock private VideoCompressionJobRepository videoCompressionJobRepository;
+  @Mock private AudioExtractionJobRepository audioExtractionJobRepository;
 
   private VideoService videoService;
 
   @BeforeEach
   void setUp() {
     videoService =
-        new VideoService(videoRepository, userService, eventProducer, compressedVideoRepository);
+        new VideoService(
+            videoRepository,
+            userService,
+            vcEventProducer,
+            aeEventProducer,
+            videoCompressionJobRepository,
+            audioExtractionJobRepository);
   }
 
   @Test
   void should_create_compression_job_with_default_options() {
-    var bucketKey = "video_bucket_key_123";
     var videoId = UUID.randomUUID().toString();
-
-    var mockVideo = createMockJVideo(videoId, bucketKey);
+    var mockVideo = createMockJVideo(videoId, TEST_BUCKET_KEY_123);
     var mockUser = createMockUser(TEST_USER_EMAIL);
 
-    when(videoRepository.findByBucketKey(bucketKey)).thenReturn(Optional.of(mockVideo));
+    when(videoRepository.findByBucketKey(TEST_BUCKET_KEY_123)).thenReturn(Optional.of(mockVideo));
     when(userService.findByEmail(TEST_USER_EMAIL)).thenReturn(mockUser);
-    when(compressedVideoRepository.save(any(JCompressedVideo.class)))
+    when(videoCompressionJobRepository.save(any(VideoCompressionJob.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    CompressionJobStatusResponse response = videoService.compress(TEST_USER_EMAIL, bucketKey);
+    VideoCompressionJobStatusResponse response =
+        videoService.compress(TEST_USER_EMAIL, TEST_BUCKET_KEY_123);
 
+    assertCompressionJobResponse(response);
+
+    verify(videoRepository).findByBucketKey(TEST_BUCKET_KEY_123);
+    verify(userService).findByEmail(TEST_USER_EMAIL);
+    verify(videoCompressionJobRepository).save(any(VideoCompressionJob.class));
+
+    verifyCompressionEvent(response, videoId, TEST_BUCKET_KEY_123);
+
+    log.info(LOG_JOB_CREATED, response.getJobId());
+  }
+
+  @Test
+  void should_create_compression_job_with_custom_options() {
+    var videoId = UUID.randomUUID().toString();
+    CompressionOptions customOptions = createCustomCompressionOptions();
+
+    var mockVideo = createMockJVideo(videoId, TEST_BUCKET_KEY_456);
+    var mockUser = createMockUser(TEST_USER_EMAIL);
+
+    when(videoRepository.findByBucketKey(TEST_BUCKET_KEY_456)).thenReturn(Optional.of(mockVideo));
+    when(userService.findByEmail(TEST_USER_EMAIL)).thenReturn(mockUser);
+    when(videoCompressionJobRepository.save(any(VideoCompressionJob.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    VideoCompressionJobStatusResponse response =
+        videoService.requestCompressionWithOptions(
+            TEST_USER_EMAIL, TEST_BUCKET_KEY_456, customOptions);
+
+    assertNotNull(response);
+    assertNotNull(response.getJobId());
+    assertEquals(ProcessStatus.PENDING, response.getStatus());
+    assertEquals(0, response.getAttemptCount());
+
+    verifyCustomCompressionOptions(customOptions);
+
+    log.info(
+        LOG_CUSTOM_OPTIONS,
+        customOptions.getCrf(),
+        customOptions.getTargetWidth(),
+        customOptions.getTargetHeight());
+  }
+
+  @Test
+  void should_throw_exception_when_video_not_found() {
+    when(videoRepository.findByBucketKey(NON_EXISTENT_KEY)).thenReturn(Optional.empty());
+
+    EntityNotFoundException exception =
+        assertThrows(
+            EntityNotFoundException.class,
+            () -> videoService.compress(TEST_USER_EMAIL, NON_EXISTENT_KEY));
+
+    assertTrue(exception.getMessage().contains(NO_VIDEO_FOUND_MSG));
+    assertTrue(exception.getMessage().contains(NON_EXISTENT_KEY));
+
+    verify(videoRepository).findByBucketKey(NON_EXISTENT_KEY);
+    verify(userService, never()).findByEmail(any());
+    verify(videoCompressionJobRepository, never()).save(any());
+    verify(vcEventProducer, never()).accept(any());
+
+    log.info(LOG_EXCEPTION_THROWN, NON_EXISTENT_KEY);
+  }
+
+  @Test
+  void should_retrieve_compression_job_status() {
+    var jobId = UUID.randomUUID().toString();
+    var videoId = UUID.randomUUID().toString();
+    var compressedVideoId = UUID.randomUUID().toString();
+
+    JVideo mockParentVideo = createMockJVideo(videoId, ORIGINAL_KEY);
+    JVideo mockCompressedVideo = createMockJVideo(compressedVideoId, COMPRESSED_KEY);
+    String compressedVideoUrl = buildCompressedVideoUrl("compressed_video.mp4");
+    mockCompressedVideo.setBucketKey(compressedVideoUrl);
+
+    VideoCompressionJob mockJob =
+        createCompletedCompressionJob(jobId, mockParentVideo, mockCompressedVideo);
+
+    when(videoCompressionJobRepository.findById(jobId)).thenReturn(Optional.of(mockJob));
+
+    VideoCompressionJobStatusResponse response = videoService.getCompressionStatus(jobId);
+
+    assertCompletedJobResponse(response, jobId, compressedVideoId, compressedVideoUrl);
+
+    verify(videoCompressionJobRepository).findById(jobId);
+
+    log.info(LOG_STATUS_RETRIEVED, jobId, response.getStatus(), response.getAttemptCount());
+  }
+
+  @Test
+  void should_retrieve_all_compression_jobs_for_video() {
+    var videoId = UUID.randomUUID().toString();
+    var mockParentVideo = createMockJVideo(videoId, ORIGINAL_KEY);
+
+    VideoCompressionJob job1 =
+        createMockCompressedJob(
+            UUID.randomUUID().toString(),
+            mockParentVideo,
+            ProcessStatus.COMPLETED,
+            LocalDateTime.now().minusHours(2),
+            LocalDateTime.now().minusHours(1));
+
+    VideoCompressionJob job2 =
+        createFailedCompressionJob(
+            UUID.randomUUID().toString(),
+            mockParentVideo,
+            LocalDateTime.now().minusMinutes(30),
+            LocalDateTime.now().minusMinutes(25));
+
+    VideoCompressionJob job3 =
+        createMockCompressedJob(
+            UUID.randomUUID().toString(),
+            mockParentVideo,
+            ProcessStatus.PROGRESSING,
+            LocalDateTime.now().minusMinutes(5),
+            null);
+
+    List<VideoCompressionJob> mockJobs = List.of(job1, job2, job3);
+
+    when(videoCompressionJobRepository.findByParentId(videoId)).thenReturn(mockJobs);
+
+    List<VideoCompressionJobStatusResponse> responses =
+        videoService.getCompressionJobsByVideoId(videoId);
+
+    assertMultipleJobResponses(responses, job1, job2, job3);
+
+    verify(videoCompressionJobRepository).findByParentId(videoId);
+
+    logJobsSummary(videoId, responses);
+  }
+
+  private void assertCompressionJobResponse(VideoCompressionJobStatusResponse response) {
     assertNotNull(response);
     assertNotNull(response.getJobId());
     assertEquals(ProcessStatus.PENDING, response.getStatus());
@@ -72,14 +246,55 @@ class VideoServiceIT {
     assertNull(response.getCompressedVideoUrl());
     assertNull(response.getErrorMessage());
     assertEquals(0, response.getAttemptCount());
+  }
 
-    verify(videoRepository).findByBucketKey(bucketKey);
-    verify(userService).findByEmail(TEST_USER_EMAIL);
-    verify(compressedVideoRepository).save(any(JCompressedVideo.class));
+  private void assertCompletedJobResponse(
+      VideoCompressionJobStatusResponse response,
+      String jobId,
+      String compressedVideoId,
+      String compressedVideoUrl) {
+    assertNotNull(response);
+    assertEquals(jobId, response.getJobId());
+    assertEquals(ProcessStatus.COMPLETED, response.getStatus());
+    assertNotNull(response.getCreatedAt());
+    assertNotNull(response.getCompletedAt());
+    assertEquals(compressedVideoId, response.getCompressedVideoId());
+    assertEquals(compressedVideoUrl, response.getCompressedVideoUrl());
+    assertNull(response.getErrorMessage());
+    assertEquals(1, response.getAttemptCount());
+  }
 
+  private void assertMultipleJobResponses(
+      List<VideoCompressionJobStatusResponse> responses,
+      VideoCompressionJob job1,
+      VideoCompressionJob job2,
+      VideoCompressionJob job3) {
+    assertNotNull(responses);
+    assertEquals(3, responses.size());
+
+    VideoCompressionJobStatusResponse response1 = responses.getFirst();
+    assertEquals(job1.getId(), response1.getJobId());
+    assertEquals(ProcessStatus.COMPLETED, response1.getStatus());
+    assertNotNull(response1.getCompletedAt());
+    assertNull(response1.getErrorMessage());
+
+    VideoCompressionJobStatusResponse response2 = responses.get(1);
+    assertEquals(job2.getId(), response2.getJobId());
+    assertEquals(ProcessStatus.FAILED, response2.getStatus());
+    assertEquals(FFMPEG_ERROR_MSG, response2.getErrorMessage());
+    assertEquals(3, response2.getAttemptCount());
+
+    VideoCompressionJobStatusResponse response3 = responses.get(2);
+    assertEquals(job3.getId(), response3.getJobId());
+    assertEquals(ProcessStatus.PROGRESSING, response3.getStatus());
+    assertNull(response3.getCompletedAt());
+  }
+
+  private void verifyCompressionEvent(
+      VideoCompressionJobStatusResponse response, String videoId, String bucketKey) {
     ArgumentCaptor<List<VideoCompressionRequested>> eventCaptor =
         ArgumentCaptor.forClass(List.class);
-    verify(eventProducer).accept(eventCaptor.capture());
+    verify(vcEventProducer).accept(eventCaptor.capture());
 
     List<VideoCompressionRequested> events = eventCaptor.getValue();
     assertEquals(1, events.size());
@@ -89,176 +304,23 @@ class VideoServiceIT {
     assertEquals(TEST_USER_EMAIL, event.getOwner());
     assertEquals(response.getJobId(), event.getJobId());
     assertNotNull(event.getCompressionOptions());
-
-    log.info("Compression job created successfully with job_id: {}", response.getJobId());
   }
 
-  @Test
-  void should_create_compression_job_with_custom_options() {
-    var bucketKey = "video_bucket_key_456";
-    var videoId = UUID.randomUUID().toString();
-    CompressionOptions customOptions =
-        CompressionOptions.builder().crf(28).targetWidth(1280).targetHeight(720).build();
-
-    var mockVideo = createMockJVideo(videoId, bucketKey);
-    var mockUser = createMockUser(TEST_USER_EMAIL);
-
-    when(videoRepository.findByBucketKey(bucketKey)).thenReturn(Optional.of(mockVideo));
-    when(userService.findByEmail(TEST_USER_EMAIL)).thenReturn(mockUser);
-    when(compressedVideoRepository.save(any(JCompressedVideo.class)))
-        .thenAnswer(invocation -> invocation.getArgument(0));
-
-    CompressionJobStatusResponse response =
-        videoService.requestCompressionWithOptions(TEST_USER_EMAIL, bucketKey, customOptions);
-
-    assertNotNull(response);
-    assertNotNull(response.getJobId());
-    assertEquals(ProcessStatus.PENDING, response.getStatus());
-    assertEquals(0, response.getAttemptCount());
-
+  private void verifyCustomCompressionOptions(CompressionOptions customOptions) {
     ArgumentCaptor<List<VideoCompressionRequested>> eventCaptor =
         ArgumentCaptor.forClass(List.class);
-    verify(eventProducer).accept(eventCaptor.capture());
+    verify(vcEventProducer).accept(eventCaptor.capture());
 
     List<VideoCompressionRequested> events = eventCaptor.getValue();
     VideoCompressionRequested event = events.getFirst();
     assertEquals(customOptions.getCrf(), event.getCompressionOptions().getCrf());
     assertEquals(customOptions.getTargetWidth(), event.getCompressionOptions().getTargetWidth());
     assertEquals(customOptions.getTargetHeight(), event.getCompressionOptions().getTargetHeight());
-
-    log.info(
-        "Compression job created with custom options - CRF: {}, Resolution: {}x{}",
-        customOptions.getCrf(),
-        customOptions.getTargetWidth(),
-        customOptions.getTargetHeight());
   }
 
-  @Test
-  void should_throw_exception_when_video_not_found() {
-    var bucketKey = "non_existent_key";
-
-    when(videoRepository.findByBucketKey(bucketKey)).thenReturn(Optional.empty());
-
-    EntityNotFoundException exception =
-        assertThrows(
-            EntityNotFoundException.class, () -> videoService.compress(TEST_USER_EMAIL, bucketKey));
-
-    assertTrue(exception.getMessage().contains("No video instance found"));
-    assertTrue(exception.getMessage().contains(bucketKey));
-
-    verify(videoRepository).findByBucketKey(bucketKey);
-    verify(userService, never()).findByEmail(any());
-    verify(compressedVideoRepository, never()).save(any());
-    verify(eventProducer, never()).accept(any());
-
-    log.info("Correctly threw exception for non-existent video with bucket_key: {}", bucketKey);
-  }
-
-  @Test
-  void should_retrieve_compression_job_status() {
-    var jobId = UUID.randomUUID().toString();
-    var videoId = UUID.randomUUID().toString();
-    var compressedVideoId = UUID.randomUUID().toString();
-
-    JVideo mockParentVideo = createMockJVideo(videoId, "original_key");
-    JVideo mockCompressedVideo = createMockJVideo(compressedVideoId, "compressed_key");
-    mockCompressedVideo.setBucketKey("s3://bucket/compressed_video.mp4");
-
-    JCompressedVideo mockJob = new JCompressedVideo();
-    mockJob.setId(jobId);
-    mockJob.setParent(mockParentVideo);
-    mockJob.setCompressedVideo(mockCompressedVideo);
-    mockJob.setStatus(ProcessStatus.COMPLETED);
-    mockJob.setCreatedAt(LocalDateTime.now().minusMinutes(5));
-    mockJob.setCompletedAt(LocalDateTime.now());
-    mockJob.setAttemptCount(1);
-    mockJob.setErrorMessage(null);
-
-    when(compressedVideoRepository.findById(jobId)).thenReturn(Optional.of(mockJob));
-
-    CompressionJobStatusResponse response = videoService.getCompressionStatus(jobId);
-
-    assertNotNull(response);
-    assertEquals(jobId, response.getJobId());
-    assertEquals(ProcessStatus.COMPLETED, response.getStatus());
-    assertNotNull(response.getCreatedAt());
-    assertNotNull(response.getCompletedAt());
-    assertEquals(compressedVideoId, response.getCompressedVideoId());
-    assertEquals("s3://bucket/compressed_video.mp4", response.getCompressedVideoUrl());
-    assertNull(response.getErrorMessage());
-    assertEquals(1, response.getAttemptCount());
-
-    verify(compressedVideoRepository).findById(jobId);
-
+  private void logJobsSummary(String videoId, List<VideoCompressionJobStatusResponse> responses) {
     log.info(
-        "Retrieved compression job status: {} - Status: {}, Attempts: {}",
-        jobId,
-        response.getStatus(),
-        response.getAttemptCount());
-  }
-
-  @Test
-  void should_retrieve_all_compression_jobs_for_video() {
-    var videoId = UUID.randomUUID().toString();
-    var mockParentVideo = createMockJVideo(videoId, "original_key");
-
-    JCompressedVideo job1 =
-        createMockCompressedJob(
-            UUID.randomUUID().toString(),
-            mockParentVideo,
-            ProcessStatus.COMPLETED,
-            LocalDateTime.now().minusHours(2),
-            LocalDateTime.now().minusHours(1));
-
-    JCompressedVideo job2 =
-        createMockCompressedJob(
-            UUID.randomUUID().toString(),
-            mockParentVideo,
-            ProcessStatus.FAILED,
-            LocalDateTime.now().minusMinutes(30),
-            LocalDateTime.now().minusMinutes(25));
-    job2.setErrorMessage("FFmpeg processing failed");
-    job2.setAttemptCount(3);
-
-    JCompressedVideo job3 =
-        createMockCompressedJob(
-            UUID.randomUUID().toString(),
-            mockParentVideo,
-            ProcessStatus.PROGRESSING,
-            LocalDateTime.now().minusMinutes(5),
-            null);
-
-    List<JCompressedVideo> mockJobs = List.of(job1, job2, job3);
-
-    when(compressedVideoRepository.findByParentId(videoId)).thenReturn(mockJobs);
-
-    List<CompressionJobStatusResponse> responses =
-        videoService.getCompressionJobsByVideoId(videoId);
-
-    assertNotNull(responses);
-    assertEquals(3, responses.size());
-
-    CompressionJobStatusResponse response1 = responses.getFirst();
-    assertEquals(job1.getId(), response1.getJobId());
-    assertEquals(ProcessStatus.COMPLETED, response1.getStatus());
-    assertNotNull(response1.getCompletedAt());
-    assertNull(response1.getErrorMessage());
-
-    CompressionJobStatusResponse response2 = responses.get(1);
-    assertEquals(job2.getId(), response2.getJobId());
-    assertEquals(ProcessStatus.FAILED, response2.getStatus());
-    assertEquals("FFmpeg processing failed", response2.getErrorMessage());
-    assertEquals(3, response2.getAttemptCount());
-
-    CompressionJobStatusResponse response3 = responses.get(2);
-    assertEquals(job3.getId(), response3.getJobId());
-    assertEquals(ProcessStatus.PROGRESSING, response3.getStatus());
-    assertNull(response3.getCompletedAt());
-
-    verify(compressedVideoRepository).findByParentId(videoId);
-
-    log.info(
-        "Retrieved {} compression jobs for video {}: COMPLETED={}, FAILED={}, PROGRESSING={}",
+        LOG_JOBS_RETRIEVED,
         responses.size(),
         videoId,
         responses.stream().filter(r -> r.getStatus() == ProcessStatus.COMPLETED).count(),
@@ -266,22 +328,57 @@ class VideoServiceIT {
         responses.stream().filter(r -> r.getStatus() == ProcessStatus.PROGRESSING).count());
   }
 
+  private CompressionOptions createCustomCompressionOptions() {
+    return CompressionOptions.builder()
+        .crf(CUSTOM_CRF)
+        .targetWidth(CUSTOM_WIDTH)
+        .targetHeight(CUSTOM_HEIGHT)
+        .build();
+  }
+
+  private String buildCompressedVideoUrl(String filename) {
+    return S3_BUCKET_PREFIX + filename;
+  }
+
+  private VideoCompressionJob createCompletedCompressionJob(
+      String jobId, JVideo parentVideo, JVideo compressedVideo) {
+    VideoCompressionJob mockJob = new VideoCompressionJob();
+    mockJob.setId(jobId);
+    mockJob.setParent(parentVideo);
+    mockJob.setCompressedVideo(compressedVideo);
+    mockJob.setStatus(ProcessStatus.COMPLETED);
+    mockJob.setCreatedAt(LocalDateTime.now().minusMinutes(5));
+    mockJob.setCompletedAt(LocalDateTime.now());
+    mockJob.setAttemptCount(1);
+    mockJob.setErrorMessage(null);
+    return mockJob;
+  }
+
+  private VideoCompressionJob createFailedCompressionJob(
+      String jobId, JVideo parentVideo, LocalDateTime createdAt, LocalDateTime completedAt) {
+    VideoCompressionJob job =
+        createMockCompressedJob(jobId, parentVideo, ProcessStatus.FAILED, createdAt, completedAt);
+    job.setErrorMessage(FFMPEG_ERROR_MSG);
+    job.setAttemptCount(3);
+    return job;
+  }
+
   private JVideo createMockJVideo(String id, String bucketKey) {
     Video video = new Video();
     video.setId(id);
-    video.setFileName("test_video.mp4");
+    video.setFileName(TEST_VIDEO_FILENAME);
     video.setFilePath(bucketKey);
-    video.setWidth(1920);
-    video.setHeight(1080);
-    video.setDuration(120.0);
-    video.setFrameRate(30.0);
-    video.setSize(10_000_000L);
+    video.setWidth(VIDEO_WIDTH);
+    video.setHeight(VIDEO_HEIGHT);
+    video.setDuration(VIDEO_DURATION);
+    video.setFrameRate(VIDEO_FRAME_RATE);
+    video.setSize(VIDEO_SIZE);
     video.setSizeType(SizeType.BYTES);
     video.setFileType(FileType.VIDEO);
     video.setCodec(VideoCodec.H264);
     video.setContainerFormat(ContainerFormat.MP4);
-    video.setAudioChannels(2);
-    video.setAudioSampleRate(48000);
+    video.setAudioChannels(AUDIO_CHANNELS);
+    video.setAudioSampleRate(AUDIO_SAMPLE_RATE);
     video.setAudioCodec(AudioCodec.AAC);
     video.setCreatedAt(LocalDateTime.now());
     video.setOwner(createMockUser(TEST_USER_EMAIL));
@@ -295,13 +392,13 @@ class VideoServiceIT {
     return user;
   }
 
-  private JCompressedVideo createMockCompressedJob(
+  private VideoCompressionJob createMockCompressedJob(
       String jobId,
       JVideo parentVideo,
       ProcessStatus status,
       LocalDateTime createdAt,
       LocalDateTime completedAt) {
-    JCompressedVideo job = new JCompressedVideo();
+    VideoCompressionJob job = new VideoCompressionJob();
     job.setId(jobId);
     job.setParent(parentVideo);
     job.setStatus(status);
@@ -310,8 +407,9 @@ class VideoServiceIT {
     job.setAttemptCount(status == ProcessStatus.COMPLETED ? 1 : 0);
 
     if (status == ProcessStatus.COMPLETED) {
-      JVideo compressedVideo = createMockJVideo(UUID.randomUUID().toString(), "compressed_key");
-      compressedVideo.setBucketKey("s3://bucket/compressed_" + jobId + ".mp4");
+      JVideo compressedVideo = createMockJVideo(UUID.randomUUID().toString(), COMPRESSED_KEY);
+      compressedVideo.setBucketKey(
+          buildCompressedVideoUrl(COMPRESSED_VIDEO_PREFIX + jobId + ".mp4"));
       job.setCompressedVideo(compressedVideo);
     }
 

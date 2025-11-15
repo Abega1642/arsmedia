@@ -1,5 +1,7 @@
 package dev.razafindratelo.arsmedia.mapper;
 
+import static dev.razafindratelo.arsmedia.mapper.MapperConstants.UTILITY_CLASS_EXCEPTION_MESSAGE;
+
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.RToken;
 import dev.razafindratelo.arsmedia.model.token.Token;
 import dev.razafindratelo.arsmedia.repository.model.token.JToken;
@@ -7,7 +9,7 @@ import dev.razafindratelo.arsmedia.repository.model.token.JToken;
 public class TokenMapper {
 
   private TokenMapper() {
-    throw new UnsupportedOperationException("Utility class");
+    throw new UnsupportedOperationException(UTILITY_CLASS_EXCEPTION_MESSAGE);
   }
 
   public static Token toModel(JToken jToken) {

@@ -1,21 +1,20 @@
-package dev.razafindratelo.arsmedia.endpoint.rest.controller.model;
+package dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job;
 
 import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
 import java.time.LocalDateTime;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
-@Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class CompressionJobStatusResponse {
+@Builder
+@Data
+@EqualsAndHashCode
+@ToString
+public class JobStatusResponse {
   private String jobId;
   private ProcessStatus status;
   private LocalDateTime createdAt;
   private LocalDateTime completedAt;
-  private String compressedVideoId;
-  private String compressedVideoUrl;
   private String errorMessage;
   private int attemptCount;
 }

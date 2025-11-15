@@ -12,6 +12,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class VideoMetaDataExtractorTest {
+  private static final String PREFIX = "/videos/";
+  private static final String VID_MP4 = "test-video-one.mp4";
   private VideoMetaDataExtractor subject;
 
   @BeforeEach
@@ -25,7 +27,7 @@ class VideoMetaDataExtractorTest {
 
   @Test
   void should_be_able_to_detect_type_webm_from_a_video() throws URISyntaxException {
-    var resource = getClass().getResource("/videos/test-video-one.webm");
+    var resource = getClass().getResource(PREFIX + "test-video-one.webm");
     assertNotNull(resource);
 
     File video = new File(resource.toURI());
@@ -39,7 +41,7 @@ class VideoMetaDataExtractorTest {
 
   @Test
   void should_extract_basic_video_metadata() throws URISyntaxException {
-    var resource = getClass().getResource("/videos/test-video-one.mp4");
+    var resource = getClass().getResource(PREFIX + VID_MP4);
     assertNotNull(resource);
 
     File video = new File(resource.toURI());
@@ -56,7 +58,7 @@ class VideoMetaDataExtractorTest {
 
   @Test
   void should_handle_video_without_audio_stream() throws URISyntaxException {
-    var resource = getClass().getResource("/videos/test-video-one.mp4");
+    var resource = getClass().getResource(PREFIX + VID_MP4);
     assertNotNull(resource);
 
     File video = new File(resource.toURI());

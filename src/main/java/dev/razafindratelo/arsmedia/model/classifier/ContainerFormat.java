@@ -2,6 +2,7 @@ package dev.razafindratelo.arsmedia.model.classifier;
 
 public enum ContainerFormat {
   MP4,
+  MP3,
   MKV,
   MOV,
   AVI,
@@ -35,6 +36,7 @@ public enum ContainerFormat {
             case "WEBM" -> WEBM;
             case "MPEGTS", "TS", "MPEG-TS" -> MPEG_TS;
             case "MPEGPS", "PS", "MPEG-PS" -> MPEG_PS;
+            case "MP3", "MPEG" -> MP3;
             case "3GP", "THREEGP" -> THREEGP;
             case "OGG" -> OGG;
             case "M4A" -> M4A;

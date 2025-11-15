@@ -23,7 +23,7 @@ class AuthCodeControllerIT extends FacadeIT {
         new UserCreationRequest(mail, "+261 00 123 44", "abega1642", UserRole.USER, "password");
     var createdUser = userService.create(user);
 
-    mvc.perform(post("/auth//auth-code/{userId}", createdUser.getId()))
+    mvc.perform(post("/auth/auth-code/{userId}", createdUser.getId()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.sent_to").value(mail));
   }

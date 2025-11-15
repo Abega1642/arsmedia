@@ -1,13 +1,14 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller;
 
+import dev.razafindratelo.arsmedia.model.Audio;
+import dev.razafindratelo.arsmedia.model.Image;
 import dev.razafindratelo.arsmedia.model.Video;
 import dev.razafindratelo.arsmedia.service.MediaService;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
-import java.io.File;
-import java.io.IOException;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -15,32 +16,40 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@AllArgsConstructor
+@RequiredArgsConstructor
 @RequestMapping("/api/media")
+@Slf4j
 public class MediaUploadController {
-  private final MediaService service;
-
-  public static File convertToFile(@NotNull @NotBlank @NotEmpty MultipartFile multipartFile)
-      throws IOException {
-    String originalName = multipartFile.getOriginalFilename();
-    String suffix =
-        (originalName != null && originalName.contains("."))
-            ? originalName.substring(originalName.lastIndexOf('.'))
-            : ".tmp";
-
-    File tempFile = File.createTempFile("upload-", suffix);
-
-    multipartFile.transferTo(tempFile);
-    tempFile.deleteOnExit();
-
-    return tempFile;
-  }
+  private final MediaService mediaService;
 
   @PostMapping("/videos/upload")
-  public Video uploadVideo(
-      @RequestParam("file") MultipartFile file, @RequestParam("userEmail") String userEmail)
-      throws IOException {
-    var videoFile = convertToFile(file);
-    return service.uploadVideo(videoFile, userEmail);
+  public ResponseEntity<Video> uploadVideo(
+      @RequestParam("file") @NotNull MultipartFile file,
+      @RequestParam("userEmail") @Email String userEmail) {
+
+    log.info("Video upload request received for user: {}", userEmail);
+
+    Video uploadedVideo = mediaService.uploadVideo(file, userEmail);
+    return ResponseEntity.ok(uploadedVideo);
+  }
+
+  @PostMapping("/audios/upload")
+  public ResponseEntity<Audio> uploadAudio(
+      @RequestParam("file") MultipartFile file,
+      @RequestParam("userEmail") @Email String userEmail) {
+
+    log.info("Audio upload request received for user: {}", userEmail);
+    Audio uploadedAudio = mediaService.uploadAudio(file, userEmail);
+    return ResponseEntity.ok(uploadedAudio);
+  }
+
+  @PostMapping("/images/upload")
+  public ResponseEntity<Image> uploadImage(
+      @RequestParam("file") MultipartFile file,
+      @RequestParam("userEmail") @Email String userEmail) {
+
+    log.info("Image upload request received for user: {}", userEmail);
+    Image uploadedImage = mediaService.uploadImage(file, userEmail);
+    return ResponseEntity.ok(uploadedImage);
   }
 }

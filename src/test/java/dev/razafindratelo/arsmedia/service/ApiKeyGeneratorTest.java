@@ -14,6 +14,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 class ApiKeyGeneratorTest {
 
+  public static final String TEST_EMAIL = "test@example.com";
+  public static final String ERROR_LOG = "Failed to generate API key";
   private ApiKeyGenerator subject;
   private User testUser;
   private LocalDateTime testCreationTime;
@@ -24,7 +26,7 @@ class ApiKeyGeneratorTest {
     ReflectionTestUtils.setField(subject, "apiKeySignature", "test-secret-signature-123");
 
     testUser = new User();
-    testUser.setEmail("test@example.com");
+    testUser.setEmail(TEST_EMAIL);
     testUser.setId("user-123");
 
     testCreationTime = LocalDateTime.of(2025, 10, 16, 10, 30, 30);
@@ -76,7 +78,7 @@ class ApiKeyGeneratorTest {
     String[] parts = decoded.split("\\|");
 
     assertThat(parts).hasSize(3);
-    assertThat(parts[0]).isEqualTo("test@example.com");
+    assertThat(parts[0]).isEqualTo(TEST_EMAIL);
     assertThat(parts[1]).isEqualTo("2025-10-16T10:30:30");
     assertThat(parts[2]).hasSize(16);
   }
@@ -98,7 +100,7 @@ class ApiKeyGeneratorTest {
     RuntimeException exception =
         assertThrows(RuntimeException.class, () -> subject.apply(null, testCreationTime));
 
-    assertThat(exception.getMessage()).contains("Failed to generate API key");
+    assertThat(exception.getMessage()).contains(ERROR_LOG);
   }
 
   @Test
@@ -106,7 +108,7 @@ class ApiKeyGeneratorTest {
     RuntimeException exception =
         assertThrows(RuntimeException.class, () -> subject.apply(testUser, null));
 
-    assertThat(exception.getMessage()).contains("Failed to generate API key");
+    assertThat(exception.getMessage()).contains(ERROR_LOG);
   }
 
   @Test
@@ -147,11 +149,12 @@ class ApiKeyGeneratorTest {
   }
 
   private String calculateExpectedSignature(String data) throws Exception {
-    Mac hmac = Mac.getInstance("HmacSHA256");
+    var hmacSHA256 = "HmacSHA256";
+    Mac hmac = Mac.getInstance(hmacSHA256);
     SecretKeySpec secretKey =
         new SecretKeySpec(
             "test-secret-signature-123".getBytes(java.nio.charset.StandardCharsets.UTF_8),
-            "HmacSHA256");
+            hmacSHA256);
     hmac.init(secretKey);
     byte[] hmacBytes = hmac.doFinal(data.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     return bytesToHex(hmacBytes).substring(0, 16);
