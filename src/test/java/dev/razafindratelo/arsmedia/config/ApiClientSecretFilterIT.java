@@ -1,7 +1,6 @@
 package dev.razafindratelo.arsmedia.config;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -13,6 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 
 class ApiClientSecretFilterIT extends FacadeIT {
+  private static final String USERS_URL = "/users";
+  private static final String HOST_HEADER = "Host";
   @Autowired private MockMvc mvc;
 
   @Autowired private ApiClientSecretService clientService;
@@ -25,11 +26,11 @@ class ApiClientSecretFilterIT extends FacadeIT {
   @Test
   void should_allow_localhost_request_without_client_secret() throws Exception {
     mvc.perform(
-            get("/users")
+            get(USERS_URL)
                 .with(
                     req -> {
                       req.setRemoteAddr("127.0.0.1");
-                      req.addHeader("Host", "localhost:8080");
+                      req.addHeader(HOST_HEADER, "localhost:8080");
                       return req;
                     }))
         .andExpect(status().isUnauthorized())
@@ -39,11 +40,11 @@ class ApiClientSecretFilterIT extends FacadeIT {
   @Test
   void should_forbid_external_request_without_client_secret() throws Exception {
     mvc.perform(
-            get("/users")
+            get(USERS_URL)
                 .with(
                     r -> {
                       r.setRemoteAddr("8.8.8.8");
-                      r.addHeader("Host", "external.com");
+                      r.addHeader(HOST_HEADER, "external.com");
                       return r;
                     }))
         .andExpect(status().isForbidden())

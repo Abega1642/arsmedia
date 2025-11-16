@@ -13,8 +13,10 @@ import org.springframework.mail.javamail.JavaMailSenderImpl;
 @Getter
 @Configuration
 public class EmailConf {
+
   private static final String TRUE = "true";
   private static final String MAIL_TRANSPORT_PROTOCOL = "mail.transport.protocol";
+
   private static final String SMTP_AUTH = "mail.smtp.auth";
   private static final String SMTP_STARTTLS = "mail.smtp.starttls.enable";
   private static final String MAIL_DEBUG = "mail.debug";

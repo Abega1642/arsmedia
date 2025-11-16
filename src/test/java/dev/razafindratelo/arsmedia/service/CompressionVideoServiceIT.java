@@ -2,7 +2,10 @@ package dev.razafindratelo.arsmedia.service;
 
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import dev.razafindratelo.arsmedia.model.Video;
 import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
@@ -26,7 +29,7 @@ class CompressionVideoServiceIT {
   private static final String NON_EXISTING_EMAIL = "notfound@example.com";
   @Mock private VideoCompressionJobRepository repository;
 
-  @InjectMocks private CompressionVideoService service;
+  @InjectMocks private CompressionVideoService subject;
 
   private VideoCompressionJob fCmJ;
   private VideoCompressionJob sCmJ;
@@ -43,7 +46,7 @@ class CompressionVideoServiceIT {
   void shouldReturnAllCompletedVideosForGivenEmail() {
     when(repository.findAllCompletedByOwnerEmail(EXISTING_EMAIL)).thenReturn(List.of(fCmJ, sCmJ));
 
-    List<Video> result = service.getAllCompressedVideos(EXISTING_EMAIL);
+    List<Video> result = subject.getAllCompressedVideos(EXISTING_EMAIL);
 
     assertThat(result)
         .isNotNull()
@@ -59,7 +62,7 @@ class CompressionVideoServiceIT {
   void shouldReturnEmptyListIfNoVideosFound() {
     when(repository.findAllCompletedByOwnerEmail(NON_EXISTING_EMAIL)).thenReturn(List.of());
 
-    List<Video> result = service.getAllCompressedVideos(NON_EXISTING_EMAIL);
+    List<Video> result = subject.getAllCompressedVideos(NON_EXISTING_EMAIL);
 
     assertThat(result).isNotNull().isEmpty();
 

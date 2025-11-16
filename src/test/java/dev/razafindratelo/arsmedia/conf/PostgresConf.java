@@ -10,12 +10,13 @@ import org.testcontainers.containers.PostgreSQLContainer;
 @SuppressWarnings("resource")
 public class PostgresConf {
 
+  private static final String TEST_VALUE = "test";
   private static final PostgreSQLContainer<?> POSTGRES =
       new PostgreSQLContainer<>("postgres:17")
           .withReuse(false)
           .withDatabaseName("arsmedia")
-          .withUsername("test")
-          .withPassword("test");
+          .withUsername(TEST_VALUE)
+          .withPassword(TEST_VALUE);
 
   public void start() {
     if (!POSTGRES.isRunning()) {

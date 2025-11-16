@@ -9,8 +9,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.VideoCompressionJobStatusResponse;
 import dev.razafindratelo.arsmedia.model.Video;
-import dev.razafindratelo.arsmedia.model.classifier.*;
-import dev.razafindratelo.arsmedia.service.*;
+import dev.razafindratelo.arsmedia.model.classifier.AudioCodec;
+import dev.razafindratelo.arsmedia.model.classifier.ContainerFormat;
+import dev.razafindratelo.arsmedia.model.classifier.FileType;
+import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
+import dev.razafindratelo.arsmedia.model.classifier.SizeType;
+import dev.razafindratelo.arsmedia.model.classifier.VideoCodec;
+import dev.razafindratelo.arsmedia.service.CompressionVideoService;
+import dev.razafindratelo.arsmedia.service.VideoService;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;

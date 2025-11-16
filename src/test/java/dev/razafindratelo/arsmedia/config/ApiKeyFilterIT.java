@@ -17,12 +17,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 
 @Slf4j
 class ApiKeyFilterIT extends FacadeIT {
 
-  private static final String X_API_KEY = "X-API-KEY";
+  private static final String X_API_KEY_HEADER = "X-API-KEY";
   private static final String USERS_ENDPOINT = "/users";
   private final String TEST_USER_EMAIL = "apikey-filter-test@example.com";
   @Autowired private TestRestTemplate restTemplate;
@@ -92,7 +95,7 @@ class ApiKeyFilterIT extends FacadeIT {
   @Test
   void should_allow_access_to_users_endpoint_with_valid_api_key_and_admin_role() {
     var headers = new HttpHeaders();
-    headers.set(X_API_KEY, validApiKey);
+    headers.set(X_API_KEY_HEADER, validApiKey);
 
     var response =
         restTemplate.exchange(
@@ -104,7 +107,7 @@ class ApiKeyFilterIT extends FacadeIT {
   @Test
   void should_deny_access_to_users_endpoint_with_invalid_api_key() {
     var headers = new HttpHeaders();
-    headers.set(X_API_KEY, "invalid-api-key-that-does-not-exist");
+    headers.set(X_API_KEY_HEADER, "invalid-api-key-that-does-not-exist");
 
     var response =
         restTemplate.exchange(
@@ -116,7 +119,7 @@ class ApiKeyFilterIT extends FacadeIT {
   @Test
   void should_deny_access_to_users_endpoint_with_expired_api_key() {
     var headers = new HttpHeaders();
-    headers.set(X_API_KEY, expiredApiKey);
+    headers.set(X_API_KEY_HEADER, expiredApiKey);
 
     var response =
         restTemplate.exchange(
@@ -153,7 +156,7 @@ class ApiKeyFilterIT extends FacadeIT {
       }
 
       var headers = new HttpHeaders();
-      headers.set(X_API_KEY, nonAdminApiKey);
+      headers.set(X_API_KEY_HEADER, nonAdminApiKey);
 
       var response =
           restTemplate.exchange(

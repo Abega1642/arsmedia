@@ -2,10 +2,21 @@ package dev.razafindratelo.arsmedia.service.event;
 
 import static dev.razafindratelo.arsmedia.mapper.AudioMapper.toAudio;
 import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toJVideo;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import dev.razafindratelo.arsmedia.event.model.AudioExtractionRequested;
 import dev.razafindratelo.arsmedia.exception.AudioExtractionException;
@@ -14,7 +25,12 @@ import dev.razafindratelo.arsmedia.file.BucketComponent;
 import dev.razafindratelo.arsmedia.model.Audio;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.model.Video;
-import dev.razafindratelo.arsmedia.model.classifier.*;
+import dev.razafindratelo.arsmedia.model.classifier.AudioCodec;
+import dev.razafindratelo.arsmedia.model.classifier.ContainerFormat;
+import dev.razafindratelo.arsmedia.model.classifier.FileType;
+import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
+import dev.razafindratelo.arsmedia.model.classifier.SizeType;
+import dev.razafindratelo.arsmedia.model.classifier.VideoCodec;
 import dev.razafindratelo.arsmedia.repository.AudioExtractionJobRepository;
 import dev.razafindratelo.arsmedia.repository.AudioRepository;
 import dev.razafindratelo.arsmedia.repository.VideoRepository;
@@ -56,6 +72,7 @@ class AudioExtractionRequestedServiceIT {
   private static final String OWNER_EMAIL = "owner@example.com";
   private static final String VIDEO_KEY = "video_key";
   private static final String SUFFIX = ".mp3";
+  private static final String TEST_VIDEO_MP_4 = "test_video.mp4";
   @TempDir File tempDir;
   private File interceptedAudioFile;
   @Mock private BucketComponent bucketComponent;
@@ -98,7 +115,7 @@ class AudioExtractionRequestedServiceIT {
     var jobId = UUID.randomUUID().toString();
     var event = createAudioExtractionEvent(videoId, jobId, VIDEO_KEY);
 
-    File originalFile = createMockVideoFile(ORIGINAL_VIDEO_SIZE);
+    File originalFile = createMockVideoFile();
     JVideo originalJVideo = createMockJVideoWithAudio(videoId);
     AudioExtractionJob extractionJob = createMockExtractionJob(jobId, originalJVideo);
 
@@ -123,7 +140,7 @@ class AudioExtractionRequestedServiceIT {
     var jobId = UUID.randomUUID().toString();
     var event = createAudioExtractionEvent(videoId, jobId, "stereo_video_key");
 
-    File originalFile = createMockVideoFile(ORIGINAL_VIDEO_SIZE);
+    File originalFile = createMockVideoFile();
     JVideo originalJVideo = createMockJVideoWithStereoAudio(videoId);
     AudioExtractionJob extractionJob = createMockExtractionJob(jobId, originalJVideo);
 
@@ -156,7 +173,7 @@ class AudioExtractionRequestedServiceIT {
     var jobId = UUID.randomUUID().toString();
     var event = createAudioExtractionEvent(videoId, jobId, "mono_video_key");
 
-    File originalFile = createMockVideoFile(ORIGINAL_VIDEO_SIZE);
+    File originalFile = createMockVideoFile();
     JVideo originalJVideo = createMockJVideoWithMonoAudio(videoId);
     AudioExtractionJob extractionJob = createMockExtractionJob(jobId, originalJVideo);
 
@@ -231,7 +248,7 @@ class AudioExtractionRequestedServiceIT {
     var jobId = UUID.randomUUID().toString();
     var event = createAudioExtractionEvent(videoId, jobId, VIDEO_KEY);
 
-    File originalFile = createMockVideoFile(ORIGINAL_VIDEO_SIZE);
+    File originalFile = createMockVideoFile();
     JVideo originalJVideo = createMockJVideoWithAudio(videoId);
     AudioExtractionJob extractionJob = createMockExtractionJob(jobId, originalJVideo);
 
@@ -273,7 +290,7 @@ class AudioExtractionRequestedServiceIT {
     var jobId = UUID.randomUUID().toString();
     var event = createAudioExtractionEvent(videoId, jobId, VIDEO_KEY);
 
-    File originalFile = createMockVideoFile(ORIGINAL_VIDEO_SIZE);
+    File originalFile = createMockVideoFile();
     JVideo originalJVideo = createMockJVideoWithAudio(videoId);
     AudioExtractionJob extractionJob = createMockExtractionJob(jobId, originalJVideo);
 
@@ -335,7 +352,7 @@ class AudioExtractionRequestedServiceIT {
     var jobId = UUID.randomUUID().toString();
     var event = createAudioExtractionEvent(videoId, jobId, VIDEO_KEY);
 
-    File originalFile = createMockVideoFile(ORIGINAL_VIDEO_SIZE);
+    File originalFile = createMockVideoFile();
     JVideo originalJVideo = createMockJVideoWithAudio(videoId);
     originalJVideo.setFileName("my_awesome_video.mp4");
     AudioExtractionJob extractionJob = createMockExtractionJob(jobId, originalJVideo);
@@ -508,9 +525,11 @@ class AudioExtractionRequestedServiceIT {
     }
   }
 
-  private File createMockVideoFile(long size) throws IOException {
-    File file = new File(tempDir, "test_video.mp4");
-    Files.write(file.toPath(), new byte[(int) size]);
+  private File createMockVideoFile() throws IOException {
+    File file = new File(tempDir, TEST_VIDEO_MP_4);
+    Files.write(
+        file.toPath(),
+        new byte[(int) (long) AudioExtractionRequestedServiceIT.ORIGINAL_VIDEO_SIZE]);
     return file;
   }
 
@@ -529,7 +548,7 @@ class AudioExtractionRequestedServiceIT {
   private JVideo createMockJVideo(String videoId, int audioChannels, int sampleRate) {
     Video video = new Video();
     video.setId(videoId);
-    video.setFileName("test_video.mp4");
+    video.setFileName(TEST_VIDEO_MP_4);
     video.setWidth(1920);
     video.setHeight(1080);
     video.setDuration(120.0);

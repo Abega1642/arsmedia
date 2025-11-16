@@ -1,7 +1,15 @@
 package dev.razafindratelo.arsmedia.service;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static java.util.UUID.randomUUID;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -24,7 +32,6 @@ import jakarta.persistence.EntityNotFoundException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,8 +51,8 @@ class TokenServiceIT extends FacadeIT {
   private static final String INACTIVE_PHONE = "+1234567891";
   private static final String TEST_USERNAME = "testuser";
   private static final String INACTIVE_USERNAME = "inactiveuser";
-  private static final String TEST_PASSWORD = "encodedPassword123";
-  private static final String INACTIVE_PASSWORD = "encodedPassword456";
+  private static final String TEST_PASSWORD = randomUUID().toString();
+  private static final String INACTIVE_PASSWORD = randomUUID().toString();
 
   private static final String INVALID_TOKEN = "invalid-token";
   private static final String NONEXISTENT_TOKEN = "nonexistent-token";
@@ -390,14 +397,14 @@ class TokenServiceIT extends FacadeIT {
           .thenAnswer(
               invocation -> {
                 var user = invocation.getArgument(0, User.class);
-                return MOCK_ACCESS_TOKEN_PREFIX + user.getEmail() + "-" + UUID.randomUUID();
+                return MOCK_ACCESS_TOKEN_PREFIX + user.getEmail() + "-" + randomUUID();
               });
 
       when(jwtUtil.createToken(anyMap(), anyString(), any(Duration.class)))
           .thenAnswer(
               invocation -> {
                 var subject = invocation.getArgument(1, String.class);
-                return MOCK_REFRESH_TOKEN_PREFIX + subject + "-" + UUID.randomUUID();
+                return MOCK_REFRESH_TOKEN_PREFIX + subject + "-" + randomUUID();
               });
 
       when(jwtUtil.validateToken(anyString())).thenReturn(true);
