@@ -4,6 +4,7 @@
 #-------------------------------------------------------------------------------#
 
 name: CI - Qodana
+
 on:
   workflow_dispatch:
   pull_request:
@@ -20,11 +21,13 @@ jobs:
       contents: read
       pull-requests: write
       checks: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+
       - name: 'Qodana Scan'
         uses: JetBrains/qodana-action@27de2a744479d1d731934eeaf79287575ebc5dd3 # v2025.2.1
         env:
@@ -33,5 +36,23 @@ jobs:
           use-caches: true
           post-pr-comment: true
           use-annotations: true
-          upload-result: false
+          # Enable result upload to see issues in GitHub UI
+          upload-result: true
+          # Generate SARIF for GitHub Code Scanning
+          args: --save-report,--results-dir,${{ runner.temp }}/qodana
           push-fixes: 'none'
+
+      - name: Upload SARIF to GitHub
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: ${{ runner.temp }}/qodana/results/qodana.sarif.json
+          category: qodana
+
+      - name: Upload Qodana Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qodana-report
+          path: ${{ runner.temp }}/qodana/results
+          retention-days: 30

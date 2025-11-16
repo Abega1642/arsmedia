@@ -128,7 +128,7 @@ class UserControllerIT extends FacadeIT {
           "pseudo": "newuser",
           "phone_number": "+261444444444",
           "role": "USER",
-          randomUUID().toString(): "securepassword123"
+          "password": "securepassword123"
         }
         """;
 
