@@ -2,7 +2,11 @@ package dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job;
 
 import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
 import java.time.LocalDateTime;
-import lombok.*;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 
 @NoArgsConstructor
 @Getter

@@ -1,6 +1,5 @@
 package dev.razafindratelo.arsmedia.conf;
 
-import com.github.tomakehurst.wiremock.client.WireMock.*;
 import dev.razafindratelo.arsmedia.InfraGenerated;
 import java.util.Properties;
 import lombok.extern.slf4j.Slf4j;
@@ -50,12 +49,13 @@ public class EmailConf {
 
     String host = GREENMAIL_CONTAINER.getHost();
     int port = GREENMAIL_CONTAINER.getMappedPort(SMTP_PORT);
+    var mail = "test@arsmedia.dev";
 
     registry.add("spring.mail.host", () -> host);
     registry.add("spring.mail.port", () -> port);
-    registry.add("spring.mail.username", () -> "test@arsmedia.dev");
+    registry.add("spring.mail.username", () -> mail);
     registry.add("spring.mail.password", () -> "testpass");
-    registry.add("spring.mail.from-email", () -> "test@arsmedia.dev");
+    registry.add("spring.mail.from-email", () -> mail);
 
     log.info("Test email properties configured for GreenMail: {}:{}", host, port);
   }
@@ -74,10 +74,12 @@ public class EmailConf {
     mailSender.setPassword(password);
 
     Properties props = mailSender.getJavaMailProperties();
+    var trueVal = "true";
+
     props.put("mail.transport.protocol", "smtp");
-    props.put("mail.smtp.auth", "true");
-    props.put("mail.smtp.starttls.enable", "true");
-    props.put("mail.debug", "true");
+    props.put("mail.smtp.auth", trueVal);
+    props.put("mail.smtp.starttls.enable", trueVal);
+    props.put("mail.debug", trueVal);
 
     return mailSender;
   }

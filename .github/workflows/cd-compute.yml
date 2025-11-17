@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
+      contents: read
       issues: write
 
     steps:
@@ -80,7 +81,7 @@ jobs:
             
               ### Possible Causes:
               - Service is down
-              - Service is restarting (Render/Koyeb free tier spin-up)
+              - Service is restarting
               - Network issues
               - Server error
             

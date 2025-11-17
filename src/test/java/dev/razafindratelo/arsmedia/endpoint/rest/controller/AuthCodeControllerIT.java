@@ -1,5 +1,6 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller;
 
+import static java.util.UUID.randomUUID;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -20,7 +21,8 @@ class AuthCodeControllerIT extends FacadeIT {
   void should_send_auth_code_email_successfully() throws Exception {
     String mail = "razafindratelo@gmail.com";
     var user =
-        new UserCreationRequest(mail, "+261 00 123 44", "abega1642", UserRole.USER, "password");
+        new UserCreationRequest(
+            mail, "+261 00 123 44", "abega1642", UserRole.USER, randomUUID().toString());
     var createdUser = userService.create(user);
 
     mvc.perform(post("/auth/auth-code/{userId}", createdUser.getId()))

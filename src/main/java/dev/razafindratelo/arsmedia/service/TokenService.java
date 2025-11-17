@@ -1,11 +1,16 @@
 package dev.razafindratelo.arsmedia.service;
 
 import static dev.razafindratelo.arsmedia.mapper.TokenMapper.toRest;
+import static java.util.UUID.randomUUID;
 
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.RTokenPair;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.TokenPairRequest;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.token.TokenValidationResult;
-import dev.razafindratelo.arsmedia.exception.*;
+import dev.razafindratelo.arsmedia.exception.InvalidTokenException;
+import dev.razafindratelo.arsmedia.exception.RessourceNotFoundException;
+import dev.razafindratelo.arsmedia.exception.TokenGenerationException;
+import dev.razafindratelo.arsmedia.exception.TokenNotFoundException;
+import dev.razafindratelo.arsmedia.exception.UserNotActivatedException;
 import dev.razafindratelo.arsmedia.mapper.TokenMapper;
 import dev.razafindratelo.arsmedia.mapper.UserMapper;
 import dev.razafindratelo.arsmedia.model.User;
@@ -21,7 +26,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -277,7 +283,7 @@ public class TokenService {
 
     var jToken =
         JToken.builder()
-            .id(UUID.randomUUID().toString())
+            .id(randomUUID().toString())
             .user(UserMapper.toJUser(user))
             .isValid(true)
             .value(tokenValue)

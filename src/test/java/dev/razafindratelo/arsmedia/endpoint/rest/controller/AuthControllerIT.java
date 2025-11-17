@@ -1,5 +1,6 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller;
 
+import static java.util.UUID.randomUUID;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -19,8 +20,9 @@ import org.springframework.test.web.servlet.MockMvc;
 class AuthControllerIT extends FacadeIT {
 
   private static final String TEST_EMAIL = "a.hello@gmail.com";
-  private static final String VALID_PASSWORD = "this_is_the_password";
+  private static final String VALID_PASSWORD = randomUUID().toString();
   private static final MediaType JSON = MediaType.APPLICATION_JSON;
+  private static final String PATH = "/auth/login";
 
   @Autowired private MockMvc mvc;
   @Autowired private UserService userService;
@@ -52,14 +54,14 @@ class AuthControllerIT extends FacadeIT {
 
   @Test
   void should_be_a_success_login() throws Exception {
-    mvc.perform(post("/auth/login").contentType(JSON).content(login(VALID_PASSWORD)))
+    mvc.perform(post(PATH).contentType(JSON).content(login(VALID_PASSWORD)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.message").value("SUCCESS"));
   }
 
   @Test
   void should_denie_authorization() throws Exception {
-    mvc.perform(post("/auth/login").contentType(JSON).content(login("fake_password")))
+    mvc.perform(post(PATH).contentType(JSON).content(login("fake_password")))
         .andExpect(status().isUnauthorized());
   }
 }

@@ -1,5 +1,6 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller;
 
+import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -9,7 +10,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.UserCreationRequest;
 import dev.razafindratelo.arsmedia.model.Video;
-import dev.razafindratelo.arsmedia.model.classifier.*;
+import dev.razafindratelo.arsmedia.model.classifier.ContainerFormat;
+import dev.razafindratelo.arsmedia.model.classifier.FileType;
+import dev.razafindratelo.arsmedia.model.classifier.SizeType;
+import dev.razafindratelo.arsmedia.model.classifier.UserRole;
+import dev.razafindratelo.arsmedia.model.classifier.VideoCodec;
 import dev.razafindratelo.arsmedia.repository.VideoRepository;
 import dev.razafindratelo.arsmedia.service.UserService;
 import dev.razafindratelo.arsmedia.service.media.VideoMetaDataExtractor;
@@ -18,7 +23,6 @@ import jakarta.persistence.EntityNotFoundException;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -158,7 +162,7 @@ class MediaUploadControllerIT extends FacadeIT {
         @Override
         public Video apply(File file) {
           Video video = new Video();
-          video.setId(UUID.randomUUID().toString());
+          video.setId(randomUUID().toString());
           video.setFileName(file.getName());
           video.setFileType(FileType.VIDEO);
           video.setSize(file.length());

@@ -1,7 +1,18 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller;
 
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.ErrorResponse;
-import dev.razafindratelo.arsmedia.exception.*;
+import dev.razafindratelo.arsmedia.exception.ApiKeyGenerationException;
+import dev.razafindratelo.arsmedia.exception.AudioExtractionException;
+import dev.razafindratelo.arsmedia.exception.DirectoryUploadException;
+import dev.razafindratelo.arsmedia.exception.HmacCalculationException;
+import dev.razafindratelo.arsmedia.exception.InvalidAuthorizationFormatException;
+import dev.razafindratelo.arsmedia.exception.InvalidTokenException;
+import dev.razafindratelo.arsmedia.exception.MissingAuthorizationException;
+import dev.razafindratelo.arsmedia.exception.TemplateLoadingException;
+import dev.razafindratelo.arsmedia.exception.TokenGenerationException;
+import dev.razafindratelo.arsmedia.exception.TokenNotFoundException;
+import dev.razafindratelo.arsmedia.exception.UserNotActivatedException;
+import dev.razafindratelo.arsmedia.exception.VideoProcessingException;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import java.util.stream.Collectors;

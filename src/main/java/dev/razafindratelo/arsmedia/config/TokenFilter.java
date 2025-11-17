@@ -2,7 +2,10 @@ package dev.razafindratelo.arsmedia.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.ErrorResponse;
-import dev.razafindratelo.arsmedia.exception.*;
+import dev.razafindratelo.arsmedia.exception.InvalidAuthorizationFormatException;
+import dev.razafindratelo.arsmedia.exception.InvalidTokenException;
+import dev.razafindratelo.arsmedia.exception.MissingAuthorizationException;
+import dev.razafindratelo.arsmedia.exception.UserNotActivatedException;
 import dev.razafindratelo.arsmedia.model.token.TokenType;
 import dev.razafindratelo.arsmedia.service.TokenService;
 import dev.razafindratelo.arsmedia.service.UserService;

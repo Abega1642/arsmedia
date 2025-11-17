@@ -18,6 +18,7 @@ import software.amazon.awssdk.transfer.s3.S3TransferManager;
 @InfraGenerated
 @Configuration
 public class BucketConf {
+
   @Getter private final String bucketName;
   @Getter private final S3TransferManager s3TransferManager;
   @Getter private final S3Presigner s3Presigner;

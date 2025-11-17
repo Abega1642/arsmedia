@@ -1,10 +1,11 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller.health;
 
+import static java.util.UUID.randomUUID;
+
 import dev.razafindratelo.arsmedia.InfraGenerated;
 import dev.razafindratelo.arsmedia.event.model.DummyEvent;
 import dev.razafindratelo.arsmedia.event.model.EventProducer;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.IntStream;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,7 +36,7 @@ public class HealthEventController {
   }
 
   private List<String> generateUuids(int nbEvent) {
-    return IntStream.range(0, nbEvent).mapToObj(i -> UUID.randomUUID().toString()).toList();
+    return IntStream.range(0, nbEvent).mapToObj(i -> randomUUID().toString()).toList();
   }
 
   private void fireEvents(List<String> uuids, int waitInSeconds) {

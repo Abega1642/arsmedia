@@ -1,13 +1,27 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller;
 
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
-import dev.razafindratelo.arsmedia.exception.*;
+import dev.razafindratelo.arsmedia.exception.ApiKeyGenerationException;
+import dev.razafindratelo.arsmedia.exception.AudioExtractionException;
+import dev.razafindratelo.arsmedia.exception.DirectoryUploadException;
+import dev.razafindratelo.arsmedia.exception.HmacCalculationException;
+import dev.razafindratelo.arsmedia.exception.InvalidAuthorizationFormatException;
+import dev.razafindratelo.arsmedia.exception.InvalidTokenException;
+import dev.razafindratelo.arsmedia.exception.MissingAuthorizationException;
+import dev.razafindratelo.arsmedia.exception.TemplateLoadingException;
+import dev.razafindratelo.arsmedia.exception.TokenGenerationException;
+import dev.razafindratelo.arsmedia.exception.TokenNotFoundException;
+import dev.razafindratelo.arsmedia.exception.UserNotActivatedException;
+import dev.razafindratelo.arsmedia.exception.VideoProcessingException;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -26,13 +40,20 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 @AutoConfigureMockMvc(addFilters = false)
 @Import(ApiExceptionHandler.class)
 @ActiveProfiles("test")
-class ApiExceptionHandlerIntegrationTest extends FacadeIT {
+class ApiExceptionHandlerIT extends FacadeIT {
 
   private static final String BASE_PATH = "/test";
   @Autowired private MockMvc mockMvc;

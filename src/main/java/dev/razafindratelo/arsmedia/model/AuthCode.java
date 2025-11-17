@@ -1,7 +1,8 @@
 package dev.razafindratelo.arsmedia.model;
 
+import static java.util.UUID.randomUUID;
+
 import java.time.LocalDateTime;
-import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 public record AuthCode(
@@ -13,7 +14,7 @@ public record AuthCode(
   }
 
   public static AuthCode generate(User user) {
-    var id = UUID.randomUUID().toString();
+    var id = randomUUID().toString();
     var code = generateCode();
     var createdAt = LocalDateTime.now();
     var deadline = createdAt.plusMinutes(10);

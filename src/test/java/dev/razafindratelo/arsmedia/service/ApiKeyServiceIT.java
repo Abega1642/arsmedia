@@ -1,6 +1,8 @@
 package dev.razafindratelo.arsmedia.service;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.UserCreationRequest;

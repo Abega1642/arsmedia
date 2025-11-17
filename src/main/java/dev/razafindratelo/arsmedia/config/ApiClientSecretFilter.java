@@ -19,13 +19,13 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Slf4j
 public class ApiClientSecretFilter extends OncePerRequestFilter {
 
+  private static final String LOCAL_HOST_IP = "127.0.0.1";
   private static final String[] PUBLIC_PATHS = {
     "/ping", "/", "/health/**", "/swagger-ui/**", "/v3/api-docs/**", "/doc/**", "/actuator/**"
   };
-  private static final String LOCAL_HOST_IP = "127.0.0.1";
 
-  private final AntPathMatcher pathMatcher = new AntPathMatcher();
   private final ApiClientSecretService clientService;
+  private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
   @Override
   protected void doFilterInternal(

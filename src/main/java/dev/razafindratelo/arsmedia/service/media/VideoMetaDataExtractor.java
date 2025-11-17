@@ -1,7 +1,11 @@
 package dev.razafindratelo.arsmedia.service.media;
 
 import dev.razafindratelo.arsmedia.model.Video;
-import dev.razafindratelo.arsmedia.model.classifier.*;
+import dev.razafindratelo.arsmedia.model.classifier.AudioCodec;
+import dev.razafindratelo.arsmedia.model.classifier.ContainerFormat;
+import dev.razafindratelo.arsmedia.model.classifier.FileType;
+import dev.razafindratelo.arsmedia.model.classifier.SizeType;
+import dev.razafindratelo.arsmedia.model.classifier.VideoCodec;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;

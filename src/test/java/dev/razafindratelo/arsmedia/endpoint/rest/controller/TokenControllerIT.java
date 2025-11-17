@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 class TokenControllerIT extends FacadeIT {
+  private static final String AUTH_TOKEN_TOKEN_URL = "/auth/token/token-pairs";
   @Autowired private MockMvc mvc;
   @Autowired private UserService userService;
 
@@ -31,7 +32,7 @@ class TokenControllerIT extends FacadeIT {
         """;
 
     mvc.perform(
-            post("/auth/token/token-pairs")
+            post(AUTH_TOKEN_TOKEN_URL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(tokenRequest)
                 .with(csrf()))
@@ -44,11 +45,10 @@ class TokenControllerIT extends FacadeIT {
     String userEmail = "dev.razafindratelo@gmail.com";
     var userId = createTestUser(userEmail);
 
-    var tokenRequest =
-        " {\n\t\"user_id\": \"" + userId + "\",\n\t\"user_email\": \"" + userEmail + "\"\n}";
+    var tokenRequest = getJsonRequest(userId, userEmail);
 
     mvc.perform(
-            post("/auth/token/token-pairs")
+            post(AUTH_TOKEN_TOKEN_URL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(tokenRequest)
                 .with(csrf()))
@@ -61,11 +61,10 @@ class TokenControllerIT extends FacadeIT {
     var userId = createTestUser(userEmail);
     userService.updateActivationStatusByEmail(userEmail, true);
 
-    var tokenRequest =
-        " {\n\t\"user_id\": \"" + userId + "\",\n\t\"user_email\": \"" + userEmail + "\"\n}";
+    var tokenRequest = getJsonRequest(userId, userEmail);
 
     mvc.perform(
-            post("/auth/token/token-pairs")
+            post(AUTH_TOKEN_TOKEN_URL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(tokenRequest)
                 .with(csrf()))
@@ -82,12 +81,11 @@ class TokenControllerIT extends FacadeIT {
     var userId = createTestUser(userEmail);
     userService.updateActivationStatusByEmail(userEmail, true);
 
-    var tokenRequest =
-        " {\n\t\"user_id\": \"" + userId + "\",\n\t\"user_email\": \"" + userEmail + "\"\n}";
+    var tokenRequest = getJsonRequest(userId, userEmail);
 
     MvcResult result =
         mvc.perform(
-                post("/auth/token/token-pairs")
+                post(AUTH_TOKEN_TOKEN_URL)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(tokenRequest)
                     .with(csrf()))
@@ -113,5 +111,9 @@ class TokenControllerIT extends FacadeIT {
         new UserCreationRequest(
             userEmail, "+261 00 00 000 00", "abega1642", UserRole.USER, "password");
     return userService.create(testUser).getId();
+  }
+
+  private String getJsonRequest(String userId, String userEmail) {
+    return " {\n\t\"user_id\": \"" + userId + "\",\n\t\"user_email\": \"" + userEmail + "\"\n}";
   }
 }

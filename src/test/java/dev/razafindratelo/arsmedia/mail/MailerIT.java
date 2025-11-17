@@ -1,7 +1,7 @@
 package dev.razafindratelo.arsmedia.mail;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
 import jakarta.mail.internet.InternetAddress;

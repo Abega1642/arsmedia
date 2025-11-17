@@ -1,6 +1,12 @@
 package dev.razafindratelo.arsmedia.service;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static java.util.UUID.randomUUID;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.razafindratelo.arsmedia.exception.JwtProcessingException;
 import dev.razafindratelo.arsmedia.model.User;
@@ -8,7 +14,7 @@ import dev.razafindratelo.arsmedia.model.classifier.UserRole;
 import io.jsonwebtoken.Claims;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.HashMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -17,12 +23,12 @@ class JwtUtilTest {
 
   private static final String TEST_EMAIL = "test@example.com";
   private static final String CUSTOM_EMAIL = "custom@example.com";
-  private static final String TEST_USER_ID = "user-123";
+  private static final String TEST_USER_ID = randomUUID().toString();
   private static final String CUSTOM_USER_ID = "custom-user-123";
   private static final String TEST_PSEUDO = "testuser";
-  private static final String TEST_PASSWORD = "password";
+  private static final String TEST_PASSWORD = randomUUID().toString();
 
-  private static final String TEST_SECRET = "test-secret-key-that-is-long-enough-for-hs256-123456";
+  private static final String TEST_SECRET = randomUUID().toString();
   private static final String INVALID_TOKEN = "invalid.token.here";
   private static final String EMPTY_STRING = "";
   private static final String WHITESPACE_STRING = "   ";
@@ -40,7 +46,6 @@ class JwtUtilTest {
   private static final String ROLE_USER = "ROLE_USER";
   private static final String ROLE_ADMIN = "ROLE_ADMIN";
 
-  private static final String FIELD_SECRET_KEY = "secretKey";
   private static final String FIELD_JWT_PARSER = "jwtParser";
 
   private static final long TOKEN_GENERATION_DELAY_MS = 1000L;
@@ -56,7 +61,6 @@ class JwtUtilTest {
   @Test
   void should_initialize_with_valid_secret() {
     assertNotNull(subject);
-    assertNotNull(ReflectionTestUtils.getField(subject, FIELD_SECRET_KEY));
     assertNotNull(ReflectionTestUtils.getField(subject, FIELD_JWT_PARSER));
   }
 

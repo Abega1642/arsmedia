@@ -2,18 +2,37 @@ package dev.razafindratelo.arsmedia.service.event;
 
 import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toJVideo;
 import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toVideo;
-import static org.junit.jupiter.api.Assertions.*;
+import static java.util.UUID.randomUUID;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.CompressionOptions;
 import dev.razafindratelo.arsmedia.event.model.VideoCompressionRequested;
 import dev.razafindratelo.arsmedia.exception.DirectoryUploadException;
 import dev.razafindratelo.arsmedia.exception.VideoProcessingException;
 import dev.razafindratelo.arsmedia.file.BucketComponent;
+import dev.razafindratelo.arsmedia.file.TempFileCleaner;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.model.Video;
-import dev.razafindratelo.arsmedia.model.classifier.*;
+import dev.razafindratelo.arsmedia.model.classifier.AudioCodec;
+import dev.razafindratelo.arsmedia.model.classifier.ContainerFormat;
+import dev.razafindratelo.arsmedia.model.classifier.FileType;
+import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
+import dev.razafindratelo.arsmedia.model.classifier.SizeType;
+import dev.razafindratelo.arsmedia.model.classifier.VideoCodec;
 import dev.razafindratelo.arsmedia.repository.VideoCompressionJobRepository;
 import dev.razafindratelo.arsmedia.repository.VideoRepository;
 import dev.razafindratelo.arsmedia.repository.model.JVideo;
@@ -23,7 +42,11 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
+import java.util.Random;
 import lombok.extern.slf4j.Slf4j;
 import net.bramp.ffmpeg.FFmpegExecutor;
 import net.bramp.ffmpeg.builder.FFmpegBuilder;
@@ -43,6 +66,10 @@ class VideoCompressionRequestedServiceIT {
   private static final int ORIGINAL_FILE_SIZE = 10_000_000;
   private static final int COMPRESSED_FILE_SIZE = 5_000_000;
   private static final double MINIMUM_COMPRESSION_RATIO = 0.3;
+  private static final String PREFIX = "compressed_";
+  private static final String FFMPEG_PATH = "/usr/bin/ffmpeg";
+  private static final String FFPROBE_PATH = "/usr/bin/ffprobe";
+  private final TempFileCleaner tempFileCleaner = new TempFileCleaner();
 
   @TempDir File tempDir;
 
@@ -51,28 +78,31 @@ class VideoCompressionRequestedServiceIT {
   @Mock private UserService userService;
   @Mock private VideoCompressionJobRepository videoCompressionJobRepository;
 
-  private VideoCompressionRequestedService service;
+  private VideoCompressionRequestedService subject;
   private File interceptedCompressedFile;
 
   @BeforeEach
   void setUp() throws IOException {
-    service =
+    subject =
         new VideoCompressionRequestedService(
-            bucketComponent, repository, userService, videoCompressionJobRepository);
+            FFMPEG_PATH,
+            FFPROBE_PATH,
+            bucketComponent,
+            repository,
+            userService,
+            videoCompressionJobRepository,
+            tempFileCleaner);
   }
 
   @Test
   void should_successfully_compress_video_with_custom_resolution() throws IOException {
-    var videoId = UUID.randomUUID().toString();
-    var jobId = UUID.randomUUID().toString();
-    var event =
-        createCompressionEvent(
-            videoId, jobId, "original_video_key", "owner@example.com", 23, 1280, 720);
+    var videoId = randomUUID().toString();
+    var jobId = randomUUID().toString();
+    var event = createCompressionEvent(videoId, jobId, "original_video_key", 1280, 720);
 
     File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE);
-    JVideo originalJVideo = createMockJVideo(videoId, 1920, 1080, 30.0, true);
-    VideoCompressionJob compressionJob =
-        createMockCompressedVideo(jobId, originalJVideo, ProcessStatus.PENDING);
+    JVideo originalJVideo = createMockJVideo(videoId, true);
+    VideoCompressionJob compressionJob = createMockCompressedVideo(jobId, originalJVideo);
 
     setupMocks(
         originalJVideo,
@@ -82,7 +112,7 @@ class VideoCompressionRequestedServiceIT {
         compressionJob);
 
     try (var mockedExecutor = setupFfmpegMock()) {
-      service.accept(event);
+      subject.accept(event);
 
       verifySuccessfulCompressionWithSizeReduction(videoId, 1280, 720, true);
       verifyStatusUpdates(jobId, ProcessStatus.PROGRESSING, ProcessStatus.COMPLETED);
@@ -91,16 +121,13 @@ class VideoCompressionRequestedServiceIT {
 
   @Test
   void should_handle_video_without_audio() throws IOException {
-    var videoId = UUID.randomUUID().toString();
-    var jobId = UUID.randomUUID().toString();
-    var event =
-        createCompressionEvent(
-            videoId, jobId, "video_no_audio_key", "owner@example.com", 23, null, null);
+    var videoId = randomUUID().toString();
+    var jobId = randomUUID().toString();
+    var event = createCompressionEvent(videoId, jobId, "video_no_audio_key", null, null);
 
     File originalFile = createMockVideoFile(8_000_000);
     JVideo originalJVideo = createMockJVideoWithoutAudio(videoId);
-    VideoCompressionJob compressionJob =
-        createMockCompressedVideo(jobId, originalJVideo, ProcessStatus.PENDING);
+    VideoCompressionJob compressionJob = createMockCompressedVideo(jobId, originalJVideo);
 
     setupMocks(
         originalJVideo,
@@ -110,7 +137,7 @@ class VideoCompressionRequestedServiceIT {
         compressionJob);
 
     try (var mockedExecutor = setupFfmpegMock()) {
-      service.accept(event);
+      subject.accept(event);
       verifyVideoWithoutAudio();
       verifyStatusUpdates(jobId, ProcessStatus.PROGRESSING, ProcessStatus.COMPLETED);
     }
@@ -118,16 +145,13 @@ class VideoCompressionRequestedServiceIT {
 
   @Test
   void should_adjust_odd_dimensions_to_even() throws IOException {
-    var videoId = UUID.randomUUID().toString();
-    var jobId = UUID.randomUUID().toString();
-    var event =
-        createCompressionEvent(
-            videoId, jobId, "odd_dimensions_key", "owner@example.com", 23, 1281, 721);
+    var videoId = randomUUID().toString();
+    var jobId = randomUUID().toString();
+    var event = createCompressionEvent(videoId, jobId, "odd_dimensions_key", 1281, 721);
 
     File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE);
-    JVideo originalJVideo = createMockJVideo(videoId, 1920, 1080, 30.0, true);
-    VideoCompressionJob compressionJob =
-        createMockCompressedVideo(jobId, originalJVideo, ProcessStatus.PENDING);
+    JVideo originalJVideo = createMockJVideo(videoId, true);
+    VideoCompressionJob compressionJob = createMockCompressedVideo(jobId, originalJVideo);
 
     setupMocks(
         originalJVideo,
@@ -137,23 +161,20 @@ class VideoCompressionRequestedServiceIT {
         compressionJob);
 
     try (var mockedExecutor = setupFfmpegMock()) {
-      service.accept(event);
+      subject.accept(event);
       verifySuccessfulCompressionWithSizeReduction(videoId, 1280, 720, true);
     }
   }
 
   @Test
   void should_use_original_dimensions_when_not_specified() throws IOException {
-    var videoId = UUID.randomUUID().toString();
-    var jobId = UUID.randomUUID().toString();
-    var event =
-        createCompressionEvent(
-            videoId, jobId, "original_dimensions_key", "owner@example.com", 23, null, null);
+    var videoId = randomUUID().toString();
+    var jobId = randomUUID().toString();
+    var event = createCompressionEvent(videoId, jobId, "original_dimensions_key", null, null);
 
     File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE);
-    JVideo originalJVideo = createMockJVideo(videoId, 1920, 1080, 30.0, true);
-    VideoCompressionJob compressionJob =
-        createMockCompressedVideo(jobId, originalJVideo, ProcessStatus.PENDING);
+    JVideo originalJVideo = createMockJVideo(videoId, true);
+    VideoCompressionJob compressionJob = createMockCompressedVideo(jobId, originalJVideo);
 
     setupMocks(
         originalJVideo,
@@ -163,24 +184,23 @@ class VideoCompressionRequestedServiceIT {
         compressionJob);
 
     try (var mockedExecutor = setupFfmpegMock()) {
-      service.accept(event);
+      subject.accept(event);
       verifySuccessfulCompressionWithSizeReduction(videoId, 1920, 1080, true);
     }
   }
 
   @Test
   void should_throw_exception_when_video_not_found() {
-    var videoId = UUID.randomUUID().toString();
-    var jobId = UUID.randomUUID().toString();
-    var event = createCompressionEvent(videoId, jobId, "key", "owner@example.com", 23, null, null);
+    var videoId = randomUUID().toString();
+    var jobId = randomUUID().toString();
+    var event = createCompressionEvent(videoId, jobId, "key", null, null);
 
-    VideoCompressionJob compressionJob =
-        createMockCompressedVideo(jobId, new JVideo(), ProcessStatus.PENDING);
+    VideoCompressionJob compressionJob = createMockCompressedVideo(jobId, new JVideo());
 
     when(videoCompressionJobRepository.findById(jobId)).thenReturn(Optional.of(compressionJob));
     when(repository.findById(videoId)).thenReturn(Optional.empty());
 
-    assertThrows(VideoProcessingException.class, () -> service.accept(event));
+    assertThrows(VideoProcessingException.class, () -> subject.accept(event));
 
     verify(videoCompressionJobRepository, atLeast(1)).save(any(VideoCompressionJob.class));
     verifyNoSuccessfulCompressionOperations();
@@ -188,21 +208,19 @@ class VideoCompressionRequestedServiceIT {
 
   @Test
   void should_throw_exception_when_download_fails() {
-    var videoId = UUID.randomUUID().toString();
-    var jobId = UUID.randomUUID().toString();
-    var event =
-        createCompressionEvent(videoId, jobId, "failing_key", "owner@example.com", 23, null, null);
+    var videoId = randomUUID().toString();
+    var jobId = randomUUID().toString();
+    var event = createCompressionEvent(videoId, jobId, "failing_key", null, null);
 
-    JVideo originalJVideo = createMockJVideo(videoId, 1920, 1080, 30.0, true);
-    VideoCompressionJob compressionJob =
-        createMockCompressedVideo(jobId, originalJVideo, ProcessStatus.PENDING);
+    JVideo originalJVideo = createMockJVideo(videoId, true);
+    VideoCompressionJob compressionJob = createMockCompressedVideo(jobId, originalJVideo);
 
     when(videoCompressionJobRepository.findById(jobId)).thenReturn(Optional.of(compressionJob));
     when(repository.findById(videoId)).thenReturn(Optional.of(originalJVideo));
     when(bucketComponent.download(event.getBucketKey()))
         .thenThrow(new DirectoryUploadException("Download failed"));
 
-    assertThrows(VideoProcessingException.class, () -> service.accept(event));
+    assertThrows(VideoProcessingException.class, () -> subject.accept(event));
 
     ArgumentCaptor<VideoCompressionJob> captor = ArgumentCaptor.forClass(VideoCompressionJob.class);
     verify(videoCompressionJobRepository, atLeast(1)).save(captor.capture());
@@ -216,15 +234,13 @@ class VideoCompressionRequestedServiceIT {
 
   @Test
   void should_use_default_frame_rate_when_invalid() throws IOException {
-    var videoId = UUID.randomUUID().toString();
-    var jobId = UUID.randomUUID().toString();
-    var event =
-        createCompressionEvent(videoId, jobId, "video_key", "owner@example.com", 23, null, null);
+    var videoId = randomUUID().toString();
+    var jobId = randomUUID().toString();
+    var event = createCompressionEvent(videoId, jobId, "video_key", null, null);
 
     File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE);
     JVideo originalJVideo = createMockJVideoWithInvalidFrameRate(videoId);
-    VideoCompressionJob compressionJob =
-        createMockCompressedVideo(jobId, originalJVideo, ProcessStatus.PENDING);
+    VideoCompressionJob compressionJob = createMockCompressedVideo(jobId, originalJVideo);
 
     setupMocks(
         originalJVideo,
@@ -234,7 +250,7 @@ class VideoCompressionRequestedServiceIT {
         compressionJob);
 
     try (var mockedExecutor = setupFfmpegMock()) {
-      service.accept(event);
+      subject.accept(event);
 
       ArgumentCaptor<JVideo> jVideoCaptor = ArgumentCaptor.forClass(JVideo.class);
       verify(repository).save(jVideoCaptor.capture());
@@ -246,15 +262,13 @@ class VideoCompressionRequestedServiceIT {
 
   @Test
   void should_handle_ffmpeg_execution_failure() throws IOException {
-    var videoId = UUID.randomUUID().toString();
-    var jobId = UUID.randomUUID().toString();
-    var event =
-        createCompressionEvent(videoId, jobId, "video_key", "owner@example.com", 23, null, null);
+    var videoId = randomUUID().toString();
+    var jobId = randomUUID().toString();
+    var event = createCompressionEvent(videoId, jobId, "video_key", null, null);
 
     File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE);
-    JVideo originalJVideo = createMockJVideo(videoId, 1920, 1080, 30.0, true);
-    VideoCompressionJob compressionJob =
-        createMockCompressedVideo(jobId, originalJVideo, ProcessStatus.PENDING);
+    JVideo originalJVideo = createMockJVideo(videoId, true);
+    VideoCompressionJob compressionJob = createMockCompressedVideo(jobId, originalJVideo);
 
     setupMocks(
         originalJVideo,
@@ -272,7 +286,7 @@ class VideoCompressionRequestedServiceIT {
               doThrow(new RuntimeException("FFmpeg processing failed")).when(mockJob).run();
             })) {
 
-      assertThrows(VideoProcessingException.class, () -> service.accept(event));
+      assertThrows(VideoProcessingException.class, () -> subject.accept(event));
 
       ArgumentCaptor<VideoCompressionJob> captor =
           ArgumentCaptor.forClass(VideoCompressionJob.class);
@@ -291,15 +305,13 @@ class VideoCompressionRequestedServiceIT {
 
   @Test
   void should_handle_upload_failure() throws IOException {
-    var videoId = UUID.randomUUID().toString();
-    var jobId = UUID.randomUUID().toString();
-    var event =
-        createCompressionEvent(videoId, jobId, "video_key", "owner@example.com", 23, null, null);
+    var videoId = randomUUID().toString();
+    var jobId = randomUUID().toString();
+    var event = createCompressionEvent(videoId, jobId, "video_key", null, null);
 
     File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE);
-    JVideo originalJVideo = createMockJVideo(videoId, 1920, 1080, 30.0, true);
-    VideoCompressionJob compressionJob =
-        createMockCompressedVideo(jobId, originalJVideo, ProcessStatus.PENDING);
+    JVideo originalJVideo = createMockJVideo(videoId, true);
+    VideoCompressionJob compressionJob = createMockCompressedVideo(jobId, originalJVideo);
 
     when(videoCompressionJobRepository.findById(jobId)).thenReturn(Optional.of(compressionJob));
     when(repository.findById(videoId)).thenReturn(Optional.of(originalJVideo));
@@ -311,7 +323,7 @@ class VideoCompressionRequestedServiceIT {
           .when(bucketComponent)
           .upload(any(File.class), anyString());
 
-      assertThrows(VideoProcessingException.class, () -> service.accept(event));
+      assertThrows(VideoProcessingException.class, () -> subject.accept(event));
 
       verify(repository, never()).save(any(JVideo.class));
 
@@ -327,21 +339,20 @@ class VideoCompressionRequestedServiceIT {
 
   @Test
   void should_track_retry_attempts() {
-    var videoId = UUID.randomUUID().toString();
-    var jobId = UUID.randomUUID().toString();
-    var event = createCompressionEvent(videoId, jobId, "key", "owner@example.com", 23, null, null);
+    var videoId = randomUUID().toString();
+    var jobId = randomUUID().toString();
+    var event = createCompressionEvent(videoId, jobId, "key", null, null);
     event.setAttemptNb(3);
 
-    JVideo originalJVideo = createMockJVideo(videoId, 1920, 1080, 30.0, true);
-    VideoCompressionJob compressionJob =
-        createMockCompressedVideo(jobId, originalJVideo, ProcessStatus.PENDING);
+    JVideo originalJVideo = createMockJVideo(videoId, true);
+    VideoCompressionJob compressionJob = createMockCompressedVideo(jobId, originalJVideo);
 
     when(videoCompressionJobRepository.findById(jobId)).thenReturn(Optional.of(compressionJob));
     when(repository.findById(videoId)).thenReturn(Optional.of(originalJVideo));
     when(bucketComponent.download(event.getBucketKey()))
         .thenThrow(new DirectoryUploadException("Download failed"));
 
-    assertThrows(VideoProcessingException.class, () -> service.accept(event));
+    assertThrows(VideoProcessingException.class, () -> subject.accept(event));
 
     ArgumentCaptor<VideoCompressionJob> captor = ArgumentCaptor.forClass(VideoCompressionJob.class);
     verify(videoCompressionJobRepository, atLeast(1)).save(captor.capture());
@@ -356,15 +367,9 @@ class VideoCompressionRequestedServiceIT {
   }
 
   private VideoCompressionRequested createCompressionEvent(
-      String videoId,
-      String jobId,
-      String bucketKey,
-      String ownerEmail,
-      Integer crf,
-      Integer targetWidth,
-      Integer targetHeight) {
+      String videoId, String jobId, String bucketKey, Integer targetWidth, Integer targetHeight) {
 
-    var optionsBuilder = CompressionOptions.builder().crf(crf);
+    var optionsBuilder = CompressionOptions.builder().crf(23);
     if (targetWidth != null) optionsBuilder.targetWidth(targetWidth);
     if (targetHeight != null) optionsBuilder.targetHeight(targetHeight);
 
@@ -372,7 +377,7 @@ class VideoCompressionRequestedServiceIT {
         .videoId(videoId)
         .jobId(jobId)
         .bucketKey(bucketKey)
-        .owner(ownerEmail)
+        .owner("owner@example.com")
         .compressionOptions(optionsBuilder.build())
         .build();
   }
@@ -454,7 +459,7 @@ class VideoCompressionRequestedServiceIT {
                     File systemTempDir = new File(System.getProperty("java.io.tmpdir"));
                     File[] compressedFiles =
                         systemTempDir.listFiles(
-                            (dir, name) -> name.startsWith("compressed_") && name.endsWith(".mp4"));
+                            (dir, name) -> name.startsWith(PREFIX) && name.endsWith(".mp4"));
 
                     if (compressedFiles != null && compressedFiles.length > 0) {
                       File actualOutputFile =
@@ -525,9 +530,9 @@ class VideoCompressionRequestedServiceIT {
         actualCompressedSize / (1024.0 * 1024.0));
 
     String uploadedKey = keyCaptor.getValue();
-    assertTrue(uploadedKey.startsWith("compressed_" + videoId));
+    assertTrue(uploadedKey.startsWith(PREFIX + videoId));
 
-    assertTrue(savedVideo.getFileName().startsWith("compressed_"));
+    assertTrue(savedVideo.getFileName().startsWith(PREFIX));
     assertEquals(expectedWidth, savedVideo.getWidth());
     assertEquals(expectedHeight, savedVideo.getHeight());
     assertEquals(VideoCodec.H264, savedVideo.getCodec());
@@ -572,14 +577,13 @@ class VideoCompressionRequestedServiceIT {
     return file;
   }
 
-  private JVideo createMockJVideo(
-      String videoId, int width, int height, double frameRate, boolean hasAudio) {
+  private JVideo createMockJVideo(String videoId, boolean hasAudio) {
     Video video = new Video();
     video.setId(videoId);
     video.setFileName("original.mp4");
-    video.setWidth(width);
-    video.setHeight(height);
-    video.setFrameRate(frameRate);
+    video.setWidth(1920);
+    video.setHeight(1080);
+    video.setFrameRate(30.0);
     video.setDuration(120.0);
     video.setSize(ORIGINAL_FILE_SIZE);
     video.setSizeType(SizeType.BYTES);
@@ -602,7 +606,7 @@ class VideoCompressionRequestedServiceIT {
   }
 
   private JVideo createMockJVideoWithoutAudio(String videoId) {
-    return createMockJVideo(videoId, 1920, 1080, 30.0, false);
+    return createMockJVideo(videoId, false);
   }
 
   private JVideo createMockJVideoWithInvalidFrameRate(String videoId) {
@@ -625,20 +629,19 @@ class VideoCompressionRequestedServiceIT {
     return toJVideo(video);
   }
 
-  private VideoCompressionJob createMockCompressedVideo(
-      String jobId, JVideo parent, ProcessStatus status) {
+  private VideoCompressionJob createMockCompressedVideo(String jobId, JVideo parent) {
     VideoCompressionJob job = new VideoCompressionJob();
     job.setId(jobId);
     job.setParent(parent);
     job.setCreatedAt(LocalDateTime.now());
-    job.setStatus(status);
+    job.setStatus(ProcessStatus.PENDING);
     job.setAttemptCount(0);
     return job;
   }
 
   private User createMockUser(String email) {
     User user = new User();
-    user.setId(UUID.randomUUID().toString());
+    user.setId(randomUUID().toString());
     user.setEmail(email);
     return user;
   }

@@ -19,6 +19,7 @@ public class BucketConf {
   private static final LocalStackContainer LOCALSTACK =
       new LocalStackContainer(DockerImageName.parse("localstack/localstack:2.3.0"))
           .withServices(LocalStackContainer.Service.S3);
+  private static final String TEST_BUCKET = "test-bucket";
 
   public void start() {
     if (!LOCALSTACK.isRunning()) {
@@ -46,9 +47,8 @@ public class BucketConf {
             .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
             .build();
 
-    String bucketName = "test-bucket";
-    if (s3Client.listBuckets().buckets().stream().noneMatch(b -> b.name().equals(bucketName))) {
-      s3Client.createBucket(CreateBucketRequest.builder().bucket(bucketName).build());
+    if (s3Client.listBuckets().buckets().stream().noneMatch(b -> b.name().equals(TEST_BUCKET))) {
+      s3Client.createBucket(CreateBucketRequest.builder().bucket(TEST_BUCKET).build());
     }
   }
 
@@ -56,7 +56,7 @@ public class BucketConf {
   public void configureProperties(DynamicPropertyRegistry registry) {
     registry.add("b2.key.id", LOCALSTACK::getAccessKey);
     registry.add("b2.application.key", LOCALSTACK::getSecretKey);
-    registry.add("b2.bucket.name", () -> "test-bucket");
+    registry.add("b2.bucket.name", () -> TEST_BUCKET);
     registry.add("b2.region", LOCALSTACK::getRegion);
 
     registry.add(
