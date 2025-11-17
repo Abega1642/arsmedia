@@ -24,6 +24,7 @@ import dev.razafindratelo.arsmedia.event.model.VideoCompressionRequested;
 import dev.razafindratelo.arsmedia.exception.DirectoryUploadException;
 import dev.razafindratelo.arsmedia.exception.VideoProcessingException;
 import dev.razafindratelo.arsmedia.file.BucketComponent;
+import dev.razafindratelo.arsmedia.file.TempFileCleaner;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.model.Video;
 import dev.razafindratelo.arsmedia.model.classifier.AudioCodec;
@@ -66,6 +67,9 @@ class VideoCompressionRequestedServiceIT {
   private static final int COMPRESSED_FILE_SIZE = 5_000_000;
   private static final double MINIMUM_COMPRESSION_RATIO = 0.3;
   private static final String PREFIX = "compressed_";
+  private static final String FFMPEG_PATH = "/usr/bin/ffmpeg";
+  private static final String FFPROBE_PATH = "/usr/bin/ffprobe";
+  private final TempFileCleaner tempFileCleaner = new TempFileCleaner();
 
   @TempDir File tempDir;
 
@@ -74,14 +78,20 @@ class VideoCompressionRequestedServiceIT {
   @Mock private UserService userService;
   @Mock private VideoCompressionJobRepository videoCompressionJobRepository;
 
-  private VideoCompressionRequestedService service;
+  private VideoCompressionRequestedService subject;
   private File interceptedCompressedFile;
 
   @BeforeEach
   void setUp() throws IOException {
-    service =
+    subject =
         new VideoCompressionRequestedService(
-            bucketComponent, repository, userService, videoCompressionJobRepository);
+            FFMPEG_PATH,
+            FFPROBE_PATH,
+            bucketComponent,
+            repository,
+            userService,
+            videoCompressionJobRepository,
+            tempFileCleaner);
   }
 
   @Test
@@ -102,7 +112,7 @@ class VideoCompressionRequestedServiceIT {
         compressionJob);
 
     try (var mockedExecutor = setupFfmpegMock()) {
-      service.accept(event);
+      subject.accept(event);
 
       verifySuccessfulCompressionWithSizeReduction(videoId, 1280, 720, true);
       verifyStatusUpdates(jobId, ProcessStatus.PROGRESSING, ProcessStatus.COMPLETED);
@@ -127,7 +137,7 @@ class VideoCompressionRequestedServiceIT {
         compressionJob);
 
     try (var mockedExecutor = setupFfmpegMock()) {
-      service.accept(event);
+      subject.accept(event);
       verifyVideoWithoutAudio();
       verifyStatusUpdates(jobId, ProcessStatus.PROGRESSING, ProcessStatus.COMPLETED);
     }
@@ -151,7 +161,7 @@ class VideoCompressionRequestedServiceIT {
         compressionJob);
 
     try (var mockedExecutor = setupFfmpegMock()) {
-      service.accept(event);
+      subject.accept(event);
       verifySuccessfulCompressionWithSizeReduction(videoId, 1280, 720, true);
     }
   }
@@ -174,7 +184,7 @@ class VideoCompressionRequestedServiceIT {
         compressionJob);
 
     try (var mockedExecutor = setupFfmpegMock()) {
-      service.accept(event);
+      subject.accept(event);
       verifySuccessfulCompressionWithSizeReduction(videoId, 1920, 1080, true);
     }
   }
@@ -190,7 +200,7 @@ class VideoCompressionRequestedServiceIT {
     when(videoCompressionJobRepository.findById(jobId)).thenReturn(Optional.of(compressionJob));
     when(repository.findById(videoId)).thenReturn(Optional.empty());
 
-    assertThrows(VideoProcessingException.class, () -> service.accept(event));
+    assertThrows(VideoProcessingException.class, () -> subject.accept(event));
 
     verify(videoCompressionJobRepository, atLeast(1)).save(any(VideoCompressionJob.class));
     verifyNoSuccessfulCompressionOperations();
@@ -210,7 +220,7 @@ class VideoCompressionRequestedServiceIT {
     when(bucketComponent.download(event.getBucketKey()))
         .thenThrow(new DirectoryUploadException("Download failed"));
 
-    assertThrows(VideoProcessingException.class, () -> service.accept(event));
+    assertThrows(VideoProcessingException.class, () -> subject.accept(event));
 
     ArgumentCaptor<VideoCompressionJob> captor = ArgumentCaptor.forClass(VideoCompressionJob.class);
     verify(videoCompressionJobRepository, atLeast(1)).save(captor.capture());
@@ -240,7 +250,7 @@ class VideoCompressionRequestedServiceIT {
         compressionJob);
 
     try (var mockedExecutor = setupFfmpegMock()) {
-      service.accept(event);
+      subject.accept(event);
 
       ArgumentCaptor<JVideo> jVideoCaptor = ArgumentCaptor.forClass(JVideo.class);
       verify(repository).save(jVideoCaptor.capture());
@@ -276,7 +286,7 @@ class VideoCompressionRequestedServiceIT {
               doThrow(new RuntimeException("FFmpeg processing failed")).when(mockJob).run();
             })) {
 
-      assertThrows(VideoProcessingException.class, () -> service.accept(event));
+      assertThrows(VideoProcessingException.class, () -> subject.accept(event));
 
       ArgumentCaptor<VideoCompressionJob> captor =
           ArgumentCaptor.forClass(VideoCompressionJob.class);
@@ -313,7 +323,7 @@ class VideoCompressionRequestedServiceIT {
           .when(bucketComponent)
           .upload(any(File.class), anyString());
 
-      assertThrows(VideoProcessingException.class, () -> service.accept(event));
+      assertThrows(VideoProcessingException.class, () -> subject.accept(event));
 
       verify(repository, never()).save(any(JVideo.class));
 
@@ -342,7 +352,7 @@ class VideoCompressionRequestedServiceIT {
     when(bucketComponent.download(event.getBucketKey()))
         .thenThrow(new DirectoryUploadException("Download failed"));
 
-    assertThrows(VideoProcessingException.class, () -> service.accept(event));
+    assertThrows(VideoProcessingException.class, () -> subject.accept(event));
 
     ArgumentCaptor<VideoCompressionJob> captor = ArgumentCaptor.forClass(VideoCompressionJob.class);
     verify(videoCompressionJobRepository, atLeast(1)).save(captor.capture());

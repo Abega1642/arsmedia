@@ -46,7 +46,6 @@ class JwtUtilTest {
   private static final String ROLE_USER = "ROLE_USER";
   private static final String ROLE_ADMIN = "ROLE_ADMIN";
 
-  private static final String FIELD_SECRET_KEY = randomUUID().toString();
   private static final String FIELD_JWT_PARSER = "jwtParser";
 
   private static final long TOKEN_GENERATION_DELAY_MS = 1000L;
@@ -62,7 +61,6 @@ class JwtUtilTest {
   @Test
   void should_initialize_with_valid_secret() {
     assertNotNull(subject);
-    assertNotNull(ReflectionTestUtils.getField(subject, FIELD_SECRET_KEY));
     assertNotNull(ReflectionTestUtils.getField(subject, FIELD_JWT_PARSER));
   }
 

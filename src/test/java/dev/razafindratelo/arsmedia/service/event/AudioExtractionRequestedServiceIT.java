@@ -2,6 +2,7 @@ package dev.razafindratelo.arsmedia.service.event;
 
 import static dev.razafindratelo.arsmedia.mapper.AudioMapper.toAudio;
 import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toJVideo;
+import static java.util.UUID.randomUUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -22,6 +23,7 @@ import dev.razafindratelo.arsmedia.event.model.AudioExtractionRequested;
 import dev.razafindratelo.arsmedia.exception.AudioExtractionException;
 import dev.razafindratelo.arsmedia.exception.DirectoryUploadException;
 import dev.razafindratelo.arsmedia.file.BucketComponent;
+import dev.razafindratelo.arsmedia.file.TempFileCleaner;
 import dev.razafindratelo.arsmedia.model.Audio;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.model.Video;
@@ -42,7 +44,11 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
+import java.util.Random;
 import lombok.extern.slf4j.Slf4j;
 import net.bramp.ffmpeg.FFmpegExecutor;
 import net.bramp.ffmpeg.builder.FFmpegBuilder;
@@ -73,6 +79,8 @@ class AudioExtractionRequestedServiceIT {
   private static final String VIDEO_KEY = "video_key";
   private static final String SUFFIX = ".mp3";
   private static final String TEST_VIDEO_MP_4 = "test_video.mp4";
+  private final TempFileCleaner tempFileCleaner = new TempFileCleaner();
+
   @TempDir File tempDir;
   private File interceptedAudioFile;
   @Mock private BucketComponent bucketComponent;
@@ -80,7 +88,6 @@ class AudioExtractionRequestedServiceIT {
   @Mock private AudioRepository audioRepository;
   @Mock private UserService userService;
   @Mock private AudioExtractionJobRepository audioExtractionJobRepository;
-
   private AudioExtractionRequestedService service;
 
   private static @NotNull AudioExtractionJob getSnapshot(AudioExtractionJob job) {
@@ -106,13 +113,14 @@ class AudioExtractionRequestedServiceIT {
             videoRepository,
             audioRepository,
             userService,
-            audioExtractionJobRepository);
+            audioExtractionJobRepository,
+            tempFileCleaner);
   }
 
   @Test
   void should_successfully_extract_audio_from_video() throws IOException {
-    var videoId = UUID.randomUUID().toString();
-    var jobId = UUID.randomUUID().toString();
+    var videoId = randomUUID().toString();
+    var jobId = randomUUID().toString();
     var event = createAudioExtractionEvent(videoId, jobId, VIDEO_KEY);
 
     File originalFile = createMockVideoFile();
@@ -136,8 +144,8 @@ class AudioExtractionRequestedServiceIT {
 
   @Test
   void should_extract_audio_with_stereo_channels() throws IOException {
-    var videoId = UUID.randomUUID().toString();
-    var jobId = UUID.randomUUID().toString();
+    var videoId = randomUUID().toString();
+    var jobId = randomUUID().toString();
     var event = createAudioExtractionEvent(videoId, jobId, "stereo_video_key");
 
     File originalFile = createMockVideoFile();
@@ -169,8 +177,8 @@ class AudioExtractionRequestedServiceIT {
 
   @Test
   void should_extract_audio_with_mono_channel() throws IOException {
-    var videoId = UUID.randomUUID().toString();
-    var jobId = UUID.randomUUID().toString();
+    var videoId = randomUUID().toString();
+    var jobId = randomUUID().toString();
     var event = createAudioExtractionEvent(videoId, jobId, "mono_video_key");
 
     File originalFile = createMockVideoFile();
@@ -199,8 +207,8 @@ class AudioExtractionRequestedServiceIT {
 
   @Test
   void should_throw_exception_when_video_has_no_audio() {
-    var videoId = UUID.randomUUID().toString();
-    var jobId = UUID.randomUUID().toString();
+    var videoId = randomUUID().toString();
+    var jobId = randomUUID().toString();
     var event = createAudioExtractionEvent(videoId, jobId, "no_audio_key");
 
     JVideo videoWithoutAudio = createMockJVideoWithoutAudio(videoId);
@@ -226,8 +234,8 @@ class AudioExtractionRequestedServiceIT {
 
   @Test
   void should_throw_exception_when_video_not_found() {
-    var videoId = UUID.randomUUID().toString();
-    var jobId = UUID.randomUUID().toString();
+    var videoId = randomUUID().toString();
+    var jobId = randomUUID().toString();
     var event = createAudioExtractionEvent(videoId, jobId, "key");
 
     AudioExtractionJob extractionJob = createMockExtractionJob(jobId, new JVideo());
@@ -244,8 +252,8 @@ class AudioExtractionRequestedServiceIT {
 
   @Test
   void should_handle_ffmpeg_execution_failure() throws IOException {
-    var videoId = UUID.randomUUID().toString();
-    var jobId = UUID.randomUUID().toString();
+    var videoId = randomUUID().toString();
+    var jobId = randomUUID().toString();
     var event = createAudioExtractionEvent(videoId, jobId, VIDEO_KEY);
 
     File originalFile = createMockVideoFile();
@@ -286,8 +294,8 @@ class AudioExtractionRequestedServiceIT {
 
   @Test
   void should_handle_upload_failure() throws IOException {
-    var videoId = UUID.randomUUID().toString();
-    var jobId = UUID.randomUUID().toString();
+    var videoId = randomUUID().toString();
+    var jobId = randomUUID().toString();
     var event = createAudioExtractionEvent(videoId, jobId, VIDEO_KEY);
 
     File originalFile = createMockVideoFile();
@@ -319,8 +327,8 @@ class AudioExtractionRequestedServiceIT {
 
   @Test
   void should_track_retry_attempts() {
-    var videoId = UUID.randomUUID().toString();
-    var jobId = UUID.randomUUID().toString();
+    var videoId = randomUUID().toString();
+    var jobId = randomUUID().toString();
     var event = createAudioExtractionEvent(videoId, jobId, "key");
     event.setAttemptNb(2);
 
@@ -348,8 +356,8 @@ class AudioExtractionRequestedServiceIT {
 
   @Test
   void should_generate_correct_audio_filename() throws IOException {
-    var videoId = UUID.randomUUID().toString();
-    var jobId = UUID.randomUUID().toString();
+    var videoId = randomUUID().toString();
+    var jobId = randomUUID().toString();
     var event = createAudioExtractionEvent(videoId, jobId, VIDEO_KEY);
 
     File originalFile = createMockVideoFile();
@@ -591,7 +599,7 @@ class AudioExtractionRequestedServiceIT {
 
   private User createMockUser(String email) {
     User user = new User();
-    user.setId(UUID.randomUUID().toString());
+    user.setId(randomUUID().toString());
     user.setEmail(email);
     return user;
   }
