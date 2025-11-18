@@ -44,8 +44,8 @@ info:
     url: https://github.com/Abega1642
 
 servers:
-  - url: https://wooden-cristie-razafindratelo-9e0e4bcf.koyeb.app
-    description: Production server
+  - url: https://arsmedia.onrender.com
+    description: Pre-production server
   - url: http://localhost:8080
     description: Local development server
 

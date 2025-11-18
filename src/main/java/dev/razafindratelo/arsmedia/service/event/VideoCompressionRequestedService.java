@@ -23,7 +23,6 @@ import dev.razafindratelo.arsmedia.service.UserService;
 import jakarta.persistence.EntityNotFoundException;
 import java.io.File;
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.function.Consumer;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -316,7 +315,7 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
 
     job.setStatus(ProcessStatus.COMPLETED);
     job.setCompressedVideo(savedVideo);
-    job.setCompletedAt(LocalDateTime.now());
+    job.setCompletedAt(now());
     jobRepository.save(job);
 
     log.info("Updated compression job {} status to: COMPLETED", jobId);
@@ -339,7 +338,7 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
       }
 
       if (status == ProcessStatus.COMPLETED || status == ProcessStatus.FAILED) {
-        job.setCompletedAt(LocalDateTime.now());
+        job.setCompletedAt(now());
       }
 
       jobRepository.save(job);

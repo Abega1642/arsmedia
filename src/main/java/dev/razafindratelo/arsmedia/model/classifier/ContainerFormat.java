@@ -1,5 +1,7 @@
 package dev.razafindratelo.arsmedia.model.classifier;
 
+import java.util.Map;
+
 public enum ContainerFormat {
   MP4,
   MP3,
@@ -21,33 +23,49 @@ public enum ContainerFormat {
   AIFF,
   UNKNOWN;
 
+  private static final Map<String, ContainerFormat> FORMAT_MAP =
+      Map.ofEntries(
+          Map.entry("MP4", MP4),
+          Map.entry("MPEG-4", MP4),
+          Map.entry("MKV", MKV),
+          Map.entry("MATROSKA", MKV),
+          Map.entry("MOV", MOV),
+          Map.entry("QUICKTIME", MOV),
+          Map.entry("AVI", AVI),
+          Map.entry("FLV", FLV),
+          Map.entry("WMV", WMV),
+          Map.entry("ASF", WMV),
+          Map.entry("WEBM", WEBM),
+          Map.entry("MPEGTS", MPEG_TS),
+          Map.entry("TS", MPEG_TS),
+          Map.entry("MPEG-TS", MPEG_TS),
+          Map.entry("MPEGPS", MPEG_PS),
+          Map.entry("PS", MPEG_PS),
+          Map.entry("MPEG-PS", MPEG_PS),
+          Map.entry("MP3", MP3),
+          Map.entry("MPEG", MP3),
+          Map.entry("3GP", THREEGP),
+          Map.entry("THREEGP", THREEGP),
+          Map.entry("OGG", OGG),
+          Map.entry("M4A", M4A),
+          Map.entry("WAV", WAV),
+          Map.entry("FLAC", FLAC),
+          Map.entry("AIFF", AIFF),
+          Map.entry("APE", APE));
+
   public static ContainerFormat fromString(String value) {
-    if (value == null) return UNKNOWN;
-    for (String token : value.trim().split(",")) {
-      String v = token.trim().toUpperCase();
-      ContainerFormat format =
-          switch (v) {
-            case "MP4", "MPEG-4" -> MP4;
-            case "MKV", "MATROSKA" -> MKV;
-            case "MOV", "QUICKTIME" -> MOV;
-            case "AVI" -> AVI;
-            case "FLV" -> FLV;
-            case "WMV", "ASF" -> WMV;
-            case "WEBM" -> WEBM;
-            case "MPEGTS", "TS", "MPEG-TS" -> MPEG_TS;
-            case "MPEGPS", "PS", "MPEG-PS" -> MPEG_PS;
-            case "MP3", "MPEG" -> MP3;
-            case "3GP", "THREEGP" -> THREEGP;
-            case "OGG" -> OGG;
-            case "M4A" -> M4A;
-            case "WAV" -> WAV;
-            case "FLAC" -> FLAC;
-            case "AIFF" -> AIFF;
-            case "APE" -> APE;
-            default -> UNKNOWN;
-          };
-      if (format != UNKNOWN) return format;
+    if (value == null) {
+      return UNKNOWN;
     }
+
+    for (String token : value.trim().split(",")) {
+      String normalized = token.trim().toUpperCase();
+      ContainerFormat format = FORMAT_MAP.get(normalized);
+      if (format != null) {
+        return format;
+      }
+    }
+
     return UNKNOWN;
   }
 }
