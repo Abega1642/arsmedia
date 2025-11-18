@@ -22,6 +22,9 @@ import org.springframework.web.bind.annotation.RestController;
 @AllArgsConstructor
 public class HealthEmailController {
 
+  private static final String HEALTH_CHECK_PREFIX = "[arsmedia health check %d/5] ";
+  private static final String EMAIL_DELIMITER = "@";
+
   private final Mailer mailer;
 
   @GetMapping("/health/email")
@@ -29,57 +32,8 @@ public class HealthEmailController {
     try {
       log.info("Starting email health check for: {}", to);
 
-      var toAddress = new InternetAddress(to);
-      toAddress.validate();
-
-      String emailUser = to.split("@")[0];
-      String emailDomain = "@" + to.split("@")[1];
-
-      mailer.accept(
-          new Email(
-              toAddress,
-              List.of(),
-              List.of(),
-              "[arsmedia health check 1/5] Subject only",
-              null,
-              List.of()));
-
-      mailer.accept(
-          new Email(
-              toAddress,
-              List.of(new InternetAddress(emailUser + "+cc" + emailDomain)),
-              List.of(),
-              "[arsmedia health check 2/5] With cc",
-              null,
-              List.of()));
-
-      mailer.accept(
-          new Email(
-              toAddress,
-              List.of(),
-              List.of(new InternetAddress(emailUser + "+bcc" + emailDomain)),
-              "[arsmedia health check 3/5] With bcc",
-              null,
-              List.of()));
-
-      mailer.accept(
-          new Email(
-              toAddress,
-              List.of(),
-              List.of(),
-              "[arsmedia health check 4/5] With body",
-              "<div><h1>Hello from Arsmedia!</h1><p>This is a <b>test email</b> with HTML"
-                  + " content.</p></div>",
-              List.of()));
-
-      mailer.accept(
-          new Email(
-              toAddress,
-              List.of(),
-              List.of(),
-              "[arsmedia health check 5/5] With attachment",
-              "<p>This email has an attachment</p>",
-              List.of(createTempFile())));
+      InternetAddress toAddress = validateAddress(to);
+      sendAllHealthCheckEmails(toAddress);
 
       log.info("Email health check completed successfully for: {}", to);
       return ResponseEntity.ok("All 5 test emails sent successfully to " + to);
@@ -96,11 +50,72 @@ public class HealthEmailController {
     }
   }
 
+  private InternetAddress validateAddress(String email) throws AddressException {
+    InternetAddress address = new InternetAddress(email);
+    address.validate();
+    return address;
+  }
+
+  private void sendAllHealthCheckEmails(InternetAddress toAddress)
+      throws AddressException, IOException {
+    String[] emailParts = toAddress.getAddress().split(EMAIL_DELIMITER, 2);
+    String localPart = emailParts[0];
+    String domain = EMAIL_DELIMITER + emailParts[1];
+
+    sendEmail(toAddress, List.of(), List.of(), "Subject only", null, List.of(), 1);
+    sendEmail(
+        toAddress,
+        createAddressList(localPart + "+cc" + domain),
+        List.of(),
+        "With cc",
+        null,
+        List.of(),
+        2);
+    sendEmail(
+        toAddress,
+        List.of(),
+        createAddressList(localPart + "+bcc" + domain),
+        "With bcc",
+        null,
+        List.of(),
+        3);
+    sendEmail(toAddress, List.of(), List.of(), "With body", createHtmlBody(), List.of(), 4);
+    sendEmail(
+        toAddress,
+        List.of(),
+        List.of(),
+        "With attachment",
+        "<p>This email has an attachment</p>",
+        List.of(createTempFile()),
+        5);
+  }
+
+  private void sendEmail(
+      InternetAddress to,
+      List<InternetAddress> cc,
+      List<InternetAddress> bcc,
+      String subjectSuffix,
+      String body,
+      List<File> attachments,
+      int testNumber) {
+    String subject = String.format(HEALTH_CHECK_PREFIX, testNumber) + subjectSuffix;
+    mailer.accept(new Email(to, cc, bcc, subject, body, attachments));
+  }
+
+  private List<InternetAddress> createAddressList(String email) throws AddressException {
+    return List.of(new InternetAddress(email));
+  }
+
+  private String createHtmlBody() {
+    return "<div><h1>Hello from Arsmedia!</h1><p>This is a <b>test email</b> with HTML"
+        + " content.</p></div>";
+  }
+
   private File createTempFile() throws IOException {
     File tempFile = File.createTempFile("test-attachment", ".txt");
-    Files.writeString(
-        tempFile.toPath(),
-        "This is a test attachment from Arsmedia.\nTimestamp: " + System.currentTimeMillis());
+    String content =
+        "This is a test attachment from Arsmedia.\nTimestamp: " + System.currentTimeMillis();
+    Files.writeString(tempFile.toPath(), content);
     tempFile.deleteOnExit();
     return tempFile;
   }

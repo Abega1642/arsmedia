@@ -14,37 +14,32 @@ import org.springframework.mail.javamail.JavaMailSenderImpl;
 @Configuration
 public class EmailConf {
 
-  private final String smtpHost;
-  private final int smtpPort;
-  private final String username;
-  private final String password;
-  private final String fromEmail;
+  @Value("${spring.mail.host}")
+  private String smtpHost;
 
-  private final String transportProtocol;
-  private final String smtpAuth;
-  private final String smtpStarttls;
-  private final String mailDebug;
+  @Value("${spring.mail.port}")
+  private int smtpPort;
 
-  public EmailConf(
-      @Value("${spring.mail.host}") String smtpHost,
-      @Value("${spring.mail.port}") int smtpPort,
-      @Value("${spring.mail.username}") String username,
-      @Value("${spring.mail.password}") String password,
-      @Value("${spring.mail.from-email}") String fromEmail,
-      @Value("${mail.transport.protocol:smtp}") String transportProtocol,
-      @Value("${mail.smtp.auth:true}") String smtpAuth,
-      @Value("${mail.smtp.starttls.enable:true}") String smtpStarttls,
-      @Value("${mail.debug:false}") String mailDebug) {
-    this.smtpHost = smtpHost;
-    this.smtpPort = smtpPort;
-    this.username = username;
-    this.password = password;
-    this.fromEmail = fromEmail;
-    this.transportProtocol = transportProtocol;
-    this.smtpAuth = smtpAuth;
-    this.smtpStarttls = smtpStarttls;
-    this.mailDebug = mailDebug;
-  }
+  @Value("${spring.mail.username}")
+  private String username;
+
+  @Value("${spring.mail.password}")
+  private String password;
+
+  @Value("${spring.mail.from-email}")
+  private String fromEmail;
+
+  @Value("${mail.transport.protocol:smtp}")
+  private String transportProtocol;
+
+  @Value("${mail.smtp.auth:true}")
+  private String smtpAuth;
+
+  @Value("${mail.smtp.starttls.enable:true}")
+  private String smtpStarttls;
+
+  @Value("${mail.debug:false}")
+  private String mailDebug;
 
   @Bean
   public JavaMailSender mailSender() {

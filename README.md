@@ -264,7 +264,7 @@ We welcome contributions! Please follow these steps:
 ## Support & Contact
 
 Technical Lead: Abegà Razafindratelo  
-Email: a.razafindratelo@gmail.com  
+Email: <a.razafindratelo@gmail.com>  
 GitHub: https://github.com/Abega1642
 
 ---
