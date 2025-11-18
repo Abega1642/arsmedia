@@ -19,7 +19,7 @@ jobs:
         id: health_check
         run: |
           URLS=(
-            "https://wooden-cristie-razafindratelo-9e0e4bcf.koyeb.app/ping"
+            "https://arsmedia.onrender.com/ping"
           )
           
           FAILED_URLS=()

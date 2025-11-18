@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,9 +22,18 @@ class MailerIT extends FacadeIT {
   @TempDir Path tempDir;
   @Autowired private Mailer mailer;
   @Autowired private JavaMailSender mailSender;
+
   private InternetAddress testRecipient;
   private InternetAddress ccRecipient;
   private InternetAddress bccRecipient;
+
+  private static List<InternetAddress> emptyAddressList() {
+    return List.of();
+  }
+
+  private static List<File> emptyFileList() {
+    return List.of();
+  }
 
   @BeforeEach
   void setUp() throws Exception {
@@ -34,84 +44,53 @@ class MailerIT extends FacadeIT {
 
   @Test
   void should_send_simple_email() {
-    var email =
-        new Email(
-            testRecipient, List.of(), List.of(), "Test Subject", "<p>Test Body</p>", List.of());
+    var email = createEmail("Test Subject", "<p>Test Body</p>");
 
-    assertDoesNotThrow(() -> mailer.accept(email));
+    assertEmailSent(email);
   }
 
   @Test
   void should_send_email_with_cc() {
-    var email =
-        new Email(
-            testRecipient,
-            List.of(ccRecipient),
-            List.of(),
-            "Test with CC",
-            "<p>Test Body</p>",
-            List.of());
+    var email = createEmailWithCc();
 
-    assertDoesNotThrow(() -> mailer.accept(email));
+    assertEmailSent(email);
   }
 
   @Test
   void should_send_email_with_bcc() {
-    var email =
-        new Email(
-            testRecipient,
-            List.of(),
-            List.of(bccRecipient),
-            "Test with BCC",
-            "<p>Test Body</p>",
-            List.of());
+    var email = createEmailWithBcc();
 
-    assertDoesNotThrow(() -> mailer.accept(email));
+    assertEmailSent(email);
   }
 
   @Test
   void should_send_email_with_cc_and_bcc() {
-    var email =
-        new Email(
-            testRecipient,
-            List.of(ccRecipient),
-            List.of(bccRecipient),
-            "Test with CC and BCC",
-            "<p>Test Body</p>",
-            List.of());
+    var email = createEmailWithCcAndBcc();
 
-    assertDoesNotThrow(() -> mailer.accept(email));
+    assertEmailSent(email);
   }
 
   @Test
   void should_send_email_without_html_body() {
-    var email =
-        new Email(testRecipient, List.of(), List.of(), "Test without HTML", null, List.of());
+    var email = createEmail("Test without HTML", null);
 
-    assertDoesNotThrow(() -> mailer.accept(email));
+    assertEmailSent(email);
   }
 
   @Test
   void should_send_email_with_empty_html_body() {
-    var email =
-        new Email(testRecipient, List.of(), List.of(), "Test with empty HTML", "", List.of());
+    var email = createEmail("Test with empty HTML", "");
 
-    assertDoesNotThrow(() -> mailer.accept(email));
+    assertEmailSent(email);
   }
 
   @Test
   void should_send_email_with_attachment() throws IOException {
     var attachment = createTestFile("test-attachment.txt", "This is test content");
     var email =
-        new Email(
-            testRecipient,
-            List.of(),
-            List.of(),
-            "Test with Attachment",
-            "<p>See attachment</p>",
-            List.of(attachment));
+        createEmailWithAttachments("Test with Attachment", "<p>See attachment</p>", attachment);
 
-    assertDoesNotThrow(() -> mailer.accept(email));
+    assertEmailSent(email);
     assertTrue(attachment.exists(), "Attachment file should still exist after sending");
   }
 
@@ -122,81 +101,94 @@ class MailerIT extends FacadeIT {
     var attachment3 = createTestFile("attachment3.pdf", "PDF Content");
 
     var email =
-        new Email(
-            testRecipient,
-            List.of(),
-            List.of(),
+        createEmailWithAttachments(
             "Test with Multiple Attachments",
             "<p>See attachments</p>",
-            List.of(attachment1, attachment2, attachment3));
+            attachment1,
+            attachment2,
+            attachment3);
 
-    assertDoesNotThrow(() -> mailer.accept(email));
+    assertEmailSent(email);
   }
 
   @Test
   void should_handle_null_recipient_gracefully() {
     var email =
-        new Email(null, List.of(), List.of(), "Test Subject", "<p>Test Body</p>", List.of());
+        new Email(
+            null,
+            emptyAddressList(),
+            emptyAddressList(),
+            "Test Subject",
+            "<p>Test Body</p>",
+            emptyFileList());
 
-    assertDoesNotThrow(() -> mailer.accept(email));
+    assertEmailSent(email);
   }
 
   @Test
   void should_handle_null_cc_list() {
     var email =
-        new Email(testRecipient, null, List.of(), "Test Subject", "<p>Test Body</p>", List.of());
+        new Email(
+            testRecipient,
+            null,
+            emptyAddressList(),
+            "Test Subject",
+            "<p>Test Body</p>",
+            emptyFileList());
 
-    assertDoesNotThrow(() -> mailer.accept(email));
+    assertEmailSent(email);
   }
 
   @Test
   void should_handle_null_bcc_list() {
     var email =
-        new Email(testRecipient, List.of(), null, "Test Subject", "<p>Test Body</p>", List.of());
+        new Email(
+            testRecipient,
+            emptyAddressList(),
+            null,
+            "Test Subject",
+            "<p>Test Body</p>",
+            emptyFileList());
 
-    assertDoesNotThrow(() -> mailer.accept(email));
+    assertEmailSent(email);
   }
 
   @Test
   void should_handle_null_attachments_list() {
     var email =
-        new Email(testRecipient, List.of(), List.of(), "Test Subject", "<p>Test Body</p>", null);
+        new Email(
+            testRecipient,
+            emptyAddressList(),
+            emptyAddressList(),
+            "Test Subject",
+            "<p>Test Body</p>",
+            null);
 
-    assertDoesNotThrow(() -> mailer.accept(email));
+    assertEmailSent(email);
   }
 
   @Test
   void should_handle_empty_lists() {
-    var email =
-        new Email(
-            testRecipient, List.of(), List.of(), "Test Subject", "<p>Test Body</p>", List.of());
+    var email = createEmail("Test Subject", "<p>Test Body</p>");
 
-    assertDoesNotThrow(() -> mailer.accept(email));
+    assertEmailSent(email);
   }
 
   @Test
   void should_send_email_with_long_subject() {
-    String longSubject =
+    var longSubject =
         "This is a very long subject line that might cause issues if not handled properly by the"
             + " email system and we want to make sure it works correctly";
-    var email =
-        new Email(testRecipient, List.of(), List.of(), longSubject, "<p>Test Body</p>", List.of());
+    var email = createEmail(longSubject, "<p>Test Body</p>");
 
-    assertDoesNotThrow(() -> mailer.accept(email));
+    assertEmailSent(email);
   }
 
   @Test
   void should_send_email_with_unicode_characters() {
-    var email =
-        new Email(
-            testRecipient,
-            List.of(),
-            List.of(),
-            "Test with émojis 🎉 and ñoñó",
-            "<p>Unicode test: こんにちは 你好 مرحبا</p>",
-            List.of());
+    var email = createEmail("Test with émojis 🎉 and ñoñó", "<p>Unicode test: こんにちは 你好 مرحبا</p>");
 
-    assertDoesNotThrow(() -> mailer.accept(email));
+    assertEmailSent(email);
   }
 
   @Test
@@ -205,20 +197,18 @@ class MailerIT extends FacadeIT {
     var invalidAttachment = new File("/non/existent/path/invalid.txt");
 
     var email =
-        new Email(
-            testRecipient,
-            List.of(),
-            List.of(),
+        createEmailWithAttachments(
             "Test with Invalid Attachment",
             "<p>Mixed attachments</p>",
-            List.of(validAttachment, invalidAttachment));
+            validAttachment,
+            invalidAttachment);
 
-    assertDoesNotThrow(() -> mailer.accept(email));
+    assertEmailSent(email);
   }
 
   @Test
   void should_send_email_with_complex_html() {
-    String complexHtml =
+    var complexHtml =
         """
         <html>
           <head>
@@ -240,51 +230,94 @@ class MailerIT extends FacadeIT {
         </html>
         """;
 
-    var email =
-        new Email(testRecipient, List.of(), List.of(), "Complex HTML Test", complexHtml, List.of());
+    var email = createEmail("Complex HTML Test", complexHtml);
 
-    assertDoesNotThrow(() -> mailer.accept(email));
+    assertEmailSent(email);
   }
 
   @Test
   void should_handle_empty_file() throws IOException {
     var emptyFile = createTestFile("empty.txt", "");
     var email =
-        new Email(
-            testRecipient,
-            List.of(),
-            List.of(),
-            "Test with Empty Attachment",
-            "<p>Empty file attached</p>",
-            List.of(emptyFile));
+        createEmailWithAttachments(
+            "Test with Empty Attachment", "<p>Empty file attached</p>", emptyFile);
 
-    assertDoesNotThrow(() -> mailer.accept(email));
+    assertEmailSent(email);
   }
 
   @Test
   void should_handle_binary_file_attachment() throws IOException {
-    var binaryFile = tempDir.resolve("binary.bin").toFile();
-    byte[] binaryContent = new byte[] {0x00, 0x01, 0x02, (byte) 0xFF, (byte) 0xFE};
-    Files.write(binaryFile.toPath(), binaryContent);
-    assertTrue(binaryFile.exists(), "Binary file should be created");
-
+    var binaryFile = createBinaryFile(new byte[] {0x00, 0x01, 0x02, (byte) 0xFF, (byte) 0xFE});
     var email =
-        new Email(
-            testRecipient,
-            List.of(),
-            List.of(),
-            "Test with Binary Attachment",
-            "<p>Binary file attached</p>",
-            List.of(binaryFile));
+        createEmailWithAttachments(
+            "Test with Binary Attachment", "<p>Binary file attached</p>", binaryFile);
 
-    assertDoesNotThrow(() -> mailer.accept(email));
+    assertEmailSent(email);
+  }
+
+  private Email createEmail(String subject, String htmlBody) {
+    return new Email(
+        testRecipient, emptyAddressList(), emptyAddressList(), subject, htmlBody, emptyFileList());
+  }
+
+  private Email createEmailWithCc() {
+    return new Email(
+        testRecipient,
+        List.of(ccRecipient),
+        emptyAddressList(),
+        "Test with CC",
+        "<p>Test Body</p>",
+        emptyFileList());
+  }
+
+  private Email createEmailWithBcc() {
+    return new Email(
+        testRecipient,
+        emptyAddressList(),
+        List.of(bccRecipient),
+        "Test with BCC",
+        "<p>Test Body</p>",
+        emptyFileList());
+  }
+
+  private Email createEmailWithCcAndBcc() {
+    return new Email(
+        testRecipient,
+        List.of(ccRecipient),
+        List.of(bccRecipient),
+        "Test with CC and BCC",
+        "<p>Test Body</p>",
+        emptyFileList());
+  }
+
+  private Email createEmailWithAttachments(String subject, String htmlBody, File... attachments) {
+    return new Email(
+        testRecipient,
+        emptyAddressList(),
+        emptyAddressList(),
+        subject,
+        htmlBody,
+        Arrays.asList(attachments));
+  }
+
+  private void assertEmailSent(Email email) {
+    assertDoesNotThrow(
+        () -> mailer.accept(email), "Email should be sent without throwing exception");
   }
 
   private File createTestFile(String filename, String content) throws IOException {
-    Path filePath = tempDir.resolve(filename);
+    var filePath = tempDir.resolve(filename);
     Files.writeString(filePath, content);
-    File file = filePath.toFile();
+    var file = filePath.toFile();
     assertTrue(file.exists(), "Test file should be created: " + filename);
+    return file;
+  }
+
+  private File createBinaryFile(byte[] content) throws IOException {
+    var filePath = tempDir.resolve("binary.bin");
+    Files.write(filePath, content);
+    var file = filePath.toFile();
+    assertTrue(file.exists(), "Binary file should be created: " + "binary.bin");
     return file;
   }
 }
