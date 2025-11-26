@@ -1,5 +1,6 @@
 package dev.razafindratelo.arsmedia.service;
 
+import static dev.razafindratelo.arsmedia.mapper.AudioMapper.toJAudio;
 import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toJVideo;
 import static java.util.UUID.randomUUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -13,10 +14,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.CompressionOptions;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.AudioExtractionJobStatusResponse;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.VideoCompressionJobStatusResponse;
 import dev.razafindratelo.arsmedia.event.model.AudioExtractionRequested;
 import dev.razafindratelo.arsmedia.event.model.EventProducer;
 import dev.razafindratelo.arsmedia.event.model.VideoCompressionRequested;
+import dev.razafindratelo.arsmedia.model.Audio;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.model.Video;
 import dev.razafindratelo.arsmedia.model.classifier.AudioCodec;
@@ -28,6 +31,8 @@ import dev.razafindratelo.arsmedia.model.classifier.VideoCodec;
 import dev.razafindratelo.arsmedia.repository.AudioExtractionJobRepository;
 import dev.razafindratelo.arsmedia.repository.VideoCompressionJobRepository;
 import dev.razafindratelo.arsmedia.repository.VideoRepository;
+import dev.razafindratelo.arsmedia.repository.model.AudioExtractionJob;
+import dev.razafindratelo.arsmedia.repository.model.JAudio;
 import dev.razafindratelo.arsmedia.repository.model.JVideo;
 import dev.razafindratelo.arsmedia.repository.model.VideoCompressionJob;
 import jakarta.persistence.EntityNotFoundException;
@@ -68,6 +73,11 @@ class VideoServiceIT {
   private static final int CUSTOM_CRF = 28;
   private static final int CUSTOM_WIDTH = 1280;
   private static final int CUSTOM_HEIGHT = 720;
+
+  private static final String TEST_AUDIO_FILENAME = "test_audio.mp3";
+  private static final double AUDIO_DURATION = 180.0;
+  private static final int AUDIO_BIT_RATE = 320000;
+  private static final long AUDIO_SIZE = 7_200_000L;
 
   private static final String NO_VIDEO_FOUND_MSG = "No video instance found";
   private static final String FFMPEG_ERROR_MSG = "FFmpeg processing failed";
@@ -247,6 +257,122 @@ class VideoServiceIT {
     logJobsSummary(videoId, responses);
   }
 
+  @Test
+  void should_extract_audio_from_video() {
+    var videoId = randomUUID().toString();
+    var mockVideo = createMockJVideo(videoId, TEST_BUCKET_KEY_123);
+    var mockUser = createMockUser();
+
+    when(videoRepository.findByBucketKey(TEST_BUCKET_KEY_123)).thenReturn(Optional.of(mockVideo));
+    when(userService.findByEmail(TEST_USER_EMAIL)).thenReturn(mockUser);
+    when(audioExtractionJobRepository.save(any(AudioExtractionJob.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    AudioExtractionJobStatusResponse response =
+        videoService.extractAudio(TEST_USER_EMAIL, TEST_BUCKET_KEY_123);
+
+    assertNotNull(response);
+    assertNotNull(response.getJobId());
+    assertEquals(ProcessStatus.PENDING, response.getStatus());
+    assertNotNull(response.getCreatedAt());
+    assertNull(response.getCompletedAt());
+    assertNull(response.getExtractedAudioId());
+    assertNull(response.getExtractedAudioBucketKey());
+    assertNull(response.getErrorMessage());
+    assertEquals(0, response.getAttemptCount());
+
+    verify(videoRepository).findByBucketKey(TEST_BUCKET_KEY_123);
+    verify(userService).findByEmail(TEST_USER_EMAIL);
+    verify(audioExtractionJobRepository).save(any(AudioExtractionJob.class));
+
+    verifyAudioExtractionEvent(response, videoId);
+
+    log.info("Audio extraction job created successfully with job_id: {}", response.getJobId());
+  }
+
+  @Test
+  void should_retrieve_audio_extraction_job_status() {
+    var jobId = randomUUID().toString();
+    var videoId = randomUUID().toString();
+    var extractedAudioId = randomUUID().toString();
+
+    JVideo mockParentVideo = createMockJVideo(videoId, ORIGINAL_KEY);
+    var mockExtractedAudio = createMockJAudio(extractedAudioId, "audio_key");
+    String extractedAudioUrl = S3_BUCKET_PREFIX + "extracted_audio.mp3";
+    mockExtractedAudio.setBucketKey(extractedAudioUrl);
+
+    AudioExtractionJob mockJob =
+        createCompletedAudioExtractionJob(jobId, mockParentVideo, mockExtractedAudio);
+
+    when(audioExtractionJobRepository.findById(jobId)).thenReturn(Optional.of(mockJob));
+
+    AudioExtractionJobStatusResponse response = videoService.getAudioExtractionStatus(jobId);
+
+    assertNotNull(response);
+    assertEquals(jobId, response.getJobId());
+    assertEquals(ProcessStatus.COMPLETED, response.getStatus());
+    assertNotNull(response.getCreatedAt());
+    assertNotNull(response.getCompletedAt());
+    assertEquals(extractedAudioId, response.getExtractedAudioId());
+    assertEquals(extractedAudioUrl, response.getExtractedAudioBucketKey());
+    assertNull(response.getErrorMessage());
+    assertEquals(1, response.getAttemptCount());
+
+    verify(audioExtractionJobRepository).findById(jobId);
+
+    log.info(
+        "Retrieved audio extraction job status: {} - Status: {}, Attempts: {}",
+        jobId,
+        response.getStatus(),
+        response.getAttemptCount());
+  }
+
+  @Test
+  void should_throw_exception_when_audio_extraction_job_not_found() {
+    var nonExistentJobId = randomUUID().toString();
+
+    when(audioExtractionJobRepository.findById(nonExistentJobId)).thenReturn(Optional.empty());
+
+    EntityNotFoundException exception =
+        assertThrows(
+            EntityNotFoundException.class,
+            () -> videoService.getAudioExtractionStatus(nonExistentJobId));
+
+    assertTrue(exception.getMessage().contains("Audio extraction job not found"));
+    assertTrue(exception.getMessage().contains(nonExistentJobId));
+
+    verify(audioExtractionJobRepository).findById(nonExistentJobId);
+  }
+
+  private void verifyAudioExtractionEvent(
+      AudioExtractionJobStatusResponse response, String videoId) {
+    ArgumentCaptor<List<AudioExtractionRequested>> eventCaptor =
+        ArgumentCaptor.forClass(List.class);
+    verify(aeEventProducer).accept(eventCaptor.capture());
+
+    List<AudioExtractionRequested> events = eventCaptor.getValue();
+    assertEquals(1, events.size());
+    AudioExtractionRequested event = events.getFirst();
+    assertEquals(videoId, event.getVideoId());
+    assertEquals(TEST_BUCKET_KEY_123, event.getBucketKey());
+    assertEquals(TEST_USER_EMAIL, event.getOwner());
+    assertEquals(response.getJobId(), event.getJobId());
+  }
+
+  private AudioExtractionJob createCompletedAudioExtractionJob(
+      String jobId, JVideo parentVideo, JAudio extractedAudio) {
+    AudioExtractionJob mockJob = new AudioExtractionJob();
+    mockJob.setId(jobId);
+    mockJob.setParent(parentVideo);
+    mockJob.setExtractedAudio(extractedAudio);
+    mockJob.setStatus(ProcessStatus.COMPLETED);
+    mockJob.setCreatedAt(LocalDateTime.now().minusMinutes(5));
+    mockJob.setCompletedAt(LocalDateTime.now());
+    mockJob.setAttemptCount(1);
+    mockJob.setErrorMessage(null);
+    return mockJob;
+  }
+
   private void assertCompressionJobResponse(VideoCompressionJobStatusResponse response) {
     assertNotNull(response);
     assertNotNull(response.getJobId());
@@ -393,6 +519,25 @@ class VideoServiceIT {
     video.setCreatedAt(LocalDateTime.now());
     video.setOwner(createMockUser());
     return toJVideo(video);
+  }
+
+  private JAudio createMockJAudio(String id, String bucketKey) {
+    Audio audio = new Audio();
+    audio.setId(id);
+    audio.setFileName(TEST_AUDIO_FILENAME);
+    audio.setFilePath(bucketKey);
+    audio.setDuration(AUDIO_DURATION);
+    audio.setBitRate(AUDIO_BIT_RATE);
+    audio.setSampleRate(AUDIO_SAMPLE_RATE);
+    audio.setChannels(AUDIO_CHANNELS);
+    audio.setCodec(AudioCodec.AAC);
+    audio.setFormat(ContainerFormat.MP3);
+    audio.setSize(AUDIO_SIZE);
+    audio.setSizeType(SizeType.BYTES);
+    audio.setFileType(FileType.AUDIO);
+    audio.setCreatedAt(LocalDateTime.now());
+    audio.setOwner(createMockUser());
+    return toJAudio(audio);
   }
 
   private User createMockUser() {

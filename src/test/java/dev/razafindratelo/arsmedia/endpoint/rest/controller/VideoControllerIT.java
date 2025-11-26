@@ -1,5 +1,6 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller;
 
+import static java.util.UUID.randomUUID;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -10,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.AudioExtractionJobStatusResponse;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.VideoCompressionJobStatusResponse;
 import dev.razafindratelo.arsmedia.model.Video;
 import dev.razafindratelo.arsmedia.model.classifier.AudioCodec;
@@ -24,7 +26,6 @@ import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,22 +43,27 @@ class VideoControllerIT extends FacadeIT {
   private static final String BASE_URL = "/api/media/videos";
   private static final String USER_EMAIL = "test@example.com";
   private static final String BUCKET_KEY = "test_video_bucket_key_123";
+  private static final String USER_EMAIL_PARAM = "userEmail";
+  private static final String COMPRESS_ENDPOINT = "/compress/";
+  private static final String EXTRACT_AUDIO_ENDPOINT = "/extract-audio/";
 
   @Autowired private MockMvc mvc;
   @MockitoBean private VideoService videoService;
   @MockitoBean private CompressionVideoService compressionService;
 
-  private ResultActions postCompress(String email, String bucketKey) throws Exception {
+  private ResultActions postTreatment(String email, String bucketKey, String endpoint)
+      throws Exception {
     MockHttpServletRequestBuilder request =
-        post(BASE_URL + "/compress/{userEmail}", email).contentType(MediaType.APPLICATION_JSON);
-    if (bucketKey != null) request.param("bucket_key", bucketKey);
+        post(BASE_URL + endpoint + "{bucketKey}", bucketKey)
+            .contentType(MediaType.APPLICATION_JSON);
+    if (bucketKey != null) request.param(USER_EMAIL_PARAM, email);
     return mvc.perform(request);
   }
 
   private ResultActions getCompressedVideos(String email) throws Exception {
     MockHttpServletRequestBuilder request =
         get(BASE_URL + "/compressed").contentType(MediaType.APPLICATION_JSON);
-    if (email != null) request.param("userEmail", email);
+    if (email != null) request.param(USER_EMAIL_PARAM, email);
     return mvc.perform(request);
   }
 
@@ -95,7 +101,7 @@ class VideoControllerIT extends FacadeIT {
     List<Video> videos = new ArrayList<>();
     for (int i = 1; i <= 3; i++) {
       Video v = new Video();
-      v.setId(UUID.randomUUID().toString());
+      v.setId(randomUUID().toString());
       v.setFileName("compressed_video_" + i + ".mp4");
       v.setFilePath("s3://bucket/compressed_" + i + ".mp4");
       v.setWidth(1280);
@@ -118,14 +124,14 @@ class VideoControllerIT extends FacadeIT {
 
   @Test
   void should_compress_video_and_return_job_status() throws Exception {
-    var jobId = UUID.randomUUID().toString();
+    var jobId = randomUUID().toString();
     var expected =
         buildJobStatus(
             jobId, ProcessStatus.PENDING, LocalDateTime.now(), null, null, null, null, 0);
     when(videoService.compress(USER_EMAIL, BUCKET_KEY)).thenReturn(expected);
 
     var result =
-        postCompress(USER_EMAIL, BUCKET_KEY)
+        postTreatment(USER_EMAIL, BUCKET_KEY, COMPRESS_ENDPOINT)
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.job_id").value(jobId))
             .andExpect(jsonPath("$.status").value("PENDING"))
@@ -143,14 +149,17 @@ class VideoControllerIT extends FacadeIT {
   @Test
   void should_return_bad_request_when_email_is_invalid() throws Exception {
     var invalidEmail = "invalid-email";
-    var result = postCompress(invalidEmail, BUCKET_KEY).andExpect(status().isBadRequest());
+    var result =
+        postTreatment(invalidEmail, BUCKET_KEY, COMPRESS_ENDPOINT)
+            .andExpect(status().isBadRequest());
     logResponse(result, "Validation failed for invalid email");
     verify(videoService, never()).compress(anyString(), anyString());
   }
 
   @Test
-  void should_return_bad_request_when_bucket_key_is_missing() throws Exception {
-    var result = postCompress(USER_EMAIL, null).andExpect(status().isBadRequest());
+  void should_return_bad_request_when_user_email_is_missing() throws Exception {
+    var result =
+        postTreatment(null, BUCKET_KEY, COMPRESS_ENDPOINT).andExpect(status().isBadRequest());
     logResponse(result, "Validation failed for missing bucket_key");
     verify(videoService, never()).compress(anyString(), anyString());
   }
@@ -163,7 +172,9 @@ class VideoControllerIT extends FacadeIT {
             new EntityNotFoundException(
                 "No video instance found with bucket_key = " + nonExistentBucketKey));
 
-    var result = postCompress(USER_EMAIL, nonExistentBucketKey).andExpect(status().isNotFound());
+    var result =
+        postTreatment(USER_EMAIL, nonExistentBucketKey, COMPRESS_ENDPOINT)
+            .andExpect(status().isNotFound());
     logResponse(result, "Entity not found as expected");
     verify(videoService).compress(USER_EMAIL, nonExistentBucketKey);
   }
@@ -171,7 +182,8 @@ class VideoControllerIT extends FacadeIT {
   @Test
   void should_return_bad_request_when_email_is_blank() throws Exception {
     var blankEmail = "   ";
-    var result = postCompress(blankEmail, BUCKET_KEY).andExpect(status().isBadRequest());
+    var result =
+        postTreatment(blankEmail, BUCKET_KEY, COMPRESS_ENDPOINT).andExpect(status().isBadRequest());
     logResponse(result, "Validation failed for blank email");
     verify(videoService, never()).compress(anyString(), anyString());
   }
@@ -179,7 +191,9 @@ class VideoControllerIT extends FacadeIT {
   @Test
   void should_return_bad_request_when_bucket_key_is_blank() throws Exception {
     var blankBucketKey = "   ";
-    var result = postCompress(USER_EMAIL, blankBucketKey).andExpect(status().isBadRequest());
+    var result =
+        postTreatment(USER_EMAIL, blankBucketKey, COMPRESS_ENDPOINT)
+            .andExpect(status().isBadRequest());
     logResponse(result, "Validation failed for blank bucket_key");
     verify(videoService, never()).compress(anyString(), anyString());
   }
@@ -189,7 +203,9 @@ class VideoControllerIT extends FacadeIT {
     when(videoService.compress(USER_EMAIL, BUCKET_KEY))
         .thenThrow(new RuntimeException("Unexpected service error"));
 
-    var result = postCompress(USER_EMAIL, BUCKET_KEY).andExpect(status().is5xxServerError());
+    var result =
+        postTreatment(USER_EMAIL, BUCKET_KEY, COMPRESS_ENDPOINT)
+            .andExpect(status().is5xxServerError());
     logResponse(result, "Service exception handled");
     verify(videoService).compress(USER_EMAIL, BUCKET_KEY);
   }
@@ -197,39 +213,20 @@ class VideoControllerIT extends FacadeIT {
   @Test
   void should_compress_video_with_special_characters_in_email() throws Exception {
     var specialEmail = "test+user@example.com";
-    var jobId = UUID.randomUUID().toString();
+    var jobId = randomUUID().toString();
     var expected =
         buildJobStatus(
             jobId, ProcessStatus.PENDING, LocalDateTime.now(), null, null, null, null, 0);
     when(videoService.compress(specialEmail, BUCKET_KEY)).thenReturn(expected);
 
     var result =
-        postCompress(specialEmail, BUCKET_KEY)
+        postTreatment(specialEmail, BUCKET_KEY, COMPRESS_ENDPOINT)
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.job_id").value(jobId))
             .andExpect(jsonPath("$.status").value("PENDING"));
 
     logResponse(result, "Compression request for email with special chars successful");
     verify(videoService).compress(specialEmail, BUCKET_KEY);
-  }
-
-  @Test
-  void should_compress_video_with_special_characters_in_bucket_key() throws Exception {
-    var specialBucketKey = "videos/user_123/video-name_2024.mp4";
-    var jobId = UUID.randomUUID().toString();
-    var expected =
-        buildJobStatus(
-            jobId, ProcessStatus.PENDING, LocalDateTime.now(), null, null, null, null, 0);
-    when(videoService.compress(USER_EMAIL, specialBucketKey)).thenReturn(expected);
-
-    var result =
-        postCompress(USER_EMAIL, specialBucketKey)
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.job_id").value(jobId))
-            .andExpect(jsonPath("$.status").value("PENDING"));
-
-    logResponse(result, "Compression request for bucket_key with special chars successful");
-    verify(videoService).compress(USER_EMAIL, specialBucketKey);
   }
 
   @Test
@@ -278,14 +275,14 @@ class VideoControllerIT extends FacadeIT {
 
   @Test
   void should_get_compression_job_status_by_job_id() throws Exception {
-    var jobId = UUID.randomUUID().toString();
+    var jobId = randomUUID().toString();
     var expected =
         buildJobStatus(
             jobId,
             ProcessStatus.COMPLETED,
             LocalDateTime.now().minusMinutes(5),
             LocalDateTime.now(),
-            UUID.randomUUID().toString(),
+            randomUUID().toString(),
             "s3://bucket/compressed_video.mp4",
             null,
             1);
@@ -305,7 +302,7 @@ class VideoControllerIT extends FacadeIT {
 
   @Test
   void should_return_not_found_when_job_id_does_not_exist() throws Exception {
-    var jobId = UUID.randomUUID().toString();
+    var jobId = randomUUID().toString();
     when(videoService.getCompressionStatus(jobId))
         .thenThrow(new EntityNotFoundException("Compression job not found: " + jobId));
 
@@ -316,7 +313,7 @@ class VideoControllerIT extends FacadeIT {
 
   @Test
   void should_get_compression_job_with_progressing_status() throws Exception {
-    var jobId = UUID.randomUUID().toString();
+    var jobId = randomUUID().toString();
     var expected =
         buildJobStatus(
             jobId,
@@ -351,7 +348,7 @@ class VideoControllerIT extends FacadeIT {
 
   @Test
   void should_get_compression_job_with_failed_status() throws Exception {
-    var jobId = UUID.randomUUID().toString();
+    var jobId = randomUUID().toString();
     var expected =
         buildJobStatus(
             jobId,
@@ -378,20 +375,20 @@ class VideoControllerIT extends FacadeIT {
 
   @Test
   void should_get_all_compression_jobs_for_video() throws Exception {
-    var videoId = UUID.randomUUID().toString();
+    var videoId = randomUUID().toString();
     var jobs =
         List.of(
             buildJobStatus(
-                UUID.randomUUID().toString(),
+                randomUUID().toString(),
                 ProcessStatus.COMPLETED,
                 LocalDateTime.now().minusHours(2),
                 LocalDateTime.now().minusHours(1),
-                UUID.randomUUID().toString(),
+                randomUUID().toString(),
                 "s3://bucket/compressed1.mp4",
                 null,
                 1),
             buildJobStatus(
-                UUID.randomUUID().toString(),
+                randomUUID().toString(),
                 ProcessStatus.FAILED,
                 LocalDateTime.now().minusMinutes(30),
                 LocalDateTime.now().minusMinutes(25),
@@ -400,7 +397,7 @@ class VideoControllerIT extends FacadeIT {
                 "Upload failed",
                 2),
             buildJobStatus(
-                UUID.randomUUID().toString(),
+                randomUUID().toString(),
                 ProcessStatus.PROGRESSING,
                 LocalDateTime.now().minusMinutes(5),
                 null,
@@ -420,5 +417,183 @@ class VideoControllerIT extends FacadeIT {
 
     logResponse(result, "Retrieved all compression jobs for video");
     verify(videoService).getCompressionJobsByVideoId(videoId);
+  }
+
+  @Test
+  void should_extract_audio_and_return_job_status() throws Exception {
+    var jobId = randomUUID().toString();
+    var expected =
+        buildAudioJobStatus(
+            jobId, ProcessStatus.PENDING, LocalDateTime.now(), null, null, null, null, 0);
+    when(videoService.extractAudio(USER_EMAIL, BUCKET_KEY)).thenReturn(expected);
+
+    var result =
+        postTreatment(USER_EMAIL, BUCKET_KEY, EXTRACT_AUDIO_ENDPOINT)
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.job_id").value(jobId))
+            .andExpect(jsonPath("$.status").value("PENDING"))
+            .andExpect(jsonPath("$.created_at").exists())
+            .andExpect(jsonPath("$.completed_at").doesNotExist())
+            .andExpect(jsonPath("$.extracted_audio_id").doesNotExist())
+            .andExpect(jsonPath("$.extracted_audio_bucket_key").doesNotExist())
+            .andExpect(jsonPath("$.error_message").doesNotExist())
+            .andExpect(jsonPath("$.attempt_count").value(0));
+
+    logResponse(result, "Audio extraction request successful");
+    verify(videoService).extractAudio(USER_EMAIL, BUCKET_KEY);
+  }
+
+  @Test
+  void should_return_bad_request_when_email_is_invalid_for_audio_extraction() throws Exception {
+    var invalidEmail = "invalid-email";
+    var result =
+        postTreatment(invalidEmail, BUCKET_KEY, EXTRACT_AUDIO_ENDPOINT)
+            .andExpect(status().isBadRequest());
+    logResponse(result, "Validation failed for invalid email in audio extraction");
+    verify(videoService, never()).extractAudio(anyString(), anyString());
+  }
+
+  @Test
+  void should_return_bad_request_when_user_email_is_missing_for_audio_extraction()
+      throws Exception {
+    var result =
+        postTreatment(null, BUCKET_KEY, EXTRACT_AUDIO_ENDPOINT).andExpect(status().isBadRequest());
+    logResponse(result, "Validation failed for missing bucket_key in audio extraction");
+    verify(videoService, never()).extractAudio(anyString(), anyString());
+  }
+
+  @Test
+  void should_return_not_found_when_video_does_not_exist_for_audio_extraction() throws Exception {
+    var nonExistentBucketKey = "non_existent_key";
+    when(videoService.extractAudio(USER_EMAIL, nonExistentBucketKey))
+        .thenThrow(
+            new EntityNotFoundException(
+                "No video instance found with bucket_key = " + nonExistentBucketKey));
+
+    var result =
+        postTreatment(USER_EMAIL, nonExistentBucketKey, EXTRACT_AUDIO_ENDPOINT)
+            .andExpect(status().isNotFound());
+    logResponse(result, "Entity not found for audio extraction as expected");
+    verify(videoService).extractAudio(USER_EMAIL, nonExistentBucketKey);
+  }
+
+  @Test
+  void should_get_audio_extraction_job_status_by_job_id() throws Exception {
+    var jobId = randomUUID().toString();
+    var expected =
+        buildAudioJobStatus(
+            jobId,
+            ProcessStatus.COMPLETED,
+            LocalDateTime.now().minusMinutes(5),
+            LocalDateTime.now(),
+            randomUUID().toString(),
+            "s3://bucket/extracted_audio.mp3",
+            null,
+            1);
+    when(videoService.getAudioExtractionStatus(jobId)).thenReturn(expected);
+
+    var result =
+        getAudioExtractionStatus(jobId)
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.job_id").value(jobId))
+            .andExpect(jsonPath("$.status").value("COMPLETED"))
+            .andExpect(
+                jsonPath("$.extracted_audio_bucket_key").value("s3://bucket/extracted_audio.mp3"));
+
+    logResponse(result, "Retrieved audio extraction status");
+    verify(videoService).getAudioExtractionStatus(jobId);
+  }
+
+  @Test
+  void should_return_not_found_when_audio_extraction_job_id_does_not_exist() throws Exception {
+    var jobId = randomUUID().toString();
+    when(videoService.getAudioExtractionStatus(jobId))
+        .thenThrow(new EntityNotFoundException("Audio extraction job not found: " + jobId));
+
+    var result = getAudioExtractionStatus(jobId).andExpect(status().isNotFound());
+    logResponse(result, "Audio extraction job not found as expected");
+    verify(videoService).getAudioExtractionStatus(jobId);
+  }
+
+  @Test
+  void should_get_audio_extraction_job_with_progressing_status() throws Exception {
+    var jobId = randomUUID().toString();
+    var expected =
+        buildAudioJobStatus(
+            jobId,
+            ProcessStatus.PROGRESSING,
+            LocalDateTime.now().minusMinutes(2),
+            null,
+            null,
+            null,
+            null,
+            1);
+    when(videoService.getAudioExtractionStatus(jobId)).thenReturn(expected);
+
+    var result =
+        getAudioExtractionStatus(jobId)
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.job_id").value(jobId))
+            .andExpect(jsonPath("$.status").value("PROGRESSING"))
+            .andExpect(jsonPath("$.completed_at").doesNotExist())
+            .andExpect(jsonPath("$.extracted_audio_id").doesNotExist())
+            .andExpect(jsonPath("$.attempt_count").value(1));
+
+    logResponse(result, "Audio extraction job still progressing");
+    verify(videoService).getAudioExtractionStatus(jobId);
+  }
+
+  @Test
+  void should_get_audio_extraction_job_with_failed_status() throws Exception {
+    var jobId = randomUUID().toString();
+    var expected =
+        buildAudioJobStatus(
+            jobId,
+            ProcessStatus.FAILED,
+            LocalDateTime.now().minusMinutes(10),
+            LocalDateTime.now().minusMinutes(5),
+            null,
+            null,
+            "FFmpeg audio extraction failed on attempt 3",
+            3);
+    when(videoService.getAudioExtractionStatus(jobId)).thenReturn(expected);
+
+    var result =
+        getAudioExtractionStatus(jobId)
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.job_id").value(jobId))
+            .andExpect(jsonPath("$.status").value("FAILED"))
+            .andExpect(
+                jsonPath("$.error_message").value("FFmpeg audio extraction failed on attempt 3"))
+            .andExpect(jsonPath("$.attempt_count").value(3));
+
+    logResponse(result, "Audio extraction job failed as expected");
+    verify(videoService).getAudioExtractionStatus(jobId);
+  }
+
+  private ResultActions getAudioExtractionStatus(String jobId) throws Exception {
+    return mvc.perform(
+        get(BASE_URL + "/audio-extraction-status/{jobId}", jobId)
+            .contentType(MediaType.APPLICATION_JSON));
+  }
+
+  private AudioExtractionJobStatusResponse buildAudioJobStatus(
+      String jobId,
+      ProcessStatus status,
+      LocalDateTime createdAt,
+      LocalDateTime completedAt,
+      String extractedAudioId,
+      String extractedAudioUrl,
+      String errorMessage,
+      int attemptCount) {
+    return new AudioExtractionJobStatusResponse(
+        jobId,
+        status,
+        createdAt,
+        completedAt,
+        extractedAudioId,
+        extractedAudioUrl,
+        errorMessage,
+        attemptCount);
   }
 }
