@@ -26,10 +26,10 @@ public class VideoController {
   private VideoService service;
   private CompressionVideoService compressionService;
 
-  @PostMapping("/compress/{userEmail}")
+  @PostMapping("/compress/{bucketKey:.+}")
   public VideoCompressionJobStatusResponse compress(
-      @PathVariable(name = "userEmail") @Email @NotBlank String userEmail,
-      @RequestParam(name = "bucket_key") @NotNull @NotBlank String bucketKey) {
+      @PathVariable(name = "bucketKey") @NotBlank String bucketKey,
+      @RequestParam(name = "userEmail") @NotNull @NotBlank @Email String userEmail) {
     return service.compress(userEmail, bucketKey);
   }
 
@@ -51,10 +51,16 @@ public class VideoController {
     return service.getCompressionJobsByVideoId(videoId);
   }
 
-  @PostMapping("/extract-audio/{userEmail}")
+  @PostMapping("/extract-audio/{bucketKey:.+}")
   public AudioExtractionJobStatusResponse extractAudio(
-      @PathVariable(name = "userEmail") @Email @NotBlank String userEmail,
-      @RequestParam(name = "bucket_key") @NotNull @NotBlank String bucketKey) {
+      @PathVariable(name = "bucketKey") @NotBlank String bucketKey,
+      @RequestParam(name = "userEmail") @NotNull @NotBlank @Email String userEmail) {
     return service.extractAudio(userEmail, bucketKey);
+  }
+
+  @GetMapping("/audio-extraction-status/{jobId}")
+  public AudioExtractionJobStatusResponse getAudioExtractionStatus(
+      @PathVariable(name = "jobId") @NotBlank String jobId) {
+    return service.getAudioExtractionStatus(jobId);
   }
 }

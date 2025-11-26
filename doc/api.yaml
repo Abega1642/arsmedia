@@ -792,7 +792,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /api/media/videos/compress/{userEmail}:
+  /api/media/videos/compress/{bucketKey}:
     post:
       operationId: compressVideo
       tags:
@@ -805,20 +805,20 @@ paths:
         - ClientSecret: [ ]
           BearerAuth: [ ]
       parameters:
-        - name: userEmail
+        - name: bucketKey
           in: path
+          required: true
+          description: The storage bucket key of the video to compress. THE BUCKET KEY MUST BE ENCODED (URL ENCODAGE)
+          schema:
+            type: string
+            minLength: 1
+        - name: userEmail
+          in: query
           required: true
           description: Email of the user who owns the video
           schema:
             type: string
             format: email
-        - name: bucket_key
-          in: query
-          required: true
-          schema:
-            type: string
-            minLength: 1
-          description: The storage bucket key of the video to compress
       responses:
         "200":
           description: Video compression initiated successfully
@@ -836,8 +836,8 @@ paths:
                 timestamp: "2025-11-04T10:30:00Z"
                 status: 400
                 error: "Bad Request"
-                message: "bucket_key parameter is required and cannot be empty"
-                path: "/api/media/videos/compress/user@example.com"
+                message: "userEmail parameter is required and must be a valid email"
+                path: "/api/media/videos/compress/video-123.mp4"
                 errorCode: "BAD_FORM"
         "401":
           $ref: "#/components/responses/Unauthorized"
@@ -854,7 +854,7 @@ paths:
                 status: 404
                 error: "Not Found"
                 message: "Video with bucket key 'video-123.mp4' not found"
-                path: "/api/media/videos/compress/user@example.com"
+                path: "/api/media/videos/compress/video-123.mp4"
                 errorCode: "ENTITY_NOT_FOUND"
         "500":
           $ref: "#/components/responses/InternalServerError"
@@ -905,6 +905,133 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/InvalidClientCredentials"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/media/videos/extract-audio/{bucketKey}:
+    post:
+      operationId: extractAudio
+      tags:
+        - Video
+      summary: Extract audio from a video
+      description: >
+        Initiates audio extraction process from a video and returns job status with tracking information.
+        **Requires client credentials and Bearer token authentication.**
+      security:
+        - ClientSecret: [ ]
+          BearerAuth: [ ]
+      parameters:
+        - name: bucketKey
+          in: path
+          required: true
+          description: The storage bucket key of the video to extract audio from. THE BUCKET KEY MUST BE ENCODED (URL ENCODAGE)
+          schema:
+            type: string
+            minLength: 1
+        - name: userEmail
+          in: query
+          required: true
+          description: Email of the user who owns the video
+          schema:
+            type: string
+            format: email
+      responses:
+        "200":
+          description: Audio extraction initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AudioExtractionJobStatusResponse"
+        "400":
+          description: Invalid request - missing or invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 400
+                error: "Bad Request"
+                message: "userEmail parameter is required and must be a valid email"
+                path: "/api/media/videos/extract-audio/video-123.mp4"
+                errorCode: "BAD_FORM"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/InvalidClientCredentials"
+        "404":
+          description: Video not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 404
+                error: "Not Found"
+                message: "Video with bucket key 'video-123.mp4' not found"
+                path: "/api/media/videos/extract-audio/video-123.mp4"
+                errorCode: "ENTITY_NOT_FOUND"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/media/videos/audio-extraction-status/{jobId}:
+    get:
+      operationId: getAudioExtractionStatus
+      tags:
+        - Video
+      summary: Get audio extraction job status by job ID
+      description: >
+        Retrieves the current status and details of a specific audio extraction job by its unique job ID.
+        **Requires client credentials and Bearer token authentication.**
+      security:
+        - ClientSecret: [ ]
+          BearerAuth: [ ]
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          description: Unique identifier of the audio extraction job
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Audio extraction job status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AudioExtractionJobStatusResponse"
+        "400":
+          description: Invalid request - jobId is blank or missing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 400
+                error: "Bad Request"
+                message: "jobId parameter is required and cannot be blank"
+                path: "/api/media/videos/audio-extraction-status/"
+                errorCode: "BAD_FORM"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/InvalidClientCredentials"
+        "404":
+          description: Audio extraction job not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 404
+                error: "Not Found"
+                message: "Audio extraction job with ID 'job-123' not found"
+                path: "/api/media/videos/audio-extraction-status/job-123"
+                errorCode: "ENTITY_NOT_FOUND"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
@@ -1636,6 +1763,55 @@ components:
           type: boolean
         unsorted:
           type: boolean
+
+    AudioExtractionJobStatusResponse:
+      type: object
+      required:
+        - job_id
+        - status
+        - created_at
+        - attempt_count
+      properties:
+        job_id:
+          type: string
+          description: Unique identifier for the audio extraction job
+          example: "ae-job-12345-abcde"
+        status:
+          type: string
+          enum: [ PENDING, PROGRESSING, COMPLETED, FAILED ]
+          description: Current status of the audio extraction job
+          example: "COMPLETED"
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when the audio extraction job was created
+          example: "2025-11-04T10:30:00Z"
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp when the audio extraction job was completed (null if not completed)
+          example: "2025-11-04T10:35:00Z"
+        extracted_audio_id:
+          type: string
+          nullable: true
+          description: Unique identifier of the extracted audio file (null if not completed)
+          example: "audio-67890-fghij"
+        extracted_audio_bucket_key:
+          type: string
+          nullable: true
+          description: Storage bucket key of the extracted audio file (null if not completed)
+          example: "s3://my-bucket/audios/extracted_audio_123.mp3"
+        error_message:
+          type: string
+          nullable: true
+          description: Error message if the job failed (null if successful or in progress)
+          example: "FFmpeg audio extraction failed on attempt 3"
+        attempt_count:
+          type: integer
+          description: Number of processing attempts made for this job
+          example: 1
+          minimum: 0
 
 security:
   - BearerAuth: [ ]

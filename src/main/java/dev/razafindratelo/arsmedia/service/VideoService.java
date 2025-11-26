@@ -1,5 +1,7 @@
 package dev.razafindratelo.arsmedia.service;
 
+import static dev.razafindratelo.arsmedia.mapper.AudioExtractionJobStatusResponseMapper.mapToAudioExtractionJobStatusResponse;
+import static dev.razafindratelo.arsmedia.mapper.VideoCompressionJobStatusResponseMapper.mapToCompressionResponse;
 import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toJVideo;
 import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toVideo;
 
@@ -9,6 +11,7 @@ import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.VideoCompr
 import dev.razafindratelo.arsmedia.event.model.AudioExtractionRequested;
 import dev.razafindratelo.arsmedia.event.model.EventProducer;
 import dev.razafindratelo.arsmedia.event.model.VideoCompressionRequested;
+import dev.razafindratelo.arsmedia.mapper.VideoCompressionJobStatusResponseMapper;
 import dev.razafindratelo.arsmedia.model.Video;
 import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
 import dev.razafindratelo.arsmedia.repository.AudioExtractionJobRepository;
@@ -82,10 +85,21 @@ public class VideoService {
     return mapToCompressionResponse(job);
   }
 
+  public AudioExtractionJobStatusResponse getAudioExtractionStatus(
+      @NotBlank @NotNull String jobId) {
+    var job =
+        audioExtractionJobRepository
+            .findById(jobId)
+            .orElseThrow(
+                () -> new EntityNotFoundException("Audio extraction job not found: " + jobId));
+
+    return mapToAudioExtractionJobStatusResponse(job);
+  }
+
   public List<VideoCompressionJobStatusResponse> getCompressionJobsByVideoId(
       @NotBlank @NotNull String videoId) {
     return videoCompressionJobRepository.findByParentId(videoId).stream()
-        .map(this::mapToCompressionResponse)
+        .map(VideoCompressionJobStatusResponseMapper::mapToCompressionResponse)
         .collect(Collectors.toList());
   }
 
@@ -150,17 +164,5 @@ public class VideoService {
     job.setStatus(ProcessStatus.PENDING);
     job.setAttemptCount(0);
     return job;
-  }
-
-  private VideoCompressionJobStatusResponse mapToCompressionResponse(VideoCompressionJob job) {
-    return new VideoCompressionJobStatusResponse(
-        job.getId(),
-        job.getStatus(),
-        job.getCreatedAt(),
-        job.getCompletedAt(),
-        job.getCompressedVideo() != null ? job.getCompressedVideo().getId() : null,
-        job.getCompressedVideo() != null ? toVideo(job.getCompressedVideo()).getFilePath() : null,
-        job.getErrorMessage(),
-        job.getAttemptCount());
   }
 }
