@@ -19,6 +19,7 @@ import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.VideoCompr
 import dev.razafindratelo.arsmedia.event.model.AudioExtractionRequested;
 import dev.razafindratelo.arsmedia.event.model.EventProducer;
 import dev.razafindratelo.arsmedia.event.model.VideoCompressionRequested;
+import dev.razafindratelo.arsmedia.event.model.VideoFormatConversionRequested;
 import dev.razafindratelo.arsmedia.model.Audio;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.model.Video;
@@ -30,6 +31,7 @@ import dev.razafindratelo.arsmedia.model.classifier.SizeType;
 import dev.razafindratelo.arsmedia.model.classifier.VideoCodec;
 import dev.razafindratelo.arsmedia.repository.AudioExtractionJobRepository;
 import dev.razafindratelo.arsmedia.repository.VideoCompressionJobRepository;
+import dev.razafindratelo.arsmedia.repository.VideoFormatConversionJobRepository;
 import dev.razafindratelo.arsmedia.repository.VideoRepository;
 import dev.razafindratelo.arsmedia.repository.model.JAudio;
 import dev.razafindratelo.arsmedia.repository.model.JVideo;
@@ -100,6 +102,11 @@ class VideoServiceIT {
   @Mock private VideoCompressionJobRepository videoCompressionJobRepository;
   @Mock private AudioExtractionJobRepository audioExtractionJobRepository;
 
+  @Mock
+  private EventProducer<VideoFormatConversionRequested> videoFormatConversionRequestedEventProducer;
+
+  @Mock private VideoFormatConversionJobRepository videoFormatConversionJobRepository;
+
   private VideoService videoService;
 
   @BeforeEach
@@ -111,7 +118,9 @@ class VideoServiceIT {
             vcEventProducer,
             aeEventProducer,
             videoCompressionJobRepository,
-            audioExtractionJobRepository);
+            audioExtractionJobRepository,
+            videoFormatConversionRequestedEventProducer,
+            videoFormatConversionJobRepository);
   }
 
   @Test

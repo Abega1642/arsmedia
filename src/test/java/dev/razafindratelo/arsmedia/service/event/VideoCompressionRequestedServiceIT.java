@@ -37,6 +37,7 @@ import dev.razafindratelo.arsmedia.repository.VideoCompressionJobRepository;
 import dev.razafindratelo.arsmedia.repository.VideoRepository;
 import dev.razafindratelo.arsmedia.repository.model.JVideo;
 import dev.razafindratelo.arsmedia.repository.model.job.VideoCompressionJob;
+import dev.razafindratelo.arsmedia.service.BitRateCalculator;
 import dev.razafindratelo.arsmedia.service.UserService;
 import java.io.File;
 import java.io.IOException;
@@ -70,6 +71,7 @@ class VideoCompressionRequestedServiceIT {
   private static final String FFMPEG_PATH = "/usr/bin/ffmpeg";
   private static final String FFPROBE_PATH = "/usr/bin/ffprobe";
   private final TempFileCleaner tempFileCleaner = new TempFileCleaner();
+  private final BitRateCalculator bitRateCalculator = new BitRateCalculator();
 
   @TempDir File tempDir;
 
@@ -91,7 +93,8 @@ class VideoCompressionRequestedServiceIT {
             repository,
             userService,
             videoCompressionJobRepository,
-            tempFileCleaner);
+            tempFileCleaner,
+            bitRateCalculator);
   }
 
   @Test
