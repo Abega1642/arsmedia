@@ -19,11 +19,13 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
 @Service
+@Slf4j
 @Validated
 @Transactional
 @AllArgsConstructor
@@ -47,8 +49,15 @@ public class AuthCodeService {
     return userService.updateActivationStatusByEmail(targetUser.getEmail(), true);
   }
 
+  @Transactional
   public AuthCodeResponse sentAuthCodeTo(@NotBlank @NotNull String userId) throws AddressException {
+
+    log.info("Auth code request processing for userId={}", userId);
     var user = userService.findById(userId);
+
+    if (!disableOtherCodeRelatedToUser(user.getId()))
+      log.info("Auth code not disabled for user with userId = {}", user.getId());
+
     var authCode = generate(user.getEmail()).code();
 
     try {
@@ -59,17 +68,27 @@ public class AuthCodeService {
           htmlLoader.apply(
               "auth-code.html", Map.of("CODE", authCode, "USERNAME", user.getPseudo()));
 
+      var subject = "Arsmedia - Authentication Code";
       mailer.accept(
           new dev.razafindratelo.arsmedia.mail.Email(
-              toAddress, List.of(), List.of(), "Arsmedia - Authentication Code", body, List.of()));
+              toAddress, List.of(), List.of(), subject, body, List.of()));
+
+      log.info("Email sent to userEmail='{}' with subject='{}'", user.getEmail(), subject);
+
     } catch (AddressException e) {
       throw new AddressException("Invalid email address: {}", user.getEmail());
     }
     return new AuthCodeResponse(user.getEmail(), now());
   }
 
+  public boolean disableOtherCodeRelatedToUser(@NotBlank @NotNull String userId) {
+    log.info("Disabling previous auth code related to userId={}", userId);
+    return repository.disableAuthCodes(userId) >= 0;
+  }
+
   @Transactional
   public AuthCode generate(@Email @NotBlank @NotNull String email) {
+    log.info("Generating auth code for userId={}", email);
     var jUser = userService.findByEmail(email);
 
     var authCode = AuthCode.generate(jUser);
@@ -81,6 +100,7 @@ public class AuthCodeService {
 
   public boolean checkIfAuthCodeIsValid(
       @NotBlank @NotNull String userId, @NotBlank @NotNull String code) {
+    log.info("Checking the validity of auth code={} for userId={}", code, userId);
     var authCode = findAuthByUserIdAndCode(userId, code);
     return authCode.deadline().isAfter(now());
   }
