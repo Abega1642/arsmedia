@@ -3,6 +3,7 @@ package dev.razafindratelo.arsmedia.endpoint.rest.controller;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.AudioExtractionJobStatusResponse;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.VideoCompressionJobStatusResponse;
 import dev.razafindratelo.arsmedia.model.Video;
+import dev.razafindratelo.arsmedia.model.classifier.ContainerFormat;
 import dev.razafindratelo.arsmedia.service.CompressionVideoService;
 import dev.razafindratelo.arsmedia.service.VideoService;
 import jakarta.validation.constraints.Email;
@@ -62,5 +63,13 @@ public class VideoController {
   public AudioExtractionJobStatusResponse getAudioExtractionStatus(
       @PathVariable(name = "jobId") @NotBlank String jobId) {
     return service.getAudioExtractionStatus(jobId);
+  }
+
+  @PostMapping("/convert/{bucketKey:.+}")
+  public Video convertVideo(
+      @PathVariable("bucketKey") @NotNull @NotBlank String bucketKey,
+      @RequestParam("to") @NotNull ContainerFormat toFormat,
+      @RequestParam("from") @Email @NotNull @NotBlank String userEmail) {
+    return service.convertTo(toFormat, bucketKey, userEmail);
   }
 }

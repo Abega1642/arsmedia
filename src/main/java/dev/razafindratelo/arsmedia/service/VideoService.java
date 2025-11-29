@@ -13,6 +13,7 @@ import dev.razafindratelo.arsmedia.event.model.EventProducer;
 import dev.razafindratelo.arsmedia.event.model.VideoCompressionRequested;
 import dev.razafindratelo.arsmedia.mapper.VideoCompressionJobStatusResponseMapper;
 import dev.razafindratelo.arsmedia.model.Video;
+import dev.razafindratelo.arsmedia.model.classifier.ContainerFormat;
 import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
 import dev.razafindratelo.arsmedia.repository.AudioExtractionJobRepository;
 import dev.razafindratelo.arsmedia.repository.VideoCompressionJobRepository;
@@ -164,5 +165,12 @@ public class VideoService {
     job.setStatus(ProcessStatus.PENDING);
     job.setAttemptCount(0);
     return job;
+  }
+
+  public Video convertTo(
+      @NotNull ContainerFormat toFormat,
+      @NotBlank @NotNull String bucketKey,
+      @Email @NotNull @NotBlank String userEmail) {
+    throw new UnsupportedOperationException("convertTo method not implemented yet.");
   }
 }
