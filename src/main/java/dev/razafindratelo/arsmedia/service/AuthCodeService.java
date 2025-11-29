@@ -51,9 +51,8 @@ public class AuthCodeService {
 
   @Transactional
   public AuthCodeResponse sentAuthCodeTo(@NotBlank @NotNull String userId) throws AddressException {
-
-    log.info("Auth code request processing for userId={}", userId);
     var user = userService.findById(userId);
+    log.info("Auth code request processing for userId={}", user.getId());
 
     if (!disableOtherCodeRelatedToUser(user.getId()))
       log.info("Auth code not disabled for user with userId = {}", user.getId());
