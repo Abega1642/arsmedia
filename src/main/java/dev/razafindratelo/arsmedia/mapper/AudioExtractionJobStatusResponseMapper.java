@@ -3,7 +3,7 @@ package dev.razafindratelo.arsmedia.mapper;
 import static dev.razafindratelo.arsmedia.mapper.MapperConstants.UTILITY_CLASS_EXCEPTION_MESSAGE;
 
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.AudioExtractionJobStatusResponse;
-import dev.razafindratelo.arsmedia.repository.model.AudioExtractionJob;
+import dev.razafindratelo.arsmedia.repository.model.job.AudioExtractionJob;
 
 public class AudioExtractionJobStatusResponseMapper {
 

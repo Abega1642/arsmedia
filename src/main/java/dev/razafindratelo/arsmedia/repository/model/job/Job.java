@@ -1,4 +1,4 @@
-package dev.razafindratelo.arsmedia.repository.model;
+package dev.razafindratelo.arsmedia.repository.model.job;
 
 import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
 import jakarta.persistence.Column;

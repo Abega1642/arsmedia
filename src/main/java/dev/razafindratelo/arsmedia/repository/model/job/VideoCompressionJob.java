@@ -1,6 +1,7 @@
-package dev.razafindratelo.arsmedia.repository.model;
+package dev.razafindratelo.arsmedia.repository.model.job;
 
 import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
+import dev.razafindratelo.arsmedia.repository.model.JVideo;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;

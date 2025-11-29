@@ -36,7 +36,7 @@ import dev.razafindratelo.arsmedia.model.classifier.VideoCodec;
 import dev.razafindratelo.arsmedia.repository.VideoCompressionJobRepository;
 import dev.razafindratelo.arsmedia.repository.VideoRepository;
 import dev.razafindratelo.arsmedia.repository.model.JVideo;
-import dev.razafindratelo.arsmedia.repository.model.VideoCompressionJob;
+import dev.razafindratelo.arsmedia.repository.model.job.VideoCompressionJob;
 import dev.razafindratelo.arsmedia.service.UserService;
 import java.io.File;
 import java.io.IOException;

@@ -8,6 +8,7 @@ import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toVideo;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.CompressionOptions;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.AudioExtractionJobStatusResponse;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.VideoCompressionJobStatusResponse;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.VideoFormatConversionJobStatusResponse;
 import dev.razafindratelo.arsmedia.event.model.AudioExtractionRequested;
 import dev.razafindratelo.arsmedia.event.model.EventProducer;
 import dev.razafindratelo.arsmedia.event.model.VideoCompressionRequested;
@@ -18,8 +19,8 @@ import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
 import dev.razafindratelo.arsmedia.repository.AudioExtractionJobRepository;
 import dev.razafindratelo.arsmedia.repository.VideoCompressionJobRepository;
 import dev.razafindratelo.arsmedia.repository.VideoRepository;
-import dev.razafindratelo.arsmedia.repository.model.AudioExtractionJob;
-import dev.razafindratelo.arsmedia.repository.model.VideoCompressionJob;
+import dev.razafindratelo.arsmedia.repository.model.job.AudioExtractionJob;
+import dev.razafindratelo.arsmedia.repository.model.job.VideoCompressionJob;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -167,7 +168,7 @@ public class VideoService {
     return job;
   }
 
-  public Video convertTo(
+  public VideoFormatConversionJobStatusResponse convertTo(
       @NotNull ContainerFormat toFormat,
       @NotBlank @NotNull String bucketKey,
       @Email @NotNull @NotBlank String userEmail) {

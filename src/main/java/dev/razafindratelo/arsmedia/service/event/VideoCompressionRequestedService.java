@@ -18,7 +18,7 @@ import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
 import dev.razafindratelo.arsmedia.model.classifier.VideoCodec;
 import dev.razafindratelo.arsmedia.repository.VideoCompressionJobRepository;
 import dev.razafindratelo.arsmedia.repository.VideoRepository;
-import dev.razafindratelo.arsmedia.repository.model.VideoCompressionJob;
+import dev.razafindratelo.arsmedia.repository.model.job.VideoCompressionJob;
 import dev.razafindratelo.arsmedia.service.UserService;
 import jakarta.persistence.EntityNotFoundException;
 import java.io.File;

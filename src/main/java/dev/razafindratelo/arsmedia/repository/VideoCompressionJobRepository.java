@@ -1,7 +1,7 @@
 package dev.razafindratelo.arsmedia.repository;
 
 import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
-import dev.razafindratelo.arsmedia.repository.model.VideoCompressionJob;
+import dev.razafindratelo.arsmedia.repository.model.job.VideoCompressionJob;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;

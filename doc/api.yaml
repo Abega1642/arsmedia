@@ -1051,6 +1051,82 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/media/videos/format-convert/{bucketKey}:
+    post:
+      operationId: convertVideoToFormat
+      tags:
+        - Video
+      summary: Format video converter
+      description: >
+        Initiates converting video format process and returns job status with tracking information.
+        **Requires client credentials and Bearer token authentication.**
+      security:
+        - ClientSecret: [ ]
+          ClientId: [ ]
+          BearerAuth: [ ]
+      parameters:
+        - name: bucketKey
+          in: path
+          required: true
+          description: The storage bucket key of the video to convert. THE BUCKET KEY MUST BE ENCODED (URL ENCODAGE)
+          schema:
+            type: string
+            minLength: 1
+        - name: userEmail
+          in: query
+          required: true
+          description: Email of the user who owns the video
+          schema:
+            type: string
+            format: email
+        - name: toFormat
+          in: query
+          required: true
+          description: Targeted format
+          schema:
+            $ref: "#/components/schemas/ContainerFormat"
+      responses:
+        "200":
+          description: Video format converting initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoFormatConversionJobStatusResponse"
+        "400":
+          description: Invalid request - missing or invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 400
+                error: "Bad Request"
+                message: "userEmail parameter is required and must be a valid email"
+                path: "/api/media/videos/format-convert/video-123.mp4"
+                errorCode: "BAD_FORM"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/InvalidClientCredentials"
+        "404":
+          description: Video not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 404
+                error: "Not Found"
+                message: "Video with bucket key 'video-123.mp4' not found"
+                path: "/api/media/videos/format-convert/video-123.mp4"
+                errorCode: "ENTITY_NOT_FOUND"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+
+
 components:
   securitySchemes:
     ClientSecret:
@@ -1337,6 +1413,48 @@ components:
         - createdAt
         - attemptCount
 
+    VideoFormatConversionJobStatusResponse:
+      type: object
+      properties:
+        jobId:
+          type: string
+          description: Unique identifier for the compression job
+        status:
+          type: string
+          enum:
+            - PENDING
+            - PROCESSING
+            - COMPLETED
+            - FAILED
+            - CANCELLED
+          description: Current status of the compression job
+        createdAt:
+          type: string
+          format: date-time
+          description: When the video format convertion job was created
+        completedAt:
+          type: string
+          format: date-time
+          description: When the video format convertion job was completed (if finished)
+        convertedVideoId:
+          type: string
+          description: ID of the video format convertion video (when compression is successful)
+        convertedVideoBucketKey:
+          type: string
+          description: URL to access the video format convertion video (when compression is successful)
+        errorMessage:
+          type: string
+          description: Error message if video format convertion failed
+        attemptCount:
+          type: integer
+          format: int32
+          description: Number of video format convertion attempts made
+      required:
+        - jobId
+        - status
+        - createdAt
+        - attemptCount
+
     UserCreationRequest:
       type: object
       properties:
@@ -1591,6 +1709,28 @@ components:
         - code
         - userEmail
 
+    ContainerFormat:
+      type: string
+      enum:
+        - MP4
+        - MKV
+        - MOV
+        - AVI
+        - FLV
+        - WMV
+        - WEBM
+        - MPEG_TS
+        - MPEG_PS
+        - THREEGP
+        - OGG
+        - M4A
+        - WAV
+        - FLAC
+        - ASF
+        - APE
+        - AIFF
+        - UNKNOWN
+
     Video:
       type: object
       properties:
@@ -1665,26 +1805,7 @@ components:
         aspectRatio:
           type: string
         containerFormat:
-          type: string
-          enum:
-            - MP4
-            - MKV
-            - MOV
-            - AVI
-            - FLV
-            - WMV
-            - WEBM
-            - MPEG_TS
-            - MPEG_PS
-            - THREEGP
-            - OGG
-            - M4A
-            - WAV
-            - FLAC
-            - ASF
-            - APE
-            - AIFF
-            - UNKNOWN
+          $ref: "#/components/schemas/ContainerFormat"
         bitRate:
           type: number
           format: double
