@@ -6,6 +6,7 @@ import dev.razafindratelo.arsmedia.exception.AudioExtractionException;
 import dev.razafindratelo.arsmedia.exception.DirectoryUploadException;
 import dev.razafindratelo.arsmedia.exception.HmacCalculationException;
 import dev.razafindratelo.arsmedia.exception.InvalidAuthorizationFormatException;
+import dev.razafindratelo.arsmedia.exception.InvalidFormatConversionException;
 import dev.razafindratelo.arsmedia.exception.InvalidTokenException;
 import dev.razafindratelo.arsmedia.exception.MissingAuthorizationException;
 import dev.razafindratelo.arsmedia.exception.TemplateLoadingException;
@@ -267,6 +268,18 @@ public class ApiExceptionHandler {
             ex.getMessage(),
             getRequestPath(request),
             "INVALID_AUTHORIZATION_FORMAT");
+    return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+  }
+
+  @ExceptionHandler(InvalidFormatConversionException.class)
+  public ResponseEntity<ErrorResponse> handleInvalidFormatException(
+      InvalidFormatConversionException ex, WebRequest request) {
+    var errorResponse =
+        ErrorResponse.of(
+            HttpStatus.BAD_REQUEST,
+            ex.getMessage(),
+            getRequestPath(request),
+            "INVALID_FORMAT_CONVERSION");
     return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
   }
 

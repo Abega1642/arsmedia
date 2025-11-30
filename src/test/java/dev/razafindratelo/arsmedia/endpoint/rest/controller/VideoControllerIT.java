@@ -55,77 +55,6 @@ class VideoControllerIT extends FacadeIT {
   @MockitoBean private VideoService videoService;
   @MockitoBean private CompressionVideoService compressionService;
 
-  private ResultActions postTreatment(String email, String bucketKey, String endpoint)
-      throws Exception {
-    MockHttpServletRequestBuilder request =
-        post(BASE_URL + endpoint + "{bucketKey}", bucketKey)
-            .contentType(MediaType.APPLICATION_JSON);
-    if (bucketKey != null) request.param(USER_EMAIL_PARAM, email);
-    return mvc.perform(request);
-  }
-
-  private ResultActions getCompressedVideos(String email) throws Exception {
-    MockHttpServletRequestBuilder request =
-        get(BASE_URL + "/compressed").contentType(MediaType.APPLICATION_JSON);
-    if (email != null) request.param(USER_EMAIL_PARAM, email);
-    return mvc.perform(request);
-  }
-
-  private ResultActions getCompressionStatus(String jobId) throws Exception {
-    return mvc.perform(
-        get(BASE_URL + "/compression-status/{jobId}", jobId)
-            .contentType(MediaType.APPLICATION_JSON));
-  }
-
-  private void logResponse(ResultActions result, String message) throws Exception {
-    log.info("{} Response: {}", message, result.andReturn().getResponse().getContentAsString());
-  }
-
-  private VideoCompressionJobStatusResponse buildJobStatus(
-      String jobId,
-      ProcessStatus status,
-      LocalDateTime createdAt,
-      LocalDateTime completedAt,
-      String compressedVideoId,
-      String compressedVideoUrl,
-      String errorMessage,
-      int attemptCount) {
-    return new VideoCompressionJobStatusResponse(
-        jobId,
-        status,
-        createdAt,
-        completedAt,
-        compressedVideoId,
-        compressedVideoUrl,
-        errorMessage,
-        attemptCount);
-  }
-
-  private List<Video> createMockCompressedVideos() {
-    List<Video> videos = new ArrayList<>();
-    for (int i = 1; i <= 3; i++) {
-      Video v = new Video();
-      v.setId(randomUUID().toString());
-      v.setFileName("compressed_video_" + i + ".mp4");
-      v.setFilePath("s3://bucket/compressed_" + i + ".mp4");
-      v.setWidth(1280);
-      v.setHeight(720);
-      v.setDuration(120.0);
-      v.setFrameRate(30.0);
-      v.setSize(5_000_000L);
-      v.setSizeType(SizeType.BYTES);
-      v.setFileType(FileType.VIDEO);
-      v.setCodec(VideoCodec.H264);
-      v.setContainerFormat(ContainerFormat.MP4);
-      v.setAudioChannels(2);
-      v.setAudioSampleRate(48000);
-      v.setAudioCodec(AudioCodec.AAC);
-      v.setCreatedAt(LocalDateTime.now());
-      videos.add(v);
-    }
-    return videos;
-  }
-
   @Test
   void should_compress_video_and_return_job_status() throws Exception {
     var jobId = randomUUID().toString();
@@ -862,6 +791,79 @@ class VideoControllerIT extends FacadeIT {
 
     logResponse(result, "Format conversion request for email with special chars successful");
     verify(videoService).convertTo(ContainerFormat.MKV, BUCKET_KEY, specialEmail);
+  }
+
+  private ResultActions postTreatment(String email, String bucketKey, String endpoint)
+      throws Exception {
+    MockHttpServletRequestBuilder request =
+        post(BASE_URL + endpoint + "{bucketKey}", bucketKey)
+            .contentType(MediaType.APPLICATION_JSON);
+    if (bucketKey != null) request.param(USER_EMAIL_PARAM, email);
+    return mvc.perform(request);
+  }
+
+  private ResultActions getCompressedVideos(String email) throws Exception {
+    MockHttpServletRequestBuilder request =
+        get(BASE_URL + "/compressed").contentType(MediaType.APPLICATION_JSON);
+    if (email != null) request.param(USER_EMAIL_PARAM, email);
+    return mvc.perform(request);
+  }
+
+  private ResultActions getCompressionStatus(String jobId) throws Exception {
+    return mvc.perform(
+        get(BASE_URL + "/compression-status/{jobId}", jobId)
+            .contentType(MediaType.APPLICATION_JSON));
+  }
+
+  private void logResponse(ResultActions result, String message) throws Exception {
+    log.info("{} Response: {}", message, result.andReturn().getResponse().getContentAsString());
+  }
+
+  private VideoCompressionJobStatusResponse buildJobStatus(
+      String jobId,
+      ProcessStatus status,
+      LocalDateTime createdAt,
+      LocalDateTime completedAt,
+      String compressedVideoId,
+      String compressedVideoUrl,
+      String errorMessage,
+      int attemptCount) {
+    return new VideoCompressionJobStatusResponse(
+        jobId,
+        status,
+        createdAt,
+        completedAt,
+        compressedVideoId,
+        compressedVideoUrl,
+        errorMessage,
+        attemptCount);
+  }
+
+  private List<Video> createMockCompressedVideos() {
+    List<Video> videos = new ArrayList<>();
+    for (int i = 1; i <= 3; i++) {
+      Video v = new Video();
+      v.setId(randomUUID().toString());
+      var mp4Suffix = ".mp4";
+
+      v.setFileName("compressed_video_" + i + mp4Suffix);
+      v.setFilePath("s3://bucket/compressed_" + i + mp4Suffix);
+      v.setWidth(1280);
+      v.setHeight(720);
+      v.setDuration(120.0);
+      v.setFrameRate(30.0);
+      v.setSize(5_000_000L);
+      v.setSizeType(SizeType.BYTES);
+      v.setFileType(FileType.VIDEO);
+      v.setCodec(VideoCodec.H264);
+      v.setContainerFormat(ContainerFormat.MP4);
+      v.setAudioChannels(2);
+      v.setAudioSampleRate(48000);
+      v.setAudioCodec(AudioCodec.AAC);
+      v.setCreatedAt(LocalDateTime.now());
+      videos.add(v);
+    }
+    return videos;
   }
 
   private ResultActions getAudioExtractionStatus(String jobId) throws Exception {
