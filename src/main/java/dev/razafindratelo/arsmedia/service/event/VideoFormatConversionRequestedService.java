@@ -20,8 +20,8 @@ import dev.razafindratelo.arsmedia.repository.VideoFormatConversionJobRepository
 import dev.razafindratelo.arsmedia.repository.VideoRepository;
 import dev.razafindratelo.arsmedia.repository.model.JVideo;
 import dev.razafindratelo.arsmedia.repository.model.job.VideoFormatConversionJob;
-import dev.razafindratelo.arsmedia.service.BitRateCalculator;
 import dev.razafindratelo.arsmedia.service.UserService;
+import dev.razafindratelo.arsmedia.service.util.BitRateCalculator;
 import jakarta.persistence.EntityNotFoundException;
 import java.io.File;
 import java.io.IOException;

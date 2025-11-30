@@ -243,18 +243,16 @@ public class VideoService {
     boolean sourceIsAudio = audioFormats.contains(sourceFormat);
     boolean targetIsAudio = audioFormats.contains(targetFormat);
 
-    if (sourceIsVideo && targetIsAudio) {
+    if (sourceIsVideo && targetIsAudio)
       throw new InvalidFormatConversionException(
           String.format(
               "Cannot convert video format %s to audio format %s. Use audio extraction instead.",
               sourceFormat, targetFormat));
-    }
 
-    if (sourceIsAudio && targetIsVideo) {
+    if (sourceIsAudio && targetIsVideo)
       throw new InvalidFormatConversionException(
           String.format(
               "Cannot convert audio format %s to video format %s", sourceFormat, targetFormat));
-    }
   }
 
   private VideoFormatConversionJob buildFormatConversionJob(Video video) {

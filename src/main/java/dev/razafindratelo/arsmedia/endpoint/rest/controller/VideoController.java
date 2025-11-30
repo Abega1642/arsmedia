@@ -73,4 +73,10 @@ public class VideoController {
       @RequestParam("from") @Email @NotNull @NotBlank String userEmail) {
     return service.convertTo(toFormat, bucketKey, userEmail);
   }
+
+  @GetMapping("/format-conversion-status/{jobId}")
+  public VideoFormatConversionJobStatusResponse getFormatConversionStatus(
+      @PathVariable(name = "jobId") @NotBlank String jobId) {
+    return service.getFormatConversionStatus(jobId);
+  }
 }

@@ -1,4 +1,4 @@
-package dev.razafindratelo.arsmedia.service;
+package dev.razafindratelo.arsmedia.service.util;
 
 import dev.razafindratelo.arsmedia.exception.TemplateLoadingException;
 import java.io.IOException;

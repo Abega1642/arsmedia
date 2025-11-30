@@ -2,6 +2,7 @@ package dev.razafindratelo.arsmedia.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import dev.razafindratelo.arsmedia.service.util.BitRateCalculator;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;

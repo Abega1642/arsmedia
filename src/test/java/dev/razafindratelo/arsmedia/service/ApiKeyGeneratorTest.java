@@ -4,6 +4,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import dev.razafindratelo.arsmedia.model.User;
+import dev.razafindratelo.arsmedia.service.util.ApiKeyGenerator;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import javax.crypto.Mac;

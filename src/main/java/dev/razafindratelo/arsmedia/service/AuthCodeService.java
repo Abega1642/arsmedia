@@ -9,6 +9,7 @@ import dev.razafindratelo.arsmedia.mail.Mailer;
 import dev.razafindratelo.arsmedia.mapper.AuthCodeMapper;
 import dev.razafindratelo.arsmedia.model.AuthCode;
 import dev.razafindratelo.arsmedia.repository.AuthCodeRepository;
+import dev.razafindratelo.arsmedia.service.util.HtmlTemplateLoader;
 import jakarta.mail.internet.AddressException;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.persistence.EntityNotFoundException;

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.razafindratelo.arsmedia.exception.TemplateLoadingException;
+import dev.razafindratelo.arsmedia.service.util.HtmlTemplateLoader;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
