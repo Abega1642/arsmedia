@@ -11,6 +11,7 @@ import jakarta.persistence.InheritanceType;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -48,5 +49,6 @@ public class Job {
   private String errorMessage;
 
   @Column(name = "attempt_count", nullable = false)
+  @Builder.Default
   private int attemptCount = 0;
 }

@@ -11,6 +11,14 @@ java {
     targetCompatibility = '21'
 }
 
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs += '--enable-preview'
+}
+
+tasks.withType(Test).configureEach {
+    jvmArgs += '--enable-preview'
+}
+
 configurations {
     compileOnly {
         extendsFrom annotationProcessor

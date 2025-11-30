@@ -13,14 +13,16 @@ public class AudioExtractionJobStatusResponseMapper {
 
   public static AudioExtractionJobStatusResponse mapToAudioExtractionJobStatusResponse(
       AudioExtractionJob job) {
-    return new AudioExtractionJobStatusResponse(
-        job.getId(),
-        job.getStatus(),
-        job.getCreatedAt(),
-        job.getCompletedAt(),
-        job.getExtractedAudio().getId(),
-        job.getExtractedAudio().getBucketKey(),
-        job.getErrorMessage(),
-        job.getAttemptCount());
+    return AudioExtractionJobStatusResponse.builder()
+        .jobId(job.getId())
+        .status(job.getStatus())
+        .createdAt(job.getCreatedAt())
+        .completedAt(job.getCompletedAt())
+        .extractedAudioId(job.getExtractedAudio() != null ? job.getExtractedAudio().getId() : null)
+        .extractedAudioBucketKey(
+            job.getExtractedAudio() != null ? job.getExtractedAudio().getBucketKey() : null)
+        .errorMessage(job.getErrorMessage())
+        .attemptCount(job.getAttemptCount())
+        .build();
   }
 }

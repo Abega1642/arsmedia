@@ -71,22 +71,23 @@ class CompressionVideoServiceIT {
   }
 
   private VideoCompressionJob createCompressedVideo(String compressedId, String videoId) {
-    JUser owner = new JUser();
-    owner.setId("user-" + CompressionVideoServiceIT.EXISTING_EMAIL.hashCode());
-    owner.setEmail(CompressionVideoServiceIT.EXISTING_EMAIL);
+    JUser owner =
+        JUser.builder()
+            .id("user-" + CompressionVideoServiceIT.EXISTING_EMAIL.hashCode())
+            .email(CompressionVideoServiceIT.EXISTING_EMAIL)
+            .build();
 
-    var parent = new JVideo();
-    parent.setId(videoId);
-    parent.setOwner(owner);
+    var parent = JVideo.builder().id(videoId).owner(owner).build();
 
-    return new VideoCompressionJob(
-        compressedId,
-        parent,
-        null,
-        LocalDateTime.now(),
-        LocalDateTime.now(),
-        ProcessStatus.COMPLETED,
-        null,
-        1);
+    return VideoCompressionJob.builder()
+        .id(compressedId)
+        .parent(parent)
+        .compressedVideo(null)
+        .createdAt(LocalDateTime.now())
+        .completedAt(LocalDateTime.now())
+        .status(ProcessStatus.COMPLETED)
+        .errorMessage(null)
+        .attemptCount(1)
+        .build();
   }
 }
