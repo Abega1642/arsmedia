@@ -44,40 +44,48 @@ public class FormatConversionValidator implements Validator {
   public void validate(@Nullable Object target, @Nullable Errors errors) {
     if (target == null || errors == null) return;
 
-    FormatConversionRequest request = (FormatConversionRequest) target;
-    ContainerFormat sourceFormat = request.sourceFormat();
-    ContainerFormat targetFormat = request.targetFormat();
+    var request = (FormatConversionRequest) target;
+    var source = request.sourceFormat();
+    var targetF = request.targetFormat();
 
-    if (targetFormat == ContainerFormat.UNKNOWN)
-      errors.rejectValue(
-          "targetFormat", "format.unknown", "Target format is unknown or unsupported");
+    rejectIf(
+        targetF == ContainerFormat.UNKNOWN,
+        errors,
+        "format.unknown",
+        "Target format is unknown or unsupported");
 
-    if (sourceFormat == targetFormat)
-      errors.rejectValue(
-          "targetFormat",
-          "format.same",
-          String.format("Source and target formats are the same: %s", sourceFormat));
+    rejectIf(
+        source == targetF,
+        errors,
+        "format.same",
+        "Source and target formats are the same: %s".formatted(source));
 
-    boolean sourceIsVideo = VIDEO_FORMATS.contains(sourceFormat);
-    boolean targetIsAudio = AUDIO_FORMATS.contains(targetFormat);
+    rejectIf(
+        isVideo(source) && isAudio(targetF),
+        errors,
+        "format.videoToAudio",
+        "Cannot convert video %s to audio %s. Use audio extraction instead."
+            .formatted(source, targetF));
 
-    if (sourceIsVideo && targetIsAudio)
-      errors.rejectValue(
-          "targetFormat",
-          "format.videoToAudio",
-          String.format(
-              "Cannot convert video format %s to audio format %s. Use audio extraction instead.",
-              sourceFormat, targetFormat));
+    rejectIf(
+        isAudio(source) && isVideo(targetF),
+        errors,
+        "format.audioToVideo",
+        "Cannot convert audio %s to video %s".formatted(source, targetF));
+  }
 
-    boolean sourceIsAudio = AUDIO_FORMATS.contains(sourceFormat);
-    boolean targetIsVideo = VIDEO_FORMATS.contains(targetFormat);
+  private void rejectIf(boolean condition, Errors errors, String code, String message) {
+    if (condition) {
+      errors.rejectValue("targetFormat", code, message);
+    }
+  }
 
-    if (sourceIsAudio && targetIsVideo)
-      errors.rejectValue(
-          "targetFormat",
-          "format.audioToVideo",
-          String.format(
-              "Cannot convert audio format %s to video format %s", sourceFormat, targetFormat));
+  private boolean isVideo(ContainerFormat f) {
+    return VIDEO_FORMATS.contains(f);
+  }
+
+  private boolean isAudio(ContainerFormat f) {
+    return AUDIO_FORMATS.contains(f);
   }
 
   public record FormatConversionRequest(
