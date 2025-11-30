@@ -1125,7 +1125,66 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-
+  /api/media/videos/format-conversion-status/{jobId}:
+    get:
+      operationId: getFormatConversionStatus
+      tags:
+        - Video
+      summary: Get video format conversion job status by job ID
+      description: >
+        Retrieves the current status and details of a specific video format conversion job by its unique job ID.
+        **Requires client credentials and Bearer token authentication.**
+      security:
+        - ClientSecret: [ ]
+          ClientId: [ ]
+          BearerAuth: [ ]
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          description: Unique identifier of the video format conversion job
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Video format conversion job status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoFormatConversionJobStatusResponse"
+        "400":
+          description: Invalid request - jobId is blank or missing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 400
+                error: "Bad Request"
+                message: "jobId parameter is required and cannot be blank"
+                path: "/api/media/videos/format-conversion-status/"
+                errorCode: "BAD_FORM"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/InvalidClientCredentials"
+        "404":
+          description: Video format conversion job not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                timestamp: "2025-11-04T10:30:00Z"
+                status: 404
+                error: "Not Found"
+                message: "Audio extraction job with ID 'job-123' not found"
+                path: "/api/media/videos/format-conversion-status/job-123"
+                errorCode: "ENTITY_NOT_FOUND"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
 components:
   securitySchemes:
