@@ -26,16 +26,17 @@ import java.io.File;
 import java.io.IOException;
 import java.util.function.Consumer;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.bramp.ffmpeg.FFmpeg;
 import net.bramp.ffmpeg.FFmpegExecutor;
 import net.bramp.ffmpeg.FFprobe;
 import net.bramp.ffmpeg.builder.FFmpegBuilder;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class VideoCompressionRequestedService implements Consumer<VideoCompressionRequested> {
 
   private static final int NO_AUDIO_CHANNELS = 0;
@@ -54,26 +55,6 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
   private final VideoCompressionJobRepository jobRepository;
   private final TempFileCleaner tempFileCleaner;
   private final BitRateCalculator bitRateCalculator;
-
-  public VideoCompressionRequestedService(
-      @Value("${ffmpeg.path}") String ffmpegPath,
-      @Value("${ffprobe.path}") String ffprobePath,
-      BucketComponent bucketComponent,
-      VideoRepository videoRepository,
-      UserService userService,
-      VideoCompressionJobRepository jobRepository,
-      TempFileCleaner tempFileCleaner,
-      BitRateCalculator bitRateCalculator)
-      throws IOException {
-    this.ffmpeg = new FFmpeg(ffmpegPath);
-    this.ffprobe = new FFprobe(ffprobePath);
-    this.bucketComponent = bucketComponent;
-    this.videoRepository = videoRepository;
-    this.userService = userService;
-    this.jobRepository = jobRepository;
-    this.tempFileCleaner = tempFileCleaner;
-    this.bitRateCalculator = bitRateCalculator;
-  }
 
   @Override
   public void accept(VideoCompressionRequested event) {
@@ -249,23 +230,25 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
     double frameRate = determineFrameRate(original.getFrameRate());
     boolean hasAudio = detectAudioPresence(original);
 
-    var compressed = new Video();
-    compressed.setId(randomUUID().toString());
-    compressed.setOwner(owner);
-    compressed.setFileName(COMPRESSED_PREFIX + original.getFileName());
-    compressed.setSize(compressedFile.length());
-    compressed.setSizeType(original.getSizeType());
-    compressed.setFileType(original.getFileType());
-    compressed.setCreatedAt(now());
-    compressed.setFilePath(bucketKey);
-    compressed.setDuration(original.getDuration());
-    compressed.setCodec(VideoCodec.H264);
-    compressed.setWidth(resolution.getWidth());
-    compressed.setHeight(resolution.getHeight());
-    compressed.setFrameRate(frameRate);
-    compressed.setAspectRatio(calculateAspectRatio(resolution.getWidth(), resolution.getHeight()));
-    compressed.setContainerFormat(ContainerFormat.MP4);
-    compressed.setBitRate(bitRateCalculator.calculate(compressedFile, original.getDuration()));
+    var compressed =
+        Video.builder()
+            .id(randomUUID().toString())
+            .owner(owner)
+            .fileName(COMPRESSED_PREFIX + original.getFileName())
+            .size(compressedFile.length())
+            .sizeType(original.getSizeType())
+            .fileType(original.getFileType())
+            .createdAt(now())
+            .filePath(bucketKey)
+            .duration(original.getDuration())
+            .codec(VideoCodec.H264)
+            .width(resolution.getWidth())
+            .height(resolution.getHeight())
+            .frameRate(frameRate)
+            .aspectRatio(calculateAspectRatio(resolution.getWidth(), resolution.getHeight()))
+            .containerFormat(ContainerFormat.MP4)
+            .bitRate(bitRateCalculator.calculate(compressedFile, original.getDuration()))
+            .build();
 
     setAudioProperties(compressed, original, hasAudio);
 
@@ -329,13 +312,10 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
       job.setAttemptCount(attemptCount);
       job.setStatus(status);
 
-      if (errorMessage != null) {
-        job.setErrorMessage(errorMessage);
-      }
+      if (errorMessage != null) job.setErrorMessage(errorMessage);
 
-      if (status == ProcessStatus.COMPLETED || status == ProcessStatus.FAILED) {
+      if (status == ProcessStatus.COMPLETED || status == ProcessStatus.FAILED)
         job.setCompletedAt(now());
-      }
 
       jobRepository.save(job);
       log.info("Updated compression job {} status to: {}", jobId, status);
@@ -368,7 +348,7 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
         event.getAttemptNb(),
         e);
 
-    String errorMessage =
+    var errorMessage =
         String.format("Compression failed on attempt %d: %s", event.getAttemptNb(), e.getMessage());
 
     updateJobStatus(event.getJobId(), ProcessStatus.FAILED, event.getAttemptNb(), errorMessage);

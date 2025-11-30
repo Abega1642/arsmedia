@@ -2,6 +2,7 @@ package dev.razafindratelo.arsmedia.service.event;
 
 import static dev.razafindratelo.arsmedia.mapper.AudioMapper.toAudio;
 import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toJVideo;
+import static java.time.LocalDateTime.now;
 import static java.util.UUID.randomUUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -10,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeast;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -44,14 +44,14 @@ import dev.razafindratelo.arsmedia.service.util.BitRateCalculator;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.Random;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import net.bramp.ffmpeg.FFmpeg;
 import net.bramp.ffmpeg.FFmpegExecutor;
+import net.bramp.ffmpeg.FFprobe;
 import net.bramp.ffmpeg.builder.FFmpegBuilder;
 import net.bramp.ffmpeg.job.FFmpegJob;
 import org.jetbrains.annotations.NotNull;
@@ -66,13 +66,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 @Slf4j
+@Getter
+@Setter
 class AudioExtractionRequestedServiceIT {
 
   public static final String PREFIX = "audio_extracted_";
   public static final String TEST_USER = "test@example.com";
   public static final String TEST_BUCKET_KEY = "test_bucket_key";
-  private static final String FFMPEG_PATH = "/usr/bin/ffmpeg";
-  private static final String FFPROBE_PATH = "/usr/bin/ffprobe";
 
   private static final int ORIGINAL_VIDEO_SIZE = 10_000_000;
   private static final int EXTRACTED_AUDIO_SIZE = 2_000_000;
@@ -85,6 +85,8 @@ class AudioExtractionRequestedServiceIT {
 
   @TempDir File tempDir;
   private File interceptedAudioFile;
+  @Mock private FFmpeg ffmpeg;
+  @Mock private FFprobe ffprobe;
   @Mock private BucketComponent bucketComponent;
   @Mock private VideoRepository videoRepository;
   @Mock private AudioRepository audioRepository;
@@ -93,24 +95,24 @@ class AudioExtractionRequestedServiceIT {
   private AudioExtractionRequestedService service;
 
   private static @NotNull AudioExtractionJob getSnapshot(AudioExtractionJob job) {
-    AudioExtractionJob snapshot = new AudioExtractionJob();
-    snapshot.setId(job.getId());
-    snapshot.setParent(job.getParent());
-    snapshot.setExtractedAudio(job.getExtractedAudio());
-    snapshot.setCreatedAt(job.getCreatedAt());
-    snapshot.setCompletedAt(job.getCompletedAt());
-    snapshot.setStatus(job.getStatus());
-    snapshot.setErrorMessage(job.getErrorMessage());
-    snapshot.setAttemptCount(job.getAttemptCount());
-    return snapshot;
+    return AudioExtractionJob.builder()
+        .id(job.getId())
+        .parent(job.getParent())
+        .extractedAudio(job.getExtractedAudio())
+        .createdAt(job.getCreatedAt())
+        .completedAt(job.getCompletedAt())
+        .status(job.getStatus())
+        .errorMessage(job.getErrorMessage())
+        .attemptCount(job.getAttemptCount())
+        .build();
   }
 
   @BeforeEach
-  void setUp() throws IOException {
+  void setUp() {
     service =
         new AudioExtractionRequestedService(
-            FFMPEG_PATH,
-            FFPROBE_PATH,
+            ffmpeg,
+            ffprobe,
             bucketComponent,
             videoRepository,
             audioRepository,
@@ -137,11 +139,11 @@ class AudioExtractionRequestedServiceIT {
         originalFile,
         extractionJob);
 
-    try (var mockedExecutor = setupFfmpegMock()) {
+    try (var _ = setupFfmpegMock()) {
       service.accept(event);
 
       verifySuccessfulAudioExtraction(videoId);
-      verifyStatusUpdates(jobId, ProcessStatus.PROGRESSING, ProcessStatus.COMPLETED);
+      verifyStatusUpdates(ProcessStatus.PROGRESSING, ProcessStatus.COMPLETED);
     }
   }
 
@@ -162,7 +164,7 @@ class AudioExtractionRequestedServiceIT {
         originalFile,
         extractionJob);
 
-    try (var mockedExecutor = setupFfmpegMock()) {
+    try (var _ = setupFfmpegMock()) {
       service.accept(event);
 
       ArgumentCaptor<JAudio> audioCaptor = ArgumentCaptor.forClass(JAudio.class);
@@ -195,7 +197,7 @@ class AudioExtractionRequestedServiceIT {
         originalFile,
         extractionJob);
 
-    try (var mockedExecutor = setupFfmpegMock()) {
+    try (var _ = setupFfmpegMock()) {
       service.accept(event);
 
       ArgumentCaptor<JAudio> audioCaptor = ArgumentCaptor.forClass(JAudio.class);
@@ -270,10 +272,10 @@ class AudioExtractionRequestedServiceIT {
         originalFile,
         extractionJob);
 
-    try (var mockedExecutor =
+    try (var _ =
         mockConstruction(
             FFmpegExecutor.class,
-            (mock, context) -> {
+            (mock, _) -> {
               FFmpegJob mockJob = mock(FFmpegJob.class);
               when(mock.createJob(any(FFmpegBuilder.class))).thenReturn(mockJob);
               doThrow(new RuntimeException("FFmpeg audio extraction failed")).when(mockJob).run();
@@ -310,7 +312,7 @@ class AudioExtractionRequestedServiceIT {
     when(userService.findByEmail(event.getOwner())).thenReturn(createMockUser(event.getOwner()));
     when(bucketComponent.download(event.getBucketKey())).thenReturn(originalFile);
 
-    try (var mockedExecutor = setupFfmpegMock()) {
+    try (var ignored = setupFfmpegMock()) {
       doThrow(new DirectoryUploadException("Upload failed"))
           .when(bucketComponent)
           .upload(any(File.class), anyString());
@@ -375,7 +377,7 @@ class AudioExtractionRequestedServiceIT {
         originalFile,
         extractionJob);
 
-    try (var mockedExecutor = setupFfmpegMock()) {
+    try (var ignored = setupFfmpegMock()) {
       service.accept(event);
 
       ArgumentCaptor<JAudio> audioCaptor = ArgumentCaptor.forClass(JAudio.class);
@@ -410,7 +412,7 @@ class AudioExtractionRequestedServiceIT {
     lenient()
         .when(audioExtractionJobRepository.findById(extractionJob.getId()))
         .thenAnswer(
-            invocation -> {
+            _ -> {
               AudioExtractionJob copy = getSnapshot(extractionJob);
               return Optional.of(copy);
             });
@@ -449,47 +451,8 @@ class AudioExtractionRequestedServiceIT {
   }
 
   private MockedConstruction<FFmpegExecutor> setupFfmpegMock() {
-    return mockConstruction(
-        FFmpegExecutor.class,
-        (mock, context) -> {
-          FFmpegJob mockJob = mock(FFmpegJob.class);
-          when(mock.createJob(any(FFmpegBuilder.class))).thenReturn(mockJob);
-
-          doAnswer(
-                  invocation -> {
-                    File systemTempDir = new File(System.getProperty("java.io.tmpdir"));
-                    File[] audioFiles =
-                        systemTempDir.listFiles(
-                            (dir, name) -> name.startsWith(PREFIX) && name.endsWith(SUFFIX));
-
-                    if (audioFiles != null && audioFiles.length > 0) {
-                      File actualOutputFile =
-                          Arrays.stream(audioFiles)
-                              .max(Comparator.comparingLong(File::lastModified))
-                              .orElseThrow(
-                                  () -> new RuntimeException("Could not find audio output file"));
-
-                      log.info(
-                          "Writing mock audio data to: {}", actualOutputFile.getAbsolutePath());
-
-                      byte[] audioData = new byte[EXTRACTED_AUDIO_SIZE];
-                      new Random().nextBytes(audioData);
-                      Files.write(actualOutputFile.toPath(), audioData);
-
-                      interceptedAudioFile = actualOutputFile;
-
-                      log.info(
-                          "Successfully wrote {} bytes to audio file", actualOutputFile.length());
-                    } else {
-                      throw new RuntimeException(
-                          "No extracted_ temp file was created by the service");
-                    }
-
-                    return null;
-                  })
-              .when(mockJob)
-              .run();
-        });
+    return FFmpegMockHelper.setupFfmpegMock(
+        PREFIX, SUFFIX, EXTRACTED_AUDIO_SIZE, file -> interceptedAudioFile = file);
   }
 
   private void verifySuccessfulAudioExtraction(String videoId) {
@@ -522,7 +485,7 @@ class AudioExtractionRequestedServiceIT {
     assertEquals(FileType.AUDIO, savedAudio.getFileType());
   }
 
-  private void verifyStatusUpdates(String jobId, ProcessStatus... expectedStatuses) {
+  private void verifyStatusUpdates(ProcessStatus... expectedStatuses) {
     ArgumentCaptor<AudioExtractionJob> captor = ArgumentCaptor.forClass(AudioExtractionJob.class);
     verify(audioExtractionJobRepository, atLeast(expectedStatuses.length)).save(captor.capture());
 
@@ -557,63 +520,66 @@ class AudioExtractionRequestedServiceIT {
   }
 
   private JVideo createMockJVideo(String videoId, int audioChannels, int sampleRate) {
-    Video video = new Video();
-    video.setId(videoId);
-    video.setFileName(TEST_VIDEO_MP_4);
-    video.setWidth(1920);
-    video.setHeight(1080);
-    video.setDuration(120.0);
-    video.setFrameRate(30.0);
-    video.setSize(ORIGINAL_VIDEO_SIZE);
-    video.setSizeType(SizeType.BYTES);
-    video.setFileType(FileType.VIDEO);
-    video.setCodec(VideoCodec.H264);
-    video.setContainerFormat(ContainerFormat.MP4);
-    video.setAudioChannels(audioChannels);
-    video.setAudioSampleRate(sampleRate);
-    video.setAudioCodec(AudioCodec.AAC);
-    video.setCreatedAt(LocalDateTime.now());
-    video.setOwner(createMockUser(TEST_USER));
-    video.setFilePath(TEST_BUCKET_KEY);
+    var video =
+        Video.builder()
+            .id(videoId)
+            .fileName(TEST_VIDEO_MP_4)
+            .width(1_920)
+            .height(1_080)
+            .duration(120.0)
+            .frameRate(30.0)
+            .size(ORIGINAL_VIDEO_SIZE)
+            .sizeType(SizeType.BYTES)
+            .fileType(FileType.VIDEO)
+            .codec(VideoCodec.H264)
+            .containerFormat(ContainerFormat.MP4)
+            .audioChannels(audioChannels)
+            .audioSampleRate(sampleRate)
+            .audioCodec(AudioCodec.AAC)
+            .createdAt(now())
+            .owner(createMockUser(TEST_USER))
+            .filePath(TEST_BUCKET_KEY)
+            .build();
+
     return toJVideo(video);
   }
 
   private JVideo createMockJVideoWithoutAudio(String videoId) {
-    Video video = new Video();
-    video.setId(videoId);
-    video.setFileName("video_no_audio.mp4");
-    video.setWidth(1920);
-    video.setHeight(1080);
-    video.setDuration(120.0);
-    video.setFrameRate(30.0);
-    video.setSize(ORIGINAL_VIDEO_SIZE);
-    video.setSizeType(SizeType.BYTES);
-    video.setFileType(FileType.VIDEO);
-    video.setCodec(VideoCodec.H264);
-    video.setContainerFormat(ContainerFormat.MP4);
-    video.setAudioChannels(0);
-    video.setAudioSampleRate(0);
-    video.setAudioCodec(AudioCodec.NONE);
-    video.setCreatedAt(LocalDateTime.now());
-    video.setOwner(createMockUser(TEST_USER));
-    video.setFilePath(TEST_BUCKET_KEY);
+    var video =
+        Video.builder()
+            .id(videoId)
+            .fileName("video_no_audio.mp4")
+            .width(1920)
+            .height(1080)
+            .duration(120.0)
+            .frameRate(30.0)
+            .size(ORIGINAL_VIDEO_SIZE)
+            .sizeType(SizeType.BYTES)
+            .fileType(FileType.VIDEO)
+            .codec(VideoCodec.H264)
+            .containerFormat(ContainerFormat.MP4)
+            .audioChannels(0)
+            .audioSampleRate(0)
+            .audioCodec(AudioCodec.NONE)
+            .createdAt(now())
+            .owner(createMockUser(TEST_USER))
+            .filePath(TEST_BUCKET_KEY)
+            .build();
+
     return toJVideo(video);
   }
 
   private User createMockUser(String email) {
-    User user = new User();
-    user.setId(randomUUID().toString());
-    user.setEmail(email);
-    return user;
+    return User.builder().id(randomUUID().toString()).email(email).build();
   }
 
   private AudioExtractionJob createMockExtractionJob(String jobId, JVideo parentVideo) {
-    AudioExtractionJob job = new AudioExtractionJob();
-    job.setId(jobId);
-    job.setParent(parentVideo);
-    job.setStatus(ProcessStatus.PENDING);
-    job.setCreatedAt(LocalDateTime.now());
-    job.setAttemptCount(0);
-    return job;
+    return AudioExtractionJob.builder()
+        .id(jobId)
+        .parent(parentVideo)
+        .status(ProcessStatus.PENDING)
+        .createdAt(now())
+        .attemptCount(0)
+        .build();
   }
 }

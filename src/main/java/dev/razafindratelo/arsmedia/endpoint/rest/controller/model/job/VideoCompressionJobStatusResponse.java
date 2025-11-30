@@ -1,14 +1,14 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job;
 
-import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
-import java.time.LocalDateTime;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import lombok.experimental.SuperBuilder;
 
 @NoArgsConstructor
+@SuperBuilder
 @Getter
 @Setter
 @ToString(callSuper = true)
@@ -16,18 +16,4 @@ import lombok.ToString;
 public class VideoCompressionJobStatusResponse extends JobStatusResponse {
   private String compressedVideoId;
   private String compressedVideoUrl;
-
-  public VideoCompressionJobStatusResponse(
-      String jobId,
-      ProcessStatus status,
-      LocalDateTime createdAt,
-      LocalDateTime completedAt,
-      String compressedVideoId,
-      String compressedVideoUrl,
-      String errorMessage,
-      int attemptCount) {
-    super(jobId, status, createdAt, completedAt, errorMessage, attemptCount);
-    this.compressedVideoId = compressedVideoId;
-    this.compressedVideoUrl = compressedVideoUrl;
-  }
 }

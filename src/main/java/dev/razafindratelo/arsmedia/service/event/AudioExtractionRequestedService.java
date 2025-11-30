@@ -3,6 +3,7 @@ package dev.razafindratelo.arsmedia.service.event;
 import static dev.razafindratelo.arsmedia.mapper.AudioMapper.toJAudio;
 import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toVideo;
 import static java.lang.String.format;
+import static java.util.UUID.randomUUID;
 
 import dev.razafindratelo.arsmedia.event.model.AudioExtractionRequested;
 import dev.razafindratelo.arsmedia.exception.AudioExtractionException;
@@ -27,18 +28,18 @@ import jakarta.persistence.EntityNotFoundException;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.UUID;
 import java.util.function.Consumer;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.bramp.ffmpeg.FFmpeg;
 import net.bramp.ffmpeg.FFmpegExecutor;
 import net.bramp.ffmpeg.FFprobe;
 import net.bramp.ffmpeg.builder.FFmpegBuilder;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class AudioExtractionRequestedService implements Consumer<AudioExtractionRequested> {
 
   private static final String EXTRACTED_AUDIO_PREFIX = "audio_extracted_";
@@ -48,7 +49,6 @@ public class AudioExtractionRequestedService implements Consumer<AudioExtraction
   private static final int AUDIO_QUALITY_HIGH = 1;
   private static final int NO_AUDIO_CHANNELS = 0;
   private static final int NO_AUDIO_SAMPLE_RATE = 0;
-  private static final int ZERO_BITRATE = 0;
 
   private final FFmpeg ffmpeg;
   private final FFprobe ffprobe;
@@ -59,29 +59,6 @@ public class AudioExtractionRequestedService implements Consumer<AudioExtraction
   private final AudioExtractionJobRepository jobRepository;
   private final TempFileCleaner tempFileCleaner;
   private final BitRateCalculator bitRateCalculator;
-
-  public AudioExtractionRequestedService(
-      @Value("${ffmpeg.path}") String ffmpegPath,
-      @Value("${ffprobe.path}") String ffprobePath,
-      BucketComponent bucketComponent,
-      VideoRepository videoRepository,
-      AudioRepository audioRepository,
-      UserService userService,
-      AudioExtractionJobRepository jobRepository,
-      TempFileCleaner tempFileCleaner,
-      BitRateCalculator bitRateCalculator)
-      throws IOException {
-
-    this.ffmpeg = new FFmpeg(ffmpegPath);
-    this.ffprobe = new FFprobe(ffprobePath);
-    this.bucketComponent = bucketComponent;
-    this.videoRepository = videoRepository;
-    this.audioRepository = audioRepository;
-    this.userService = userService;
-    this.jobRepository = jobRepository;
-    this.tempFileCleaner = tempFileCleaner;
-    this.bitRateCalculator = bitRateCalculator;
-  }
 
   @Override
   public void accept(AudioExtractionRequested event) {
@@ -204,22 +181,23 @@ public class AudioExtractionRequestedService implements Consumer<AudioExtraction
   }
 
   private Audio buildAudioEntity(Video sourceVideo, File audioFile, String bucketKey, User owner) {
-    Audio audio = new Audio();
-
-    audio.setId(UUID.randomUUID().toString());
-    audio.setOwner(owner);
-    audio.setFileName(generateAudioFileName(sourceVideo.getFileName()));
-    audio.setSize(audioFile.length());
-    audio.setSizeType(SizeType.BYTES);
-    audio.setFileType(FileType.AUDIO);
-    audio.setCreatedAt(LocalDateTime.now());
-    audio.setFilePath(bucketKey);
-    audio.setDuration(sourceVideo.getDuration());
-    audio.setCodec(AudioCodec.MP3);
-    audio.setChannels(sourceVideo.getAudioChannels());
-    audio.setSampleRate(sourceVideo.getAudioSampleRate());
-    audio.setFormat(ContainerFormat.MP3);
-    audio.setBitRate((int) bitRateCalculator.calculate(audioFile, sourceVideo.getDuration()));
+    var audio =
+        Audio.builder()
+            .id(randomUUID().toString())
+            .owner(owner)
+            .fileName(generateAudioFileName(sourceVideo.getFileName()))
+            .size(audioFile.length())
+            .sizeType(SizeType.BYTES)
+            .fileType(FileType.AUDIO)
+            .createdAt(LocalDateTime.now())
+            .filePath(bucketKey)
+            .duration(sourceVideo.getDuration())
+            .codec(AudioCodec.MP3)
+            .channels(sourceVideo.getAudioChannels())
+            .sampleRate(sourceVideo.getAudioSampleRate())
+            .format(ContainerFormat.MP3)
+            .bitRate((int) bitRateCalculator.calculate(audioFile, sourceVideo.getDuration()))
+            .build();
 
     log.info(
         "Created audio entity: {} channels, {} Hz, {} bytes",

@@ -30,17 +30,18 @@ import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.bramp.ffmpeg.FFmpeg;
 import net.bramp.ffmpeg.FFmpegExecutor;
 import net.bramp.ffmpeg.FFprobe;
 import net.bramp.ffmpeg.builder.FFmpegBuilder;
 import net.bramp.ffmpeg.builder.FFmpegOutputBuilder;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class VideoFormatConversionRequestedService
     implements Consumer<VideoFormatConversionRequested> {
 
@@ -124,26 +125,6 @@ public class VideoFormatConversionRequestedService
   private final TempFileCleaner tempFileCleaner;
   private final BitRateCalculator bitRateCalculator;
 
-  public VideoFormatConversionRequestedService(
-      @Value("${ffmpeg.path}") String ffmpegPath,
-      @Value("${ffprobe.path}") String ffprobePath,
-      BucketComponent bucketComponent,
-      VideoRepository videoRepository,
-      UserService userService,
-      VideoFormatConversionJobRepository jobRepository,
-      TempFileCleaner tempFileCleaner,
-      BitRateCalculator bitRateCalculator)
-      throws IOException {
-    this.ffmpeg = new FFmpeg(ffmpegPath);
-    this.ffprobe = new FFprobe(ffprobePath);
-    this.bucketComponent = bucketComponent;
-    this.videoRepository = videoRepository;
-    this.userService = userService;
-    this.jobRepository = jobRepository;
-    this.tempFileCleaner = tempFileCleaner;
-    this.bitRateCalculator = bitRateCalculator;
-  }
-
   @Override
   public void accept(VideoFormatConversionRequested event) {
     String jobId = event.getJobId();
@@ -187,37 +168,32 @@ public class VideoFormatConversionRequestedService
 
   private void validateFormatConversion(
       ContainerFormat sourceFormat, ContainerFormat targetFormat) {
-    if (targetFormat == ContainerFormat.UNKNOWN) {
+    if (targetFormat == ContainerFormat.UNKNOWN)
       throw new InvalidFormatConversionException("Target format is unknown or unsupported");
-    }
 
-    if (sourceFormat == targetFormat) {
+    if (sourceFormat == targetFormat)
       throw new InvalidFormatConversionException(
           String.format("Source and target formats are the same: %s", sourceFormat));
-    }
 
     boolean sourceIsVideo = VIDEO_FORMATS.contains(sourceFormat);
     boolean targetIsVideo = VIDEO_FORMATS.contains(targetFormat);
     boolean sourceIsAudio = AUDIO_FORMATS.contains(sourceFormat);
     boolean targetIsAudio = AUDIO_FORMATS.contains(targetFormat);
 
-    if (sourceIsVideo && targetIsAudio) {
+    if (sourceIsVideo && targetIsAudio)
       throw new InvalidFormatConversionException(
           String.format(
               "Cannot convert video format %s to audio format %s. Use audio extraction instead.",
               sourceFormat, targetFormat));
-    }
 
-    if (sourceIsAudio && targetIsVideo) {
+    if (sourceIsAudio && targetIsVideo)
       throw new InvalidFormatConversionException(
           String.format(
               "Cannot convert audio format %s to video format %s", sourceFormat, targetFormat));
-    }
 
-    if (!FORMAT_NAMES.containsKey(targetFormat)) {
+    if (!FORMAT_NAMES.containsKey(targetFormat))
       throw new InvalidFormatConversionException(
           String.format("Target format %s is not supported for conversion", targetFormat));
-    }
 
     log.info("Format conversion validated: {} -> {}", sourceFormat, targetFormat);
   }
@@ -338,30 +314,28 @@ public class VideoFormatConversionRequestedService
       ContainerFormat targetFormat,
       User owner) {
 
-    Video converted = new Video();
-    converted.setId(randomUUID().toString());
-    converted.setOwner(owner);
-    converted.setFileName(generateConvertedFileName(original.getFileName(), targetFormat));
-    converted.setSize(convertedFile.length());
-    converted.setSizeType(original.getSizeType());
-    converted.setFileType(original.getFileType());
-    converted.setCreatedAt(now());
-    converted.setFilePath(bucketKey);
-
-    converted.setDuration(original.getDuration());
-    converted.setWidth(original.getWidth());
-    converted.setHeight(original.getHeight());
-    converted.setFrameRate(original.getFrameRate());
-    converted.setAspectRatio(original.getAspectRatio());
-
-    converted.setContainerFormat(targetFormat);
-
-    converted.setCodec(determineVideoCodec(targetFormat, original.getCodec()));
-    converted.setAudioCodec(determineAudioCodec(targetFormat, original.getAudioCodec()));
-
-    converted.setAudioChannels(original.getAudioChannels());
-    converted.setAudioSampleRate(original.getAudioSampleRate());
-    converted.setBitRate(bitRateCalculator.calculate(convertedFile, original.getDuration()));
+    var converted =
+        Video.builder()
+            .id(randomUUID().toString())
+            .owner(owner)
+            .fileName(generateConvertedFileName(original.getFileName(), targetFormat))
+            .size(convertedFile.length())
+            .sizeType(original.getSizeType())
+            .fileType(original.getFileType())
+            .createdAt(now())
+            .filePath(bucketKey)
+            .duration(original.getDuration())
+            .width(original.getWidth())
+            .height(original.getHeight())
+            .frameRate(original.getFrameRate())
+            .aspectRatio(original.getAspectRatio())
+            .containerFormat(targetFormat)
+            .codec(determineVideoCodec(targetFormat, original.getCodec()))
+            .audioCodec(determineAudioCodec(targetFormat, original.getAudioCodec()))
+            .audioChannels(original.getAudioChannels())
+            .audioSampleRate(original.getAudioSampleRate())
+            .bitRate(bitRateCalculator.calculate(convertedFile, original.getDuration()))
+            .build();
 
     log.info(
         "Created converted video entity: format={}, size={} bytes",
@@ -470,7 +444,7 @@ public class VideoFormatConversionRequestedService
         event.getAttemptNb(),
         e);
 
-    String errorMessage =
+    var errorMessage =
         String.format(
             "Format conversion to %s failed on attempt %d: %s",
             event.getTargetFormat(), event.getAttemptNb(), e.getMessage());
