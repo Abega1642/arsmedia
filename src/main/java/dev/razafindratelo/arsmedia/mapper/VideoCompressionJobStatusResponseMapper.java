@@ -14,14 +14,19 @@ public class VideoCompressionJobStatusResponseMapper {
 
   public static VideoCompressionJobStatusResponse mapToCompressionResponse(
       VideoCompressionJob job) {
-    return new VideoCompressionJobStatusResponse(
-        job.getId(),
-        job.getStatus(),
-        job.getCreatedAt(),
-        job.getCompletedAt(),
-        job.getCompressedVideo() != null ? job.getCompressedVideo().getId() : null,
-        job.getCompressedVideo() != null ? toVideo(job.getCompressedVideo()).getFilePath() : null,
-        job.getErrorMessage(),
-        job.getAttemptCount());
+    return VideoCompressionJobStatusResponse.builder()
+        .jobId(job.getId())
+        .status(job.getStatus())
+        .createdAt(job.getCreatedAt())
+        .completedAt(job.getCompletedAt())
+        .compressedVideoId(
+            job.getCompressedVideo() != null ? job.getCompressedVideo().getId() : null)
+        .compressedVideoUrl(
+            job.getCompressedVideo() != null
+                ? toVideo(job.getCompressedVideo()).getFilePath()
+                : null)
+        .errorMessage(job.getErrorMessage())
+        .attemptCount(job.getAttemptCount())
+        .build();
   }
 }

@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import lombok.experimental.SuperBuilder;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -15,6 +16,7 @@ import lombok.ToString;
 @ToString(callSuper = true)
 @Getter
 @Setter
+@SuperBuilder
 public class Audio extends Media {
   private double duration;
   private int bitRate;

@@ -9,6 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -52,6 +54,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.validation.Errors;
 
 @ExtendWith(MockitoExtension.class)
 @Slf4j
@@ -110,6 +113,7 @@ class VideoServiceIT {
   private EventProducer<VideoFormatConversionRequested> videoFormatConversionRequestedEventProducer;
 
   @Mock private VideoFormatConversionJobRepository videoFormatConversionJobRepository;
+  @Mock private FormatConversionValidator formatConversionValidator;
 
   private VideoService videoService;
 
@@ -124,7 +128,8 @@ class VideoServiceIT {
             videoCompressionJobRepository,
             audioExtractionJobRepository,
             videoFormatConversionRequestedEventProducer,
-            videoFormatConversionJobRepository);
+            videoFormatConversionJobRepository,
+            formatConversionValidator);
   }
 
   @Test
@@ -367,6 +372,7 @@ class VideoServiceIT {
     when(userService.findByEmail(TEST_USER_EMAIL)).thenReturn(mockUser);
     when(videoFormatConversionJobRepository.save(any(VideoFormatConversionJob.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
+    doNothing().when(formatConversionValidator).validate(any(), any());
 
     VideoFormatConversionJobStatusResponse response =
         videoService.convertTo(ContainerFormat.MKV, TEST_BUCKET_KEY_123, TEST_USER_EMAIL);
@@ -375,6 +381,7 @@ class VideoServiceIT {
 
     verify(videoRepository).findByBucketKey(TEST_BUCKET_KEY_123);
     verify(userService).findByEmail(TEST_USER_EMAIL);
+    verify(formatConversionValidator).validate(any(), any());
     verify(videoFormatConversionJobRepository).save(any(VideoFormatConversionJob.class));
 
     verifyFormatConversionEvent(response, videoId, ContainerFormat.MKV);
@@ -395,6 +402,7 @@ class VideoServiceIT {
     when(userService.findByEmail(TEST_USER_EMAIL)).thenReturn(mockUser);
     when(videoFormatConversionJobRepository.save(any(VideoFormatConversionJob.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
+    doNothing().when(formatConversionValidator).validate(any(), any());
 
     VideoFormatConversionJobStatusResponse response =
         videoService.convertTo(ContainerFormat.WEBM, TEST_BUCKET_KEY_123, TEST_USER_EMAIL);
@@ -426,6 +434,7 @@ class VideoServiceIT {
     when(userService.findByEmail(TEST_USER_EMAIL)).thenReturn(mockUser);
     when(videoFormatConversionJobRepository.save(any(VideoFormatConversionJob.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
+    doNothing().when(formatConversionValidator).validate(any(), any());
 
     List<ContainerFormat> targetFormats =
         List.of(
@@ -461,6 +470,19 @@ class VideoServiceIT {
     when(videoRepository.findByBucketKey(TEST_BUCKET_KEY_123)).thenReturn(Optional.of(mockVideo));
     when(userService.findByEmail(TEST_USER_EMAIL)).thenReturn(mockUser);
 
+    doAnswer(
+            invocation -> {
+              Errors errors = invocation.getArgument(1);
+              errors.rejectValue(
+                  "targetFormat",
+                  "format.videoToAudio",
+                  "Cannot convert video format MP4 to audio format MP3. Use audio extraction"
+                      + " instead.");
+              return null;
+            })
+        .when(formatConversionValidator)
+        .validate(any(), any());
+
     InvalidFormatConversionException exception =
         assertThrows(
             InvalidFormatConversionException.class,
@@ -473,6 +495,7 @@ class VideoServiceIT {
 
     verify(videoRepository).findByBucketKey(TEST_BUCKET_KEY_123);
     verify(userService).findByEmail(TEST_USER_EMAIL);
+    verify(formatConversionValidator).validate(any(), any());
     verify(videoFormatConversionJobRepository, never()).save(any());
     verify(videoFormatConversionRequestedEventProducer, never()).accept(any());
 
@@ -488,6 +511,16 @@ class VideoServiceIT {
     when(videoRepository.findByBucketKey(TEST_BUCKET_KEY_123)).thenReturn(Optional.of(mockVideo));
     when(userService.findByEmail(TEST_USER_EMAIL)).thenReturn(mockUser);
 
+    doAnswer(
+            invocation -> {
+              Errors errors = invocation.getArgument(1);
+              errors.rejectValue(
+                  "targetFormat", "format.same", "Source and target formats are the same: MP4");
+              return null;
+            })
+        .when(formatConversionValidator)
+        .validate(any(), any());
+
     InvalidFormatConversionException exception =
         assertThrows(
             InvalidFormatConversionException.class,
@@ -499,6 +532,7 @@ class VideoServiceIT {
 
     verify(videoRepository).findByBucketKey(TEST_BUCKET_KEY_123);
     verify(userService).findByEmail(TEST_USER_EMAIL);
+    verify(formatConversionValidator).validate(any(), any());
     verify(videoFormatConversionJobRepository, never()).save(any());
     verify(videoFormatConversionRequestedEventProducer, never()).accept(any());
 
@@ -514,6 +548,16 @@ class VideoServiceIT {
     when(videoRepository.findByBucketKey(TEST_BUCKET_KEY_123)).thenReturn(Optional.of(mockVideo));
     when(userService.findByEmail(TEST_USER_EMAIL)).thenReturn(mockUser);
 
+    doAnswer(
+            invocation -> {
+              Errors errors = invocation.getArgument(1);
+              errors.rejectValue(
+                  "targetFormat", "format.unknown", "Target format is unknown or unsupported");
+              return null;
+            })
+        .when(formatConversionValidator)
+        .validate(any(), any());
+
     InvalidFormatConversionException exception =
         assertThrows(
             InvalidFormatConversionException.class,
@@ -525,6 +569,7 @@ class VideoServiceIT {
 
     verify(videoRepository).findByBucketKey(TEST_BUCKET_KEY_123);
     verify(userService).findByEmail(TEST_USER_EMAIL);
+    verify(formatConversionValidator).validate(any(), any());
     verify(videoFormatConversionJobRepository, never()).save(any());
     verify(videoFormatConversionRequestedEventProducer, never()).accept(any());
 
@@ -545,6 +590,7 @@ class VideoServiceIT {
 
     verify(videoRepository).findByBucketKey(NON_EXISTENT_KEY);
     verify(userService, never()).findByEmail(any());
+    verify(formatConversionValidator, never()).validate(any(), any());
     verify(videoFormatConversionJobRepository, never()).save(any());
     verify(videoFormatConversionRequestedEventProducer, never()).accept(any());
 
@@ -618,6 +664,18 @@ class VideoServiceIT {
     when(videoRepository.findByBucketKey(TEST_BUCKET_KEY_123)).thenReturn(Optional.of(mockVideo));
     when(userService.findByEmail(TEST_USER_EMAIL)).thenReturn(mockUser);
 
+    doAnswer(
+            invocation -> {
+              Errors errors = invocation.getArgument(1);
+              errors.rejectValue(
+                  "targetFormat",
+                  "format.audioToVideo",
+                  "Cannot convert audio format MP3 to video format MP4");
+              return null;
+            })
+        .when(formatConversionValidator)
+        .validate(any(), any());
+
     InvalidFormatConversionException exception =
         assertThrows(
             InvalidFormatConversionException.class,
@@ -629,6 +687,7 @@ class VideoServiceIT {
 
     verify(videoRepository).findByBucketKey(TEST_BUCKET_KEY_123);
     verify(userService).findByEmail(TEST_USER_EMAIL);
+    verify(formatConversionValidator).validate(any(), any());
     verify(videoFormatConversionJobRepository, never()).save(any());
     verify(videoFormatConversionRequestedEventProducer, never()).accept(any());
 
@@ -652,16 +711,16 @@ class VideoServiceIT {
 
   private AudioExtractionJob createCompletedAudioExtractionJob(
       String jobId, JVideo parentVideo, JAudio extractedAudio) {
-    AudioExtractionJob mockJob = new AudioExtractionJob();
-    mockJob.setId(jobId);
-    mockJob.setParent(parentVideo);
-    mockJob.setExtractedAudio(extractedAudio);
-    mockJob.setStatus(ProcessStatus.COMPLETED);
-    mockJob.setCreatedAt(LocalDateTime.now().minusMinutes(5));
-    mockJob.setCompletedAt(LocalDateTime.now());
-    mockJob.setAttemptCount(1);
-    mockJob.setErrorMessage(null);
-    return mockJob;
+    return AudioExtractionJob.builder()
+        .id(jobId)
+        .parent(parentVideo)
+        .extractedAudio(extractedAudio)
+        .status(ProcessStatus.COMPLETED)
+        .createdAt(LocalDateTime.now().minusMinutes(5))
+        .completedAt(LocalDateTime.now())
+        .attemptCount(1)
+        .errorMessage(null)
+        .build();
   }
 
   private void assertCompressionJobResponse(VideoCompressionJobStatusResponse response) {
@@ -769,73 +828,75 @@ class VideoServiceIT {
 
   private VideoCompressionJob createCompletedCompressionJob(
       String jobId, JVideo parentVideo, JVideo compressedVideo) {
-    VideoCompressionJob mockJob = new VideoCompressionJob();
-    mockJob.setId(jobId);
-    mockJob.setParent(parentVideo);
-    mockJob.setCompressedVideo(compressedVideo);
-    mockJob.setStatus(ProcessStatus.COMPLETED);
-    mockJob.setCreatedAt(LocalDateTime.now().minusMinutes(5));
-    mockJob.setCompletedAt(LocalDateTime.now());
-    mockJob.setAttemptCount(1);
-    mockJob.setErrorMessage(null);
-    return mockJob;
+    return VideoCompressionJob.builder()
+        .id(jobId)
+        .parent(parentVideo)
+        .compressedVideo(compressedVideo)
+        .status(ProcessStatus.COMPLETED)
+        .createdAt(LocalDateTime.now().minusMinutes(5))
+        .completedAt(LocalDateTime.now())
+        .attemptCount(1)
+        .errorMessage(null)
+        .build();
   }
 
   private VideoCompressionJob createFailedCompressionJob(
       String jobId, JVideo parentVideo, LocalDateTime createdAt, LocalDateTime completedAt) {
-    VideoCompressionJob job =
+    var mockJob =
         createMockCompressedJob(jobId, parentVideo, ProcessStatus.FAILED, createdAt, completedAt);
-    job.setErrorMessage(FFMPEG_ERROR_MSG);
-    job.setAttemptCount(3);
-    return job;
+    mockJob.setErrorMessage(FFMPEG_ERROR_MSG);
+    mockJob.setAttemptCount(3);
+
+    return mockJob;
   }
 
   private JVideo createMockJVideo(String id, String bucketKey) {
-    Video video = new Video();
-    video.setId(id);
-    video.setFileName(TEST_VIDEO_FILENAME);
-    video.setFilePath(bucketKey);
-    video.setWidth(VIDEO_WIDTH);
-    video.setHeight(VIDEO_HEIGHT);
-    video.setDuration(VIDEO_DURATION);
-    video.setFrameRate(VIDEO_FRAME_RATE);
-    video.setSize(VIDEO_SIZE);
-    video.setSizeType(SizeType.BYTES);
-    video.setFileType(FileType.VIDEO);
-    video.setCodec(VideoCodec.H264);
-    video.setContainerFormat(ContainerFormat.MP4);
-    video.setAudioChannels(AUDIO_CHANNELS);
-    video.setAudioSampleRate(AUDIO_SAMPLE_RATE);
-    video.setAudioCodec(AudioCodec.AAC);
-    video.setCreatedAt(LocalDateTime.now());
-    video.setOwner(createMockUser());
+    Video video =
+        Video.builder()
+            .id(id)
+            .fileName(TEST_VIDEO_FILENAME)
+            .filePath(bucketKey)
+            .width(VIDEO_WIDTH)
+            .height(VIDEO_HEIGHT)
+            .duration(VIDEO_DURATION)
+            .frameRate(VIDEO_FRAME_RATE)
+            .size(VIDEO_SIZE)
+            .sizeType(SizeType.BYTES)
+            .fileType(FileType.VIDEO)
+            .codec(VideoCodec.H264)
+            .containerFormat(ContainerFormat.MP4)
+            .audioChannels(AUDIO_CHANNELS)
+            .audioSampleRate(AUDIO_SAMPLE_RATE)
+            .audioCodec(AudioCodec.AAC)
+            .createdAt(LocalDateTime.now())
+            .owner(createMockUser())
+            .build();
     return toJVideo(video);
   }
 
   private JAudio createMockJAudio(String id) {
-    Audio audio = new Audio();
-    audio.setId(id);
-    audio.setFileName(TEST_AUDIO_FILENAME);
-    audio.setFilePath("audio_key");
-    audio.setDuration(AUDIO_DURATION);
-    audio.setBitRate(AUDIO_BIT_RATE);
-    audio.setSampleRate(AUDIO_SAMPLE_RATE);
-    audio.setChannels(AUDIO_CHANNELS);
-    audio.setCodec(AudioCodec.AAC);
-    audio.setFormat(ContainerFormat.MP3);
-    audio.setSize(AUDIO_SIZE);
-    audio.setSizeType(SizeType.BYTES);
-    audio.setFileType(FileType.AUDIO);
-    audio.setCreatedAt(LocalDateTime.now());
-    audio.setOwner(createMockUser());
+    Audio audio =
+        Audio.builder()
+            .id(id)
+            .fileName(TEST_AUDIO_FILENAME)
+            .filePath("audio_key")
+            .duration(AUDIO_DURATION)
+            .bitRate(AUDIO_BIT_RATE)
+            .sampleRate(AUDIO_SAMPLE_RATE)
+            .channels(AUDIO_CHANNELS)
+            .codec(AudioCodec.AAC)
+            .format(ContainerFormat.MP3)
+            .size(AUDIO_SIZE)
+            .sizeType(SizeType.BYTES)
+            .fileType(FileType.AUDIO)
+            .createdAt(LocalDateTime.now())
+            .owner(createMockUser())
+            .build();
     return toJAudio(audio);
   }
 
   private User createMockUser() {
-    User user = new User();
-    user.setId(randomUUID().toString());
-    user.setEmail(VideoServiceIT.TEST_USER_EMAIL);
-    return user;
+    return User.builder().id(randomUUID().toString()).email(VideoServiceIT.TEST_USER_EMAIL).build();
   }
 
   private VideoCompressionJob createMockCompressedJob(
@@ -844,18 +905,21 @@ class VideoServiceIT {
       ProcessStatus status,
       LocalDateTime createdAt,
       LocalDateTime completedAt) {
-    VideoCompressionJob job = new VideoCompressionJob();
-    job.setId(jobId);
-    job.setParent(parentVideo);
-    job.setStatus(status);
-    job.setCreatedAt(createdAt);
-    job.setCompletedAt(completedAt);
-    job.setAttemptCount(status == ProcessStatus.COMPLETED ? 1 : 0);
+    VideoCompressionJob job =
+        VideoCompressionJob.builder()
+            .id(jobId)
+            .parent(parentVideo)
+            .status(status)
+            .createdAt(createdAt)
+            .completedAt(completedAt)
+            .attemptCount(status == ProcessStatus.COMPLETED ? 1 : 0)
+            .build();
 
     if (status == ProcessStatus.COMPLETED) {
-      JVideo compressedVideo = createMockJVideo(randomUUID().toString(), COMPRESSED_KEY);
-      compressedVideo.setBucketKey(
-          buildCompressedVideoUrl(COMPRESSED_VIDEO_PREFIX + jobId + ".mp4"));
+      JVideo compressedVideo =
+          createMockJVideo(randomUUID().toString(), COMPRESSED_KEY).toBuilder()
+              .bucketKey(buildCompressedVideoUrl(COMPRESSED_VIDEO_PREFIX + jobId + ".mp4"))
+              .build();
       job.setCompressedVideo(compressedVideo);
     }
 
@@ -894,37 +958,39 @@ class VideoServiceIT {
 
   private VideoFormatConversionJob createCompletedFormatConversionJob(
       String jobId, JVideo parentVideo, JVideo convertedVideo) {
-    VideoFormatConversionJob mockJob = new VideoFormatConversionJob();
-    mockJob.setId(jobId);
-    mockJob.setParent(parentVideo);
-    mockJob.setConvertedVideo(convertedVideo);
-    mockJob.setStatus(ProcessStatus.COMPLETED);
-    mockJob.setCreatedAt(LocalDateTime.now().minusMinutes(5));
-    mockJob.setCompletedAt(LocalDateTime.now());
-    mockJob.setAttemptCount(1);
-    mockJob.setErrorMessage(null);
-    return mockJob;
+    return VideoFormatConversionJob.builder()
+        .id(jobId)
+        .parent(parentVideo)
+        .convertedVideo(convertedVideo)
+        .status(ProcessStatus.COMPLETED)
+        .createdAt(LocalDateTime.now().minusMinutes(5))
+        .completedAt(LocalDateTime.now())
+        .attemptCount(1)
+        .errorMessage(null)
+        .build();
   }
 
   private JVideo createMockJVideoWithFormat(String id, String bucketKey, ContainerFormat format) {
-    Video video = new Video();
-    video.setId(id);
-    video.setFileName("test_video" + getExtensionForFormat(format));
-    video.setFilePath(bucketKey);
-    video.setWidth(VIDEO_WIDTH);
-    video.setHeight(VIDEO_HEIGHT);
-    video.setDuration(VIDEO_DURATION);
-    video.setFrameRate(VIDEO_FRAME_RATE);
-    video.setSize(VIDEO_SIZE);
-    video.setSizeType(SizeType.BYTES);
-    video.setFileType(FileType.VIDEO);
-    video.setCodec(getCodecForFormat(format));
-    video.setContainerFormat(format);
-    video.setAudioChannels(AUDIO_CHANNELS);
-    video.setAudioSampleRate(AUDIO_SAMPLE_RATE);
-    video.setAudioCodec(AudioCodec.AAC);
-    video.setCreatedAt(LocalDateTime.now());
-    video.setOwner(createMockUser());
+    Video video =
+        Video.builder()
+            .id(id)
+            .fileName("test_video" + getExtensionForFormat(format))
+            .filePath(bucketKey)
+            .width(VIDEO_WIDTH)
+            .height(VIDEO_HEIGHT)
+            .duration(VIDEO_DURATION)
+            .frameRate(VIDEO_FRAME_RATE)
+            .size(VIDEO_SIZE)
+            .sizeType(SizeType.BYTES)
+            .fileType(FileType.VIDEO)
+            .codec(getCodecForFormat(format))
+            .containerFormat(format)
+            .audioChannels(AUDIO_CHANNELS)
+            .audioSampleRate(AUDIO_SAMPLE_RATE)
+            .audioCodec(AudioCodec.AAC)
+            .createdAt(LocalDateTime.now())
+            .owner(createMockUser())
+            .build();
     return toJVideo(video);
   }
 

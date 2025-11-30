@@ -20,6 +20,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -32,6 +33,7 @@ import org.hibernate.type.SqlTypes;
 @Setter
 @EqualsAndHashCode
 @ToString
+@SuperBuilder(toBuilder = true)
 public class JMedia {
 
   @Id private String id;

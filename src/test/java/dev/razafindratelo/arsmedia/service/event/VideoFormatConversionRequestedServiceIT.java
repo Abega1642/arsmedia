@@ -11,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeast;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -42,13 +41,14 @@ import dev.razafindratelo.arsmedia.service.util.BitRateCalculator;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.Random;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import net.bramp.ffmpeg.FFmpeg;
 import net.bramp.ffmpeg.FFmpegExecutor;
+import net.bramp.ffmpeg.FFprobe;
 import net.bramp.ffmpeg.builder.FFmpegBuilder;
 import net.bramp.ffmpeg.job.FFmpegJob;
 import org.jetbrains.annotations.NotNull;
@@ -63,17 +63,24 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 @Slf4j
+@Getter
+@Setter
 class VideoFormatConversionRequestedServiceIT {
+
   private static final int ORIGINAL_FILE_SIZE = 10_000_000;
   private static final int CONVERTED_FILE_SIZE = 9_500_000;
   private static final String PREFIX = "converted_";
-  private static final String FFMPEG_PATH = "/usr/bin/ffmpeg";
-  private static final String FFPROBE_PATH = "/usr/bin/ffprobe";
+  private static final String MP4_SUFFIX = ".mp4";
+  private static final String MKV_EXTENSION = ".mkv";
+  private static final String VIDEO_KEY = "video_key";
+  private static final String OWNER_EMAIL = "owner@example.com";
   private final TempFileCleaner tempFileCleaner = new TempFileCleaner();
   private final BitRateCalculator bitRateCalculator = new BitRateCalculator();
 
   @TempDir File tempDir;
 
+  @Mock private FFmpeg fFmpeg;
+  @Mock private FFprobe fFprobe;
   @Mock private BucketComponent bucketComponent;
   @Mock private VideoRepository repository;
   @Mock private UserService userService;
@@ -84,24 +91,24 @@ class VideoFormatConversionRequestedServiceIT {
 
   private static @NotNull VideoFormatConversionJob getVideoFormatConversionJob(
       VideoFormatConversionJob job) {
-    VideoFormatConversionJob snapshot = new VideoFormatConversionJob();
-    snapshot.setId(job.getId());
-    snapshot.setParent(job.getParent());
-    snapshot.setConvertedVideo(job.getConvertedVideo());
-    snapshot.setCreatedAt(job.getCreatedAt());
-    snapshot.setCompletedAt(job.getCompletedAt());
-    snapshot.setStatus(job.getStatus());
-    snapshot.setErrorMessage(job.getErrorMessage());
-    snapshot.setAttemptCount(job.getAttemptCount());
-    return snapshot;
+    return VideoFormatConversionJob.builder()
+        .id(job.getId())
+        .parent(job.getParent())
+        .convertedVideo(job.getConvertedVideo())
+        .createdAt(job.getCreatedAt())
+        .completedAt(job.getCompletedAt())
+        .status(job.getStatus())
+        .errorMessage(job.getErrorMessage())
+        .attemptCount(job.getAttemptCount())
+        .build();
   }
 
   @BeforeEach
-  void setUp() throws IOException {
+  void setUp() {
     subject =
         new VideoFormatConversionRequestedService(
-            FFMPEG_PATH,
-            FFPROBE_PATH,
+            fFmpeg,
+            fFprobe,
             bucketComponent,
             repository,
             userService,
@@ -114,20 +121,20 @@ class VideoFormatConversionRequestedServiceIT {
   void should_successfully_convert_mp4_to_mkv() throws IOException {
     var videoId = randomUUID().toString();
     var jobId = randomUUID().toString();
-    var event = createConversionEvent(videoId, jobId, "video_key", ContainerFormat.MKV);
+    var event = createConversionEvent(videoId, jobId, VIDEO_KEY, ContainerFormat.MKV);
 
-    File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE, ".mp4");
+    File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE, MP4_SUFFIX);
     JVideo originalJVideo = createMockJVideo(videoId, ContainerFormat.MP4, true);
     VideoFormatConversionJob conversionJob = createMockConversionJob(jobId, originalJVideo);
 
     setupMocks(
         originalJVideo,
-        createMockUser("owner@example.com"),
+        createMockUser(OWNER_EMAIL),
         event.getBucketKey(),
         originalFile,
         conversionJob);
 
-    try (var mockedExecutor = setupFfmpegMock(".mkv")) {
+    try (var _ = setupFfmpegMock(MKV_EXTENSION)) {
       subject.accept(event);
 
       verifySuccessfulConversion(videoId, ContainerFormat.MKV, VideoCodec.H264, AudioCodec.AAC);
@@ -139,20 +146,20 @@ class VideoFormatConversionRequestedServiceIT {
   void should_successfully_convert_mp4_to_webm() throws IOException {
     var videoId = randomUUID().toString();
     var jobId = randomUUID().toString();
-    var event = createConversionEvent(videoId, jobId, "video_key", ContainerFormat.WEBM);
+    var event = createConversionEvent(videoId, jobId, VIDEO_KEY, ContainerFormat.WEBM);
 
-    File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE, ".mp4");
+    File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE, MP4_SUFFIX);
     JVideo originalJVideo = createMockJVideo(videoId, ContainerFormat.MP4, true);
     VideoFormatConversionJob conversionJob = createMockConversionJob(jobId, originalJVideo);
 
     setupMocks(
         originalJVideo,
-        createMockUser("owner@example.com"),
+        createMockUser(OWNER_EMAIL),
         event.getBucketKey(),
         originalFile,
         conversionJob);
 
-    try (var mockedExecutor = setupFfmpegMock(".webm")) {
+    try (var _ = setupFfmpegMock(".webm")) {
       subject.accept(event);
 
       verifySuccessfulConversion(videoId, ContainerFormat.WEBM, VideoCodec.VP9, AudioCodec.OPUS);
@@ -164,7 +171,7 @@ class VideoFormatConversionRequestedServiceIT {
   void should_successfully_convert_mov_to_mp4() throws IOException {
     var videoId = randomUUID().toString();
     var jobId = randomUUID().toString();
-    var event = createConversionEvent(videoId, jobId, "video_key", ContainerFormat.MP4);
+    var event = createConversionEvent(videoId, jobId, VIDEO_KEY, ContainerFormat.MP4);
 
     File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE, ".mov");
     JVideo originalJVideo = createMockJVideo(videoId, ContainerFormat.MOV, true);
@@ -172,12 +179,12 @@ class VideoFormatConversionRequestedServiceIT {
 
     setupMocks(
         originalJVideo,
-        createMockUser("owner@example.com"),
+        createMockUser(OWNER_EMAIL),
         event.getBucketKey(),
         originalFile,
         conversionJob);
 
-    try (var mockedExecutor = setupFfmpegMock(".mp4")) {
+    try (var _ = setupFfmpegMock(MP4_SUFFIX)) {
       subject.accept(event);
 
       verifySuccessfulConversion(videoId, ContainerFormat.MP4, VideoCodec.H264, AudioCodec.AAC);
@@ -189,7 +196,7 @@ class VideoFormatConversionRequestedServiceIT {
   void should_successfully_convert_avi_to_mp4() throws IOException {
     var videoId = randomUUID().toString();
     var jobId = randomUUID().toString();
-    var event = createConversionEvent(videoId, jobId, "video_key", ContainerFormat.MP4);
+    var event = createConversionEvent(videoId, jobId, VIDEO_KEY, ContainerFormat.MP4);
 
     File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE, ".avi");
     JVideo originalJVideo = createMockJVideo(videoId, ContainerFormat.AVI, true);
@@ -197,12 +204,12 @@ class VideoFormatConversionRequestedServiceIT {
 
     setupMocks(
         originalJVideo,
-        createMockUser("owner@example.com"),
+        createMockUser(OWNER_EMAIL),
         event.getBucketKey(),
         originalFile,
         conversionJob);
 
-    try (var mockedExecutor = setupFfmpegMock(".mp4")) {
+    try (var _ = setupFfmpegMock(MP4_SUFFIX)) {
       subject.accept(event);
 
       verifySuccessfulConversion(videoId, ContainerFormat.MP4, VideoCodec.H264, AudioCodec.AAC);
@@ -213,20 +220,20 @@ class VideoFormatConversionRequestedServiceIT {
   void should_successfully_convert_to_flv() throws IOException {
     var videoId = randomUUID().toString();
     var jobId = randomUUID().toString();
-    var event = createConversionEvent(videoId, jobId, "video_key", ContainerFormat.FLV);
+    var event = createConversionEvent(videoId, jobId, VIDEO_KEY, ContainerFormat.FLV);
 
-    File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE, ".mp4");
+    File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE, MP4_SUFFIX);
     JVideo originalJVideo = createMockJVideo(videoId, ContainerFormat.MP4, true);
     VideoFormatConversionJob conversionJob = createMockConversionJob(jobId, originalJVideo);
 
     setupMocks(
         originalJVideo,
-        createMockUser("owner@example.com"),
+        createMockUser(OWNER_EMAIL),
         event.getBucketKey(),
         originalFile,
         conversionJob);
 
-    try (var mockedExecutor = setupFfmpegMock(".flv")) {
+    try (var _ = setupFfmpegMock(".flv")) {
       subject.accept(event);
 
       verifySuccessfulConversion(videoId, ContainerFormat.FLV, VideoCodec.FLV, AudioCodec.MP3);
@@ -237,20 +244,20 @@ class VideoFormatConversionRequestedServiceIT {
   void should_successfully_convert_to_3gp() throws IOException {
     var videoId = randomUUID().toString();
     var jobId = randomUUID().toString();
-    var event = createConversionEvent(videoId, jobId, "video_key", ContainerFormat.THREEGP);
+    var event = createConversionEvent(videoId, jobId, VIDEO_KEY, ContainerFormat.THREEGP);
 
-    File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE, ".mp4");
+    File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE, MP4_SUFFIX);
     JVideo originalJVideo = createMockJVideo(videoId, ContainerFormat.MP4, true);
     VideoFormatConversionJob conversionJob = createMockConversionJob(jobId, originalJVideo);
 
     setupMocks(
         originalJVideo,
-        createMockUser("owner@example.com"),
+        createMockUser(OWNER_EMAIL),
         event.getBucketKey(),
         originalFile,
         conversionJob);
 
-    try (var mockedExecutor = setupFfmpegMock(".3gp")) {
+    try (var _ = setupFfmpegMock(".3gp")) {
       subject.accept(event);
 
       verifySuccessfulConversion(
@@ -264,18 +271,18 @@ class VideoFormatConversionRequestedServiceIT {
     var jobId = randomUUID().toString();
     var event = createConversionEvent(videoId, jobId, "video_no_audio_key", ContainerFormat.MKV);
 
-    File originalFile = createMockVideoFile(8_000_000, ".mp4");
+    File originalFile = createMockVideoFile(8_000_000, MP4_SUFFIX);
     JVideo originalJVideo = createMockJVideoWithoutAudio(videoId);
     VideoFormatConversionJob conversionJob = createMockConversionJob(jobId, originalJVideo);
 
     setupMocks(
         originalJVideo,
-        createMockUser("owner@example.com"),
+        createMockUser(OWNER_EMAIL),
         event.getBucketKey(),
         originalFile,
         conversionJob);
 
-    try (var mockedExecutor = setupFfmpegMock(".mkv")) {
+    try (var _ = setupFfmpegMock(MKV_EXTENSION)) {
       subject.accept(event);
 
       verifyVideoWithoutAudio();
@@ -287,7 +294,7 @@ class VideoFormatConversionRequestedServiceIT {
   void should_throw_exception_when_converting_video_to_audio_format() {
     var videoId = randomUUID().toString();
     var jobId = randomUUID().toString();
-    var event = createConversionEvent(videoId, jobId, "video_key", ContainerFormat.MP3);
+    var event = createConversionEvent(videoId, jobId, VIDEO_KEY, ContainerFormat.MP3);
 
     JVideo originalJVideo = createMockJVideo(videoId, ContainerFormat.MP4, true);
     VideoFormatConversionJob conversionJob = createMockConversionJob(jobId, originalJVideo);
@@ -312,7 +319,7 @@ class VideoFormatConversionRequestedServiceIT {
   void should_throw_exception_when_source_and_target_formats_are_same() {
     var videoId = randomUUID().toString();
     var jobId = randomUUID().toString();
-    var event = createConversionEvent(videoId, jobId, "video_key", ContainerFormat.MP4);
+    var event = createConversionEvent(videoId, jobId, VIDEO_KEY, ContainerFormat.MP4);
 
     JVideo originalJVideo = createMockJVideo(videoId, ContainerFormat.MP4, true);
     VideoFormatConversionJob conversionJob = createMockConversionJob(jobId, originalJVideo);
@@ -329,7 +336,7 @@ class VideoFormatConversionRequestedServiceIT {
   void should_throw_exception_when_target_format_is_unknown() {
     var videoId = randomUUID().toString();
     var jobId = randomUUID().toString();
-    var event = createConversionEvent(videoId, jobId, "video_key", ContainerFormat.UNKNOWN);
+    var event = createConversionEvent(videoId, jobId, VIDEO_KEY, ContainerFormat.UNKNOWN);
 
     JVideo originalJVideo = createMockJVideo(videoId, ContainerFormat.MP4, true);
     VideoFormatConversionJob conversionJob = createMockConversionJob(jobId, originalJVideo);
@@ -391,23 +398,23 @@ class VideoFormatConversionRequestedServiceIT {
   void should_handle_ffmpeg_execution_failure() throws IOException {
     var videoId = randomUUID().toString();
     var jobId = randomUUID().toString();
-    var event = createConversionEvent(videoId, jobId, "video_key", ContainerFormat.MKV);
+    var event = createConversionEvent(videoId, jobId, VIDEO_KEY, ContainerFormat.MKV);
 
-    File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE, ".mp4");
+    File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE, MP4_SUFFIX);
     JVideo originalJVideo = createMockJVideo(videoId, ContainerFormat.MP4, true);
     VideoFormatConversionJob conversionJob = createMockConversionJob(jobId, originalJVideo);
 
     setupMocks(
         originalJVideo,
-        createMockUser("owner@example.com"),
+        createMockUser(OWNER_EMAIL),
         event.getBucketKey(),
         originalFile,
         conversionJob);
 
-    try (var mockedExecutor =
+    try (var _ =
         mockConstruction(
             FFmpegExecutor.class,
-            (mock, context) -> {
+            (mock, _) -> {
               FFmpegJob mockJob = mock(FFmpegJob.class);
               when(mock.createJob(any(FFmpegBuilder.class))).thenReturn(mockJob);
               doThrow(new RuntimeException("FFmpeg conversion failed")).when(mockJob).run();
@@ -434,9 +441,9 @@ class VideoFormatConversionRequestedServiceIT {
   void should_handle_upload_failure() throws IOException {
     var videoId = randomUUID().toString();
     var jobId = randomUUID().toString();
-    var event = createConversionEvent(videoId, jobId, "video_key", ContainerFormat.MKV);
+    var event = createConversionEvent(videoId, jobId, VIDEO_KEY, ContainerFormat.MKV);
 
-    File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE, ".mp4");
+    File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE, MP4_SUFFIX);
     JVideo originalJVideo = createMockJVideo(videoId, ContainerFormat.MP4, true);
     VideoFormatConversionJob conversionJob = createMockConversionJob(jobId, originalJVideo);
 
@@ -445,7 +452,7 @@ class VideoFormatConversionRequestedServiceIT {
     when(userService.findByEmail(event.getOwner())).thenReturn(createMockUser(event.getOwner()));
     when(bucketComponent.download(event.getBucketKey())).thenReturn(originalFile);
 
-    try (var mockedExecutor = setupFfmpegMock(".mkv")) {
+    try (var _ = setupFfmpegMock(MKV_EXTENSION)) {
       doThrow(new DirectoryUploadException("Upload failed"))
           .when(bucketComponent)
           .upload(any(File.class), anyString());
@@ -498,43 +505,42 @@ class VideoFormatConversionRequestedServiceIT {
   void should_preserve_video_properties_during_conversion() throws IOException {
     var videoId = randomUUID().toString();
     var jobId = randomUUID().toString();
-    var event = createConversionEvent(videoId, jobId, "video_key", ContainerFormat.MKV);
+    var event = createConversionEvent(videoId, jobId, VIDEO_KEY, ContainerFormat.MKV);
 
-    File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE, ".mp4");
+    File originalFile = createMockVideoFile(ORIGINAL_FILE_SIZE, MP4_SUFFIX);
     JVideo originalJVideo = createMockJVideo(videoId, ContainerFormat.MP4, true);
     VideoFormatConversionJob conversionJob = createMockConversionJob(jobId, originalJVideo);
 
     setupMocks(
         originalJVideo,
-        createMockUser("owner@example.com"),
+        createMockUser(OWNER_EMAIL),
         event.getBucketKey(),
         originalFile,
         conversionJob);
 
-    try (var mockedExecutor = setupFfmpegMock(".mkv")) {
+    try (var _ = setupFfmpegMock(MKV_EXTENSION)) {
       subject.accept(event);
 
       ArgumentCaptor<JVideo> jVideoCaptor = ArgumentCaptor.forClass(JVideo.class);
       verify(repository).save(jVideoCaptor.capture());
 
       Video savedVideo = toVideo(jVideoCaptor.getValue());
-      assertEquals(1920, savedVideo.getWidth());
-      assertEquals(1080, savedVideo.getHeight());
+      assertEquals(1_920, savedVideo.getWidth());
+      assertEquals(1_080, savedVideo.getHeight());
       assertEquals(30.0, savedVideo.getFrameRate());
       assertEquals(120.0, savedVideo.getDuration());
       assertEquals(2, savedVideo.getAudioChannels());
-      assertEquals(48000, savedVideo.getAudioSampleRate());
+      assertEquals(48_000, savedVideo.getAudioSampleRate());
     }
   }
 
   private VideoFormatConversionRequested createConversionEvent(
       String videoId, String jobId, String bucketKey, ContainerFormat targetFormat) {
-
     return VideoFormatConversionRequested.builder()
         .videoId(videoId)
         .jobId(jobId)
         .bucketKey(bucketKey)
-        .owner("owner@example.com")
+        .owner(OWNER_EMAIL)
         .targetFormat(targetFormat)
         .build();
   }
@@ -549,7 +555,7 @@ class VideoFormatConversionRequestedServiceIT {
     lenient()
         .when(videoFormatConversionJobRepository.findById(conversionJob.getId()))
         .thenAnswer(
-            invocation -> {
+            _ -> {
               VideoFormatConversionJob copy = getVideoFormatConversionJob(conversionJob);
               return Optional.of(copy);
             });
@@ -588,49 +594,8 @@ class VideoFormatConversionRequestedServiceIT {
   }
 
   private MockedConstruction<FFmpegExecutor> setupFfmpegMock(String extension) {
-    return mockConstruction(
-        FFmpegExecutor.class,
-        (mock, context) -> {
-          FFmpegJob mockJob = mock(FFmpegJob.class);
-          when(mock.createJob(any(FFmpegBuilder.class))).thenReturn(mockJob);
-
-          doAnswer(
-                  invocation -> {
-                    File systemTempDir = new File(System.getProperty("java.io.tmpdir"));
-                    File[] convertedFiles =
-                        systemTempDir.listFiles(
-                            (dir, name) -> name.startsWith(PREFIX) && name.endsWith(extension));
-
-                    if (convertedFiles != null && convertedFiles.length > 0) {
-                      File actualOutputFile =
-                          Arrays.stream(convertedFiles)
-                              .max(Comparator.comparingLong(File::lastModified))
-                              .orElseThrow(
-                                  () ->
-                                      new RuntimeException("Could not find converted output file"));
-
-                      log.info(
-                          "Writing mock converted data to: {}", actualOutputFile.getAbsolutePath());
-
-                      byte[] convertedData = new byte[CONVERTED_FILE_SIZE];
-                      new Random().nextBytes(convertedData);
-                      Files.write(actualOutputFile.toPath(), convertedData);
-
-                      interceptedConvertedFile = actualOutputFile;
-
-                      log.info(
-                          "Successfully wrote {} bytes to converted file",
-                          actualOutputFile.length());
-                    } else {
-                      throw new RuntimeException(
-                          "No converted_ temp file was created by the service");
-                    }
-
-                    return null;
-                  })
-              .when(mockJob)
-              .run();
-        });
+    return FFmpegMockHelper.setupFfmpegMock(
+        PREFIX, extension, CONVERTED_FILE_SIZE, file -> interceptedConvertedFile = file);
   }
 
   private void verifySuccessfulConversion(
@@ -698,36 +663,31 @@ class VideoFormatConversionRequestedServiceIT {
   }
 
   private File createMockVideoFile(long size, String extension) throws IOException {
-    File file = new File(tempDir, "test_video" + extension);
+    var file = new File(tempDir, "test_video" + extension);
     Files.write(file.toPath(), new byte[(int) size]);
     return file;
   }
 
   private JVideo createMockJVideo(String videoId, ContainerFormat format, boolean hasAudio) {
-    Video video = new Video();
-    video.setId(videoId);
-    video.setFileName("original" + "." + format.name().toLowerCase());
-    video.setWidth(1920);
-    video.setHeight(1080);
-    video.setFrameRate(30.0);
-    video.setDuration(120.0);
-    video.setSize(ORIGINAL_FILE_SIZE);
-    video.setSizeType(SizeType.BYTES);
-    video.setFileType(FileType.VIDEO);
-    video.setCodec(getCodecForFormat(format));
-    video.setContainerFormat(format);
+    var video =
+        Video.builder()
+            .id(videoId)
+            .fileName("original" + "." + format.name().toLowerCase())
+            .width(1920)
+            .height(1080)
+            .frameRate(30.0)
+            .duration(120.0)
+            .size(ORIGINAL_FILE_SIZE)
+            .sizeType(SizeType.BYTES)
+            .fileType(FileType.VIDEO)
+            .codec(getCodecForFormat(format))
+            .containerFormat(format)
+            .audioChannels(hasAudio ? 2 : 0)
+            .audioSampleRate(hasAudio ? 48000 : 0)
+            .audioCodec(hasAudio ? AudioCodec.AAC : AudioCodec.NONE)
+            .owner(createMockUser("test@example.com"))
+            .build();
 
-    if (hasAudio) {
-      video.setAudioChannels(2);
-      video.setAudioSampleRate(48000);
-      video.setAudioCodec(AudioCodec.AAC);
-    } else {
-      video.setAudioChannels(0);
-      video.setAudioSampleRate(0);
-      video.setAudioCodec(AudioCodec.NONE);
-    }
-
-    video.setOwner(createMockUser("test@example.com"));
     return toJVideo(video);
   }
 
@@ -736,20 +696,17 @@ class VideoFormatConversionRequestedServiceIT {
   }
 
   private VideoFormatConversionJob createMockConversionJob(String jobId, JVideo parent) {
-    VideoFormatConversionJob job = new VideoFormatConversionJob();
-    job.setId(jobId);
-    job.setParent(parent);
-    job.setCreatedAt(now());
-    job.setStatus(ProcessStatus.PENDING);
-    job.setAttemptCount(0);
-    return job;
+    return VideoFormatConversionJob.builder()
+        .id(jobId)
+        .parent(parent)
+        .createdAt(now())
+        .status(ProcessStatus.PENDING)
+        .attemptCount(0)
+        .build();
   }
 
   private User createMockUser(String email) {
-    User user = new User();
-    user.setId(randomUUID().toString());
-    user.setEmail(email);
-    return user;
+    return User.builder().id(randomUUID().toString()).email(email).build();
   }
 
   private VideoCodec getCodecForFormat(ContainerFormat format) {

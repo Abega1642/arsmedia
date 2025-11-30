@@ -3,15 +3,15 @@ package dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job;
 import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import lombok.experimental.SuperBuilder;
 
 @AllArgsConstructor
 @NoArgsConstructor
-@Builder
+@SuperBuilder
 @Data
 @EqualsAndHashCode
 @ToString

@@ -11,11 +11,13 @@ import jakarta.persistence.InheritanceType;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -26,6 +28,7 @@ import org.hibernate.type.SqlTypes;
 @NoArgsConstructor
 @Getter
 @Setter
+@SuperBuilder
 @EqualsAndHashCode
 @ToString
 public class Job {
@@ -46,5 +49,6 @@ public class Job {
   private String errorMessage;
 
   @Column(name = "attempt_count", nullable = false)
+  @Builder.Default
   private int attemptCount = 0;
 }

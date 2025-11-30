@@ -12,14 +12,16 @@ public class VideoFormatConversionJobStatusResponseMapper {
 
   public static VideoFormatConversionJobStatusResponse mapToFormatConversionResponse(
       VideoFormatConversionJob job) {
-    return new VideoFormatConversionJobStatusResponse(
-        job.getId(),
-        job.getStatus(),
-        job.getCreatedAt(),
-        job.getCompletedAt(),
-        job.getConvertedVideo() != null ? job.getConvertedVideo().getId() : null,
-        job.getConvertedVideo() != null ? job.getConvertedVideo().getBucketKey() : null,
-        job.getErrorMessage(),
-        job.getAttemptCount());
+    return VideoFormatConversionJobStatusResponse.builder()
+        .jobId(job.getId())
+        .status(job.getStatus())
+        .createdAt(job.getCreatedAt())
+        .completedAt(job.getCompletedAt())
+        .convertedVideoId(job.getConvertedVideo() != null ? job.getConvertedVideo().getId() : null)
+        .convertedVideoBucketKey(
+            job.getConvertedVideo() != null ? job.getConvertedVideo().getBucketKey() : null)
+        .errorMessage(job.getErrorMessage())
+        .attemptCount(job.getAttemptCount())
+        .build();
   }
 }

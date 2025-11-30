@@ -14,6 +14,7 @@ import lombok.NoArgsConstructor;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class CompressionOptions {
   @JsonProperty("crf")
+  @Builder.Default
   private int crf = 23;
 
   @JsonProperty("target_width")

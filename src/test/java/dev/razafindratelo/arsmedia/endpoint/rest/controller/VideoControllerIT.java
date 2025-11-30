@@ -50,6 +50,7 @@ class VideoControllerIT extends FacadeIT {
   private static final String COMPRESS_ENDPOINT = "/compress/";
   private static final String EXTRACT_AUDIO_ENDPOINT = "/extract-audio/";
   private static final String FORMAT_CONVERT_ENDPOINT = "/format-convert/";
+  private static final String FORMAT_CONVERSION_STATUS = "/format-conversion-status/";
 
   @Autowired private MockMvc mvc;
   @MockitoBean private VideoService videoService;
@@ -828,39 +829,41 @@ class VideoControllerIT extends FacadeIT {
       String compressedVideoUrl,
       String errorMessage,
       int attemptCount) {
-    return new VideoCompressionJobStatusResponse(
-        jobId,
-        status,
-        createdAt,
-        completedAt,
-        compressedVideoId,
-        compressedVideoUrl,
-        errorMessage,
-        attemptCount);
+    return VideoCompressionJobStatusResponse.builder()
+        .jobId(jobId)
+        .status(status)
+        .createdAt(createdAt)
+        .completedAt(completedAt)
+        .compressedVideoId(compressedVideoId)
+        .compressedVideoUrl(compressedVideoUrl)
+        .errorMessage(errorMessage)
+        .attemptCount(attemptCount)
+        .build();
   }
 
   private List<Video> createMockCompressedVideos() {
     List<Video> videos = new ArrayList<>();
     for (int i = 1; i <= 3; i++) {
-      Video v = new Video();
-      v.setId(randomUUID().toString());
       var mp4Suffix = ".mp4";
-
-      v.setFileName("compressed_video_" + i + mp4Suffix);
-      v.setFilePath("s3://bucket/compressed_" + i + mp4Suffix);
-      v.setWidth(1280);
-      v.setHeight(720);
-      v.setDuration(120.0);
-      v.setFrameRate(30.0);
-      v.setSize(5_000_000L);
-      v.setSizeType(SizeType.BYTES);
-      v.setFileType(FileType.VIDEO);
-      v.setCodec(VideoCodec.H264);
-      v.setContainerFormat(ContainerFormat.MP4);
-      v.setAudioChannels(2);
-      v.setAudioSampleRate(48000);
-      v.setAudioCodec(AudioCodec.AAC);
-      v.setCreatedAt(LocalDateTime.now());
+      Video v =
+          Video.builder()
+              .id(randomUUID().toString())
+              .fileName("compressed_video_" + i + mp4Suffix)
+              .filePath("s3://bucket/compressed_" + i + mp4Suffix)
+              .width(1280)
+              .height(720)
+              .duration(120.0)
+              .frameRate(30.0)
+              .size(5_000_000L)
+              .sizeType(SizeType.BYTES)
+              .fileType(FileType.VIDEO)
+              .codec(VideoCodec.H264)
+              .containerFormat(ContainerFormat.MP4)
+              .audioChannels(2)
+              .audioSampleRate(48000)
+              .audioCodec(AudioCodec.AAC)
+              .createdAt(LocalDateTime.now())
+              .build();
       videos.add(v);
     }
     return videos;
@@ -881,15 +884,16 @@ class VideoControllerIT extends FacadeIT {
       String extractedAudioUrl,
       String errorMessage,
       int attemptCount) {
-    return new AudioExtractionJobStatusResponse(
-        jobId,
-        status,
-        createdAt,
-        completedAt,
-        extractedAudioId,
-        extractedAudioUrl,
-        errorMessage,
-        attemptCount);
+    return AudioExtractionJobStatusResponse.builder()
+        .jobId(jobId)
+        .status(status)
+        .createdAt(createdAt)
+        .completedAt(completedAt)
+        .extractedAudioId(extractedAudioId)
+        .extractedAudioBucketKey(extractedAudioUrl)
+        .errorMessage(errorMessage)
+        .attemptCount(attemptCount)
+        .build();
   }
 
   private ResultActions postFormatConversion(
@@ -904,7 +908,7 @@ class VideoControllerIT extends FacadeIT {
 
   private ResultActions getFormatConversionStatus(String jobId) throws Exception {
     return mvc.perform(
-        get(BASE_URL + "/format-conversion-status/{jobId}", jobId)
+        get(BASE_URL + FORMAT_CONVERSION_STATUS + "{jobId}", jobId)
             .contentType(MediaType.APPLICATION_JSON));
   }
 
@@ -917,14 +921,15 @@ class VideoControllerIT extends FacadeIT {
       String convertedVideoBucketKey,
       String errorMessage,
       int attemptCount) {
-    return new VideoFormatConversionJobStatusResponse(
-        jobId,
-        status,
-        createdAt,
-        completedAt,
-        convertedVideoId,
-        convertedVideoBucketKey,
-        errorMessage,
-        attemptCount);
+    return VideoFormatConversionJobStatusResponse.builder()
+        .jobId(jobId)
+        .status(status)
+        .createdAt(createdAt)
+        .completedAt(completedAt)
+        .convertedVideoId(convertedVideoId)
+        .convertedVideoBucketKey(convertedVideoBucketKey)
+        .errorMessage(errorMessage)
+        .attemptCount(attemptCount)
+        .build();
   }
 }

@@ -5,6 +5,7 @@ import static dev.razafindratelo.arsmedia.mapper.VideoCompressionJobStatusRespon
 import static dev.razafindratelo.arsmedia.mapper.VideoFormatConversionJobStatusResponseMapper.mapToFormatConversionResponse;
 import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toJVideo;
 import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toVideo;
+import static java.util.UUID.randomUUID;
 
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.CompressionOptions;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.AudioExtractionJobStatusResponse;
@@ -31,19 +32,17 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
-import java.util.EnumSet;
 import java.util.List;
-import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.annotation.Validated;
 
 @Service
 @Validated
-@AllArgsConstructor
+@RequiredArgsConstructor
 @Slf4j
 public class VideoService {
 
@@ -56,6 +55,7 @@ public class VideoService {
   private final EventProducer<VideoFormatConversionRequested>
       videoFormatConversionRequestedEventProducer;
   private final VideoFormatConversionJobRepository videoFormatConversionJobRepository;
+  private final FormatConversionValidator formatConversionValidator;
 
   public VideoCompressionJobStatusResponse compress(
       @NotBlank @Email @NotNull String email, @NotBlank @NotNull String bucketKey) {
@@ -130,15 +130,12 @@ public class VideoService {
     log.info(
         "Audio extraction event sent for video: {}, job_id: {}", video.getId(), audioJob.getId());
 
-    return new AudioExtractionJobStatusResponse(
-        event.getJobId(),
-        audioJob.getStatus(),
-        audioJob.getCreatedAt(),
-        null,
-        null,
-        null,
-        null,
-        audioJob.getAttemptCount());
+    return AudioExtractionJobStatusResponse.builder()
+        .jobId(event.getJobId())
+        .status(audioJob.getStatus())
+        .createdAt(audioJob.getCreatedAt())
+        .attemptCount(audioJob.getAttemptCount())
+        .build();
   }
 
   private Video fetchVideoAndValidateOwner(String email, String bucketKey) {
@@ -159,23 +156,23 @@ public class VideoService {
   }
 
   private VideoCompressionJob buildCompressionJob(Video video) {
-    var job = new VideoCompressionJob();
-    job.setId(UUID.randomUUID().toString());
-    job.setParent(toJVideo(video));
-    job.setCreatedAt(LocalDateTime.now());
-    job.setStatus(ProcessStatus.PENDING);
-    job.setAttemptCount(0);
-    return job;
+    return VideoCompressionJob.builder()
+        .id(randomUUID().toString())
+        .parent(toJVideo(video))
+        .createdAt(LocalDateTime.now())
+        .status(ProcessStatus.PENDING)
+        .attemptCount(0)
+        .build();
   }
 
   private AudioExtractionJob buildAudioExtractionJob(Video video) {
-    var job = new AudioExtractionJob();
-    job.setId(UUID.randomUUID().toString());
-    job.setParent(toJVideo(video));
-    job.setCreatedAt(LocalDateTime.now());
-    job.setStatus(ProcessStatus.PENDING);
-    job.setAttemptCount(0);
-    return job;
+    return AudioExtractionJob.builder()
+        .id(randomUUID().toString())
+        .parent(toJVideo(video))
+        .createdAt(LocalDateTime.now())
+        .status(ProcessStatus.PENDING)
+        .attemptCount(0)
+        .build();
   }
 
   public VideoFormatConversionJobStatusResponse convertTo(
@@ -185,7 +182,16 @@ public class VideoService {
 
     var video = fetchVideoAndValidateOwner(userEmail, bucketKey);
 
-    validateFormatConversion(video.getContainerFormat(), toFormat);
+    var request =
+        new FormatConversionValidator.FormatConversionRequest(video.getContainerFormat(), toFormat);
+    var errors = new BeanPropertyBindingResult(request, "formatConversionRequest");
+
+    formatConversionValidator.validate(request, errors);
+
+    if (errors.hasErrors()) {
+      throw new InvalidFormatConversionException(
+          errors.getAllErrors().getFirst().getDefaultMessage());
+    }
 
     var conversionJob = buildFormatConversionJob(video);
     videoFormatConversionJobRepository.save(conversionJob);
@@ -205,64 +211,14 @@ public class VideoService {
     return mapToFormatConversionResponse(conversionJob);
   }
 
-  private void validateFormatConversion(
-      ContainerFormat sourceFormat, ContainerFormat targetFormat) {
-    if (targetFormat == ContainerFormat.UNKNOWN)
-      throw new InvalidFormatConversionException("Target format is unknown or unsupported");
-
-    if (sourceFormat == targetFormat)
-      throw new InvalidFormatConversionException(
-          String.format("Source and target formats are the same: %s", sourceFormat));
-
-    Set<ContainerFormat> videoFormats =
-        EnumSet.of(
-            ContainerFormat.MP4,
-            ContainerFormat.MKV,
-            ContainerFormat.MOV,
-            ContainerFormat.AVI,
-            ContainerFormat.FLV,
-            ContainerFormat.WMV,
-            ContainerFormat.WEBM,
-            ContainerFormat.MPEG_TS,
-            ContainerFormat.MPEG_PS,
-            ContainerFormat.THREEGP,
-            ContainerFormat.ASF);
-
-    Set<ContainerFormat> audioFormats =
-        EnumSet.of(
-            ContainerFormat.MP3,
-            ContainerFormat.OGG,
-            ContainerFormat.M4A,
-            ContainerFormat.WAV,
-            ContainerFormat.FLAC,
-            ContainerFormat.APE,
-            ContainerFormat.AIFF);
-
-    boolean sourceIsVideo = videoFormats.contains(sourceFormat);
-    boolean targetIsVideo = videoFormats.contains(targetFormat);
-    boolean sourceIsAudio = audioFormats.contains(sourceFormat);
-    boolean targetIsAudio = audioFormats.contains(targetFormat);
-
-    if (sourceIsVideo && targetIsAudio)
-      throw new InvalidFormatConversionException(
-          String.format(
-              "Cannot convert video format %s to audio format %s. Use audio extraction instead.",
-              sourceFormat, targetFormat));
-
-    if (sourceIsAudio && targetIsVideo)
-      throw new InvalidFormatConversionException(
-          String.format(
-              "Cannot convert audio format %s to video format %s", sourceFormat, targetFormat));
-  }
-
   private VideoFormatConversionJob buildFormatConversionJob(Video video) {
-    var job = new VideoFormatConversionJob();
-    job.setId(UUID.randomUUID().toString());
-    job.setParent(toJVideo(video));
-    job.setCreatedAt(LocalDateTime.now());
-    job.setStatus(ProcessStatus.PENDING);
-    job.setAttemptCount(0);
-    return job;
+    return VideoFormatConversionJob.builder()
+        .id(randomUUID().toString())
+        .parent(toJVideo(video))
+        .createdAt(LocalDateTime.now())
+        .status(ProcessStatus.PENDING)
+        .attemptCount(0)
+        .build();
   }
 
   public VideoFormatConversionJobStatusResponse getFormatConversionStatus(
