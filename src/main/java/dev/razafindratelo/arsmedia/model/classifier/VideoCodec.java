@@ -21,6 +21,8 @@ public enum VideoCodec {
   XVID,
   DIVX,
   HEVC,
+  FLV,
+  H263,
   UNKNOWN;
 
   public static VideoCodec fromString(String value) {
@@ -46,6 +48,8 @@ public enum VideoCodec {
       case "DV", "DVVIDEO" -> DV;
       case "XVID" -> XVID;
       case "DIVX" -> DIVX;
+      case "FLV", "FLV1" -> FLV;
+      case "H.263", "H263" -> H263;
       default -> UNKNOWN;
     };
   }

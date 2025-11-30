@@ -1,6 +1,7 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller;
 
 import static java.util.UUID.randomUUID;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -13,6 +14,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.AudioExtractionJobStatusResponse;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.VideoCompressionJobStatusResponse;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.VideoFormatConversionJobStatusResponse;
+import dev.razafindratelo.arsmedia.exception.InvalidFormatConversionException;
 import dev.razafindratelo.arsmedia.model.Video;
 import dev.razafindratelo.arsmedia.model.classifier.AudioCodec;
 import dev.razafindratelo.arsmedia.model.classifier.ContainerFormat;
@@ -46,81 +49,11 @@ class VideoControllerIT extends FacadeIT {
   private static final String USER_EMAIL_PARAM = "userEmail";
   private static final String COMPRESS_ENDPOINT = "/compress/";
   private static final String EXTRACT_AUDIO_ENDPOINT = "/extract-audio/";
+  private static final String FORMAT_CONVERT_ENDPOINT = "/format-convert/";
 
   @Autowired private MockMvc mvc;
   @MockitoBean private VideoService videoService;
   @MockitoBean private CompressionVideoService compressionService;
-
-  private ResultActions postTreatment(String email, String bucketKey, String endpoint)
-      throws Exception {
-    MockHttpServletRequestBuilder request =
-        post(BASE_URL + endpoint + "{bucketKey}", bucketKey)
-            .contentType(MediaType.APPLICATION_JSON);
-    if (bucketKey != null) request.param(USER_EMAIL_PARAM, email);
-    return mvc.perform(request);
-  }
-
-  private ResultActions getCompressedVideos(String email) throws Exception {
-    MockHttpServletRequestBuilder request =
-        get(BASE_URL + "/compressed").contentType(MediaType.APPLICATION_JSON);
-    if (email != null) request.param(USER_EMAIL_PARAM, email);
-    return mvc.perform(request);
-  }
-
-  private ResultActions getCompressionStatus(String jobId) throws Exception {
-    return mvc.perform(
-        get(BASE_URL + "/compression-status/{jobId}", jobId)
-            .contentType(MediaType.APPLICATION_JSON));
-  }
-
-  private void logResponse(ResultActions result, String message) throws Exception {
-    log.info("{} Response: {}", message, result.andReturn().getResponse().getContentAsString());
-  }
-
-  private VideoCompressionJobStatusResponse buildJobStatus(
-      String jobId,
-      ProcessStatus status,
-      LocalDateTime createdAt,
-      LocalDateTime completedAt,
-      String compressedVideoId,
-      String compressedVideoUrl,
-      String errorMessage,
-      int attemptCount) {
-    return new VideoCompressionJobStatusResponse(
-        jobId,
-        status,
-        createdAt,
-        completedAt,
-        compressedVideoId,
-        compressedVideoUrl,
-        errorMessage,
-        attemptCount);
-  }
-
-  private List<Video> createMockCompressedVideos() {
-    List<Video> videos = new ArrayList<>();
-    for (int i = 1; i <= 3; i++) {
-      Video v = new Video();
-      v.setId(randomUUID().toString());
-      v.setFileName("compressed_video_" + i + ".mp4");
-      v.setFilePath("s3://bucket/compressed_" + i + ".mp4");
-      v.setWidth(1280);
-      v.setHeight(720);
-      v.setDuration(120.0);
-      v.setFrameRate(30.0);
-      v.setSize(5_000_000L);
-      v.setSizeType(SizeType.BYTES);
-      v.setFileType(FileType.VIDEO);
-      v.setCodec(VideoCodec.H264);
-      v.setContainerFormat(ContainerFormat.MP4);
-      v.setAudioChannels(2);
-      v.setAudioSampleRate(48000);
-      v.setAudioCodec(AudioCodec.AAC);
-      v.setCreatedAt(LocalDateTime.now());
-      videos.add(v);
-    }
-    return videos;
-  }
 
   @Test
   void should_compress_video_and_return_job_status() throws Exception {
@@ -571,6 +504,368 @@ class VideoControllerIT extends FacadeIT {
     verify(videoService).getAudioExtractionStatus(jobId);
   }
 
+  @Test
+  void should_convert_video_format_and_return_job_status() throws Exception {
+    var jobId = randomUUID().toString();
+    var expected =
+        buildFormatConversionJobStatus(
+            jobId, ProcessStatus.PENDING, LocalDateTime.now(), null, null, null, null, 0);
+    when(videoService.convertTo(ContainerFormat.MKV, BUCKET_KEY, USER_EMAIL)).thenReturn(expected);
+
+    var result =
+        postFormatConversion(USER_EMAIL, BUCKET_KEY, ContainerFormat.MKV)
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.job_id").value(jobId))
+            .andExpect(jsonPath("$.status").value("PENDING"))
+            .andExpect(jsonPath("$.created_at").exists())
+            .andExpect(jsonPath("$.completed_at").doesNotExist())
+            .andExpect(jsonPath("$.converted_video_id").doesNotExist())
+            .andExpect(jsonPath("$.converted_video_bucket_key").doesNotExist())
+            .andExpect(jsonPath("$.error_message").doesNotExist())
+            .andExpect(jsonPath("$.attempt_count").value(0));
+
+    logResponse(result, "Format conversion request successful");
+    verify(videoService).convertTo(ContainerFormat.MKV, BUCKET_KEY, USER_EMAIL);
+  }
+
+  @Test
+  void should_convert_video_to_webm_format() throws Exception {
+    var jobId = randomUUID().toString();
+    var expected =
+        buildFormatConversionJobStatus(
+            jobId, ProcessStatus.PENDING, LocalDateTime.now(), null, null, null, null, 0);
+    when(videoService.convertTo(ContainerFormat.WEBM, BUCKET_KEY, USER_EMAIL)).thenReturn(expected);
+
+    var result =
+        postFormatConversion(USER_EMAIL, BUCKET_KEY, ContainerFormat.WEBM)
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.job_id").value(jobId))
+            .andExpect(jsonPath("$.status").value("PENDING"));
+
+    logResponse(result, "WEBM format conversion request successful");
+    verify(videoService).convertTo(ContainerFormat.WEBM, BUCKET_KEY, USER_EMAIL);
+  }
+
+  @Test
+  void should_convert_video_to_various_formats() throws Exception {
+    List<ContainerFormat> formats =
+        List.of(
+            ContainerFormat.MKV,
+            ContainerFormat.AVI,
+            ContainerFormat.FLV,
+            ContainerFormat.MOV,
+            ContainerFormat.THREEGP);
+
+    for (ContainerFormat format : formats) {
+      var jobId = randomUUID().toString();
+      var expected =
+          buildFormatConversionJobStatus(
+              jobId, ProcessStatus.PENDING, LocalDateTime.now(), null, null, null, null, 0);
+      when(videoService.convertTo(format, BUCKET_KEY, USER_EMAIL)).thenReturn(expected);
+
+      var result =
+          postFormatConversion(USER_EMAIL, BUCKET_KEY, format)
+              .andExpect(status().isOk())
+              .andExpect(jsonPath("$.job_id").value(jobId))
+              .andExpect(jsonPath("$.status").value("PENDING"));
+
+      logResponse(result, format + " format conversion request successful");
+      verify(videoService).convertTo(format, BUCKET_KEY, USER_EMAIL);
+    }
+  }
+
+  @Test
+  void should_return_bad_request_when_email_is_invalid_for_format_conversion() throws Exception {
+    var invalidEmail = "invalid-email";
+    var result =
+        postFormatConversion(invalidEmail, BUCKET_KEY, ContainerFormat.MKV)
+            .andExpect(status().isBadRequest());
+    logResponse(result, "Validation failed for invalid email in format conversion");
+    verify(videoService, never()).convertTo(any(), anyString(), anyString());
+  }
+
+  @Test
+  void should_return_bad_request_when_user_email_is_missing_for_format_conversion()
+      throws Exception {
+    var result =
+        postFormatConversion(null, BUCKET_KEY, ContainerFormat.MKV)
+            .andExpect(status().isBadRequest());
+    logResponse(result, "Validation failed for missing email in format conversion");
+    verify(videoService, never()).convertTo(any(), anyString(), anyString());
+  }
+
+  @Test
+  void should_return_bad_request_when_target_format_is_missing() throws Exception {
+    var result =
+        postFormatConversion(USER_EMAIL, BUCKET_KEY, null).andExpect(status().isBadRequest());
+    logResponse(result, "Validation failed for missing target format");
+    verify(videoService, never()).convertTo(any(), anyString(), anyString());
+  }
+
+  @Test
+  void should_return_bad_request_when_bucket_key_is_blank_for_format_conversion() throws Exception {
+    var blankBucketKey = "   ";
+    var result =
+        postFormatConversion(USER_EMAIL, blankBucketKey, ContainerFormat.MKV)
+            .andExpect(status().isBadRequest());
+    logResponse(result, "Validation failed for blank bucket_key in format conversion");
+    verify(videoService, never()).convertTo(any(), anyString(), anyString());
+  }
+
+  @Test
+  void should_return_not_found_when_video_does_not_exist_for_format_conversion() throws Exception {
+    var nonExistentBucketKey = "non_existent_key";
+    when(videoService.convertTo(ContainerFormat.MKV, nonExistentBucketKey, USER_EMAIL))
+        .thenThrow(
+            new EntityNotFoundException(
+                "No video instance found with bucket_key = " + nonExistentBucketKey));
+
+    var result =
+        postFormatConversion(USER_EMAIL, nonExistentBucketKey, ContainerFormat.MKV)
+            .andExpect(status().isNotFound());
+    logResponse(result, "Entity not found for format conversion as expected");
+    verify(videoService).convertTo(ContainerFormat.MKV, nonExistentBucketKey, USER_EMAIL);
+  }
+
+  @Test
+  void should_return_bad_request_when_converting_video_to_audio_format() throws Exception {
+    when(videoService.convertTo(ContainerFormat.MP3, BUCKET_KEY, USER_EMAIL))
+        .thenThrow(
+            new InvalidFormatConversionException(
+                "Cannot convert video format MP4 to audio format MP3. Use audio extraction"
+                    + " instead."));
+
+    var result =
+        postFormatConversion(USER_EMAIL, BUCKET_KEY, ContainerFormat.MP3)
+            .andExpect(status().isBadRequest());
+    logResponse(result, "Validation failed for video to audio format conversion");
+    verify(videoService).convertTo(ContainerFormat.MP3, BUCKET_KEY, USER_EMAIL);
+  }
+
+  @Test
+  void should_return_bad_request_when_source_and_target_formats_are_same() throws Exception {
+    when(videoService.convertTo(ContainerFormat.MP4, BUCKET_KEY, USER_EMAIL))
+        .thenThrow(
+            new InvalidFormatConversionException("Source and target formats are the same: MP4"));
+
+    var result =
+        postFormatConversion(USER_EMAIL, BUCKET_KEY, ContainerFormat.MP4)
+            .andExpect(status().isBadRequest());
+    logResponse(result, "Validation failed for same format conversion");
+    verify(videoService).convertTo(ContainerFormat.MP4, BUCKET_KEY, USER_EMAIL);
+  }
+
+  @Test
+  void should_return_bad_request_when_target_format_is_unknown() throws Exception {
+    when(videoService.convertTo(ContainerFormat.UNKNOWN, BUCKET_KEY, USER_EMAIL))
+        .thenThrow(new InvalidFormatConversionException("Target format is unknown or unsupported"));
+
+    var result =
+        postFormatConversion(USER_EMAIL, BUCKET_KEY, ContainerFormat.UNKNOWN)
+            .andExpect(status().isBadRequest());
+    logResponse(result, "Validation failed for unknown target format");
+    verify(videoService).convertTo(ContainerFormat.UNKNOWN, BUCKET_KEY, USER_EMAIL);
+  }
+
+  @Test
+  void should_handle_service_exception_gracefully_for_format_conversion() throws Exception {
+    when(videoService.convertTo(ContainerFormat.MKV, BUCKET_KEY, USER_EMAIL))
+        .thenThrow(new RuntimeException("Unexpected service error"));
+
+    var result =
+        postFormatConversion(USER_EMAIL, BUCKET_KEY, ContainerFormat.MKV)
+            .andExpect(status().is5xxServerError());
+    logResponse(result, "Service exception handled for format conversion");
+    verify(videoService).convertTo(ContainerFormat.MKV, BUCKET_KEY, USER_EMAIL);
+  }
+
+  @Test
+  void should_get_format_conversion_job_status_by_job_id() throws Exception {
+    var jobId = randomUUID().toString();
+    var expected =
+        buildFormatConversionJobStatus(
+            jobId,
+            ProcessStatus.COMPLETED,
+            LocalDateTime.now().minusMinutes(5),
+            LocalDateTime.now(),
+            randomUUID().toString(),
+            "s3://bucket/converted_video.mkv",
+            null,
+            1);
+    when(videoService.getFormatConversionStatus(jobId)).thenReturn(expected);
+
+    var result =
+        getFormatConversionStatus(jobId)
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.job_id").value(jobId))
+            .andExpect(jsonPath("$.status").value("COMPLETED"))
+            .andExpect(
+                jsonPath("$.converted_video_bucket_key").value("s3://bucket/converted_video.mkv"));
+
+    logResponse(result, "Retrieved format conversion status");
+    verify(videoService).getFormatConversionStatus(jobId);
+  }
+
+  @Test
+  void should_return_not_found_when_format_conversion_job_id_does_not_exist() throws Exception {
+    var jobId = randomUUID().toString();
+    when(videoService.getFormatConversionStatus(jobId))
+        .thenThrow(new EntityNotFoundException("Format conversion job not found: " + jobId));
+
+    var result = getFormatConversionStatus(jobId).andExpect(status().isNotFound());
+    logResponse(result, "Format conversion job not found as expected");
+    verify(videoService).getFormatConversionStatus(jobId);
+  }
+
+  @Test
+  void should_get_format_conversion_job_with_progressing_status() throws Exception {
+    var jobId = randomUUID().toString();
+    var expected =
+        buildFormatConversionJobStatus(
+            jobId,
+            ProcessStatus.PROGRESSING,
+            LocalDateTime.now().minusMinutes(2),
+            null,
+            null,
+            null,
+            null,
+            1);
+    when(videoService.getFormatConversionStatus(jobId)).thenReturn(expected);
+
+    var result =
+        getFormatConversionStatus(jobId)
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.job_id").value(jobId))
+            .andExpect(jsonPath("$.status").value("PROGRESSING"))
+            .andExpect(jsonPath("$.completed_at").doesNotExist())
+            .andExpect(jsonPath("$.converted_video_id").doesNotExist())
+            .andExpect(jsonPath("$.attempt_count").value(1));
+
+    logResponse(result, "Format conversion job still progressing");
+    verify(videoService).getFormatConversionStatus(jobId);
+  }
+
+  @Test
+  void should_get_format_conversion_job_with_failed_status() throws Exception {
+    var jobId = randomUUID().toString();
+    var expected =
+        buildFormatConversionJobStatus(
+            jobId,
+            ProcessStatus.FAILED,
+            LocalDateTime.now().minusMinutes(10),
+            LocalDateTime.now().minusMinutes(5),
+            null,
+            null,
+            "FFmpeg format conversion failed on attempt 3",
+            3);
+    when(videoService.getFormatConversionStatus(jobId)).thenReturn(expected);
+
+    var result =
+        getFormatConversionStatus(jobId)
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.job_id").value(jobId))
+            .andExpect(jsonPath("$.status").value("FAILED"))
+            .andExpect(
+                jsonPath("$.error_message").value("FFmpeg format conversion failed on attempt 3"))
+            .andExpect(jsonPath("$.attempt_count").value(3));
+
+    logResponse(result, "Format conversion job failed as expected");
+    verify(videoService).getFormatConversionStatus(jobId);
+  }
+
+  @Test
+  void should_convert_video_with_special_characters_in_email() throws Exception {
+    var specialEmail = "test+user@example.com";
+    var jobId = randomUUID().toString();
+    var expected =
+        buildFormatConversionJobStatus(
+            jobId, ProcessStatus.PENDING, LocalDateTime.now(), null, null, null, null, 0);
+    when(videoService.convertTo(ContainerFormat.MKV, BUCKET_KEY, specialEmail))
+        .thenReturn(expected);
+
+    var result =
+        postFormatConversion(specialEmail, BUCKET_KEY, ContainerFormat.MKV)
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.job_id").value(jobId))
+            .andExpect(jsonPath("$.status").value("PENDING"));
+
+    logResponse(result, "Format conversion request for email with special chars successful");
+    verify(videoService).convertTo(ContainerFormat.MKV, BUCKET_KEY, specialEmail);
+  }
+
+  private ResultActions postTreatment(String email, String bucketKey, String endpoint)
+      throws Exception {
+    MockHttpServletRequestBuilder request =
+        post(BASE_URL + endpoint + "{bucketKey}", bucketKey)
+            .contentType(MediaType.APPLICATION_JSON);
+    if (bucketKey != null) request.param(USER_EMAIL_PARAM, email);
+    return mvc.perform(request);
+  }
+
+  private ResultActions getCompressedVideos(String email) throws Exception {
+    MockHttpServletRequestBuilder request =
+        get(BASE_URL + "/compressed").contentType(MediaType.APPLICATION_JSON);
+    if (email != null) request.param(USER_EMAIL_PARAM, email);
+    return mvc.perform(request);
+  }
+
+  private ResultActions getCompressionStatus(String jobId) throws Exception {
+    return mvc.perform(
+        get(BASE_URL + "/compression-status/{jobId}", jobId)
+            .contentType(MediaType.APPLICATION_JSON));
+  }
+
+  private void logResponse(ResultActions result, String message) throws Exception {
+    log.info("{} Response: {}", message, result.andReturn().getResponse().getContentAsString());
+  }
+
+  private VideoCompressionJobStatusResponse buildJobStatus(
+      String jobId,
+      ProcessStatus status,
+      LocalDateTime createdAt,
+      LocalDateTime completedAt,
+      String compressedVideoId,
+      String compressedVideoUrl,
+      String errorMessage,
+      int attemptCount) {
+    return new VideoCompressionJobStatusResponse(
+        jobId,
+        status,
+        createdAt,
+        completedAt,
+        compressedVideoId,
+        compressedVideoUrl,
+        errorMessage,
+        attemptCount);
+  }
+
+  private List<Video> createMockCompressedVideos() {
+    List<Video> videos = new ArrayList<>();
+    for (int i = 1; i <= 3; i++) {
+      Video v = new Video();
+      v.setId(randomUUID().toString());
+      var mp4Suffix = ".mp4";
+
+      v.setFileName("compressed_video_" + i + mp4Suffix);
+      v.setFilePath("s3://bucket/compressed_" + i + mp4Suffix);
+      v.setWidth(1280);
+      v.setHeight(720);
+      v.setDuration(120.0);
+      v.setFrameRate(30.0);
+      v.setSize(5_000_000L);
+      v.setSizeType(SizeType.BYTES);
+      v.setFileType(FileType.VIDEO);
+      v.setCodec(VideoCodec.H264);
+      v.setContainerFormat(ContainerFormat.MP4);
+      v.setAudioChannels(2);
+      v.setAudioSampleRate(48000);
+      v.setAudioCodec(AudioCodec.AAC);
+      v.setCreatedAt(LocalDateTime.now());
+      videos.add(v);
+    }
+    return videos;
+  }
+
   private ResultActions getAudioExtractionStatus(String jobId) throws Exception {
     return mvc.perform(
         get(BASE_URL + "/audio-extraction-status/{jobId}", jobId)
@@ -593,6 +888,42 @@ class VideoControllerIT extends FacadeIT {
         completedAt,
         extractedAudioId,
         extractedAudioUrl,
+        errorMessage,
+        attemptCount);
+  }
+
+  private ResultActions postFormatConversion(
+      String email, String bucketKey, ContainerFormat toFormat) throws Exception {
+    MockHttpServletRequestBuilder request =
+        post(BASE_URL + FORMAT_CONVERT_ENDPOINT + "{bucketKey}", bucketKey)
+            .contentType(MediaType.APPLICATION_JSON);
+    if (email != null) request.param("from", email);
+    if (toFormat != null) request.param("to", toFormat.name());
+    return mvc.perform(request);
+  }
+
+  private ResultActions getFormatConversionStatus(String jobId) throws Exception {
+    return mvc.perform(
+        get(BASE_URL + "/format-conversion-status/{jobId}", jobId)
+            .contentType(MediaType.APPLICATION_JSON));
+  }
+
+  private VideoFormatConversionJobStatusResponse buildFormatConversionJobStatus(
+      String jobId,
+      ProcessStatus status,
+      LocalDateTime createdAt,
+      LocalDateTime completedAt,
+      String convertedVideoId,
+      String convertedVideoBucketKey,
+      String errorMessage,
+      int attemptCount) {
+    return new VideoFormatConversionJobStatusResponse(
+        jobId,
+        status,
+        createdAt,
+        completedAt,
+        convertedVideoId,
+        convertedVideoBucketKey,
         errorMessage,
         attemptCount);
   }

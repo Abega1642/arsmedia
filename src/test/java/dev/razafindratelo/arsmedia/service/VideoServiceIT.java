@@ -10,15 +10,19 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.CompressionOptions;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.AudioExtractionJobStatusResponse;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.VideoCompressionJobStatusResponse;
+import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.VideoFormatConversionJobStatusResponse;
 import dev.razafindratelo.arsmedia.event.model.AudioExtractionRequested;
 import dev.razafindratelo.arsmedia.event.model.EventProducer;
 import dev.razafindratelo.arsmedia.event.model.VideoCompressionRequested;
+import dev.razafindratelo.arsmedia.event.model.VideoFormatConversionRequested;
+import dev.razafindratelo.arsmedia.exception.InvalidFormatConversionException;
 import dev.razafindratelo.arsmedia.model.Audio;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.model.Video;
@@ -30,11 +34,13 @@ import dev.razafindratelo.arsmedia.model.classifier.SizeType;
 import dev.razafindratelo.arsmedia.model.classifier.VideoCodec;
 import dev.razafindratelo.arsmedia.repository.AudioExtractionJobRepository;
 import dev.razafindratelo.arsmedia.repository.VideoCompressionJobRepository;
+import dev.razafindratelo.arsmedia.repository.VideoFormatConversionJobRepository;
 import dev.razafindratelo.arsmedia.repository.VideoRepository;
-import dev.razafindratelo.arsmedia.repository.model.AudioExtractionJob;
 import dev.razafindratelo.arsmedia.repository.model.JAudio;
 import dev.razafindratelo.arsmedia.repository.model.JVideo;
-import dev.razafindratelo.arsmedia.repository.model.VideoCompressionJob;
+import dev.razafindratelo.arsmedia.repository.model.job.AudioExtractionJob;
+import dev.razafindratelo.arsmedia.repository.model.job.VideoCompressionJob;
+import dev.razafindratelo.arsmedia.repository.model.job.VideoFormatConversionJob;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -100,6 +106,11 @@ class VideoServiceIT {
   @Mock private VideoCompressionJobRepository videoCompressionJobRepository;
   @Mock private AudioExtractionJobRepository audioExtractionJobRepository;
 
+  @Mock
+  private EventProducer<VideoFormatConversionRequested> videoFormatConversionRequestedEventProducer;
+
+  @Mock private VideoFormatConversionJobRepository videoFormatConversionJobRepository;
+
   private VideoService videoService;
 
   @BeforeEach
@@ -111,7 +122,9 @@ class VideoServiceIT {
             vcEventProducer,
             aeEventProducer,
             videoCompressionJobRepository,
-            audioExtractionJobRepository);
+            audioExtractionJobRepository,
+            videoFormatConversionRequestedEventProducer,
+            videoFormatConversionJobRepository);
   }
 
   @Test
@@ -297,7 +310,7 @@ class VideoServiceIT {
     var extractedAudioId = randomUUID().toString();
 
     JVideo mockParentVideo = createMockJVideo(videoId, ORIGINAL_KEY);
-    var mockExtractedAudio = createMockJAudio(extractedAudioId, "audio_key");
+    var mockExtractedAudio = createMockJAudio(extractedAudioId);
     String extractedAudioUrl = S3_BUCKET_PREFIX + "extracted_audio.mp3";
     mockExtractedAudio.setBucketKey(extractedAudioUrl);
 
@@ -342,6 +355,284 @@ class VideoServiceIT {
     assertTrue(exception.getMessage().contains(nonExistentJobId));
 
     verify(audioExtractionJobRepository).findById(nonExistentJobId);
+  }
+
+  @Test
+  void should_create_format_conversion_job_for_mp4_to_mkv() {
+    var videoId = randomUUID().toString();
+    var mockVideo = createMockJVideo(videoId, TEST_BUCKET_KEY_123);
+    var mockUser = createMockUser();
+
+    when(videoRepository.findByBucketKey(TEST_BUCKET_KEY_123)).thenReturn(Optional.of(mockVideo));
+    when(userService.findByEmail(TEST_USER_EMAIL)).thenReturn(mockUser);
+    when(videoFormatConversionJobRepository.save(any(VideoFormatConversionJob.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    VideoFormatConversionJobStatusResponse response =
+        videoService.convertTo(ContainerFormat.MKV, TEST_BUCKET_KEY_123, TEST_USER_EMAIL);
+
+    assertFormatConversionJobResponse(response);
+
+    verify(videoRepository).findByBucketKey(TEST_BUCKET_KEY_123);
+    verify(userService).findByEmail(TEST_USER_EMAIL);
+    verify(videoFormatConversionJobRepository).save(any(VideoFormatConversionJob.class));
+
+    verifyFormatConversionEvent(response, videoId, ContainerFormat.MKV);
+
+    log.info(
+        "Format conversion job created successfully with job_id: {} for target format: {}",
+        response.getJobId(),
+        ContainerFormat.MKV);
+  }
+
+  @Test
+  void should_create_format_conversion_job_for_mp4_to_webm() {
+    var videoId = randomUUID().toString();
+    var mockVideo = createMockJVideo(videoId, TEST_BUCKET_KEY_123);
+    var mockUser = createMockUser();
+
+    when(videoRepository.findByBucketKey(TEST_BUCKET_KEY_123)).thenReturn(Optional.of(mockVideo));
+    when(userService.findByEmail(TEST_USER_EMAIL)).thenReturn(mockUser);
+    when(videoFormatConversionJobRepository.save(any(VideoFormatConversionJob.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    VideoFormatConversionJobStatusResponse response =
+        videoService.convertTo(ContainerFormat.WEBM, TEST_BUCKET_KEY_123, TEST_USER_EMAIL);
+
+    assertNotNull(response);
+    assertNotNull(response.getJobId());
+    assertEquals(ProcessStatus.PENDING, response.getStatus());
+    assertNotNull(response.getCreatedAt());
+    assertNull(response.getCompletedAt());
+    assertNull(response.getConvertedVideoId());
+    assertNull(response.getConvertedVideoBucketKey());
+    assertNull(response.getErrorMessage());
+    assertEquals(0, response.getAttemptCount());
+
+    verifyFormatConversionEvent(response, videoId, ContainerFormat.WEBM);
+
+    log.info(
+        "Format conversion job created for WEBM target format with job_id: {}",
+        response.getJobId());
+  }
+
+  @Test
+  void should_create_format_conversion_job_for_various_formats() {
+    var videoId = randomUUID().toString();
+    var mockVideo = createMockJVideo(videoId, TEST_BUCKET_KEY_123);
+    var mockUser = createMockUser();
+
+    when(videoRepository.findByBucketKey(TEST_BUCKET_KEY_123)).thenReturn(Optional.of(mockVideo));
+    when(userService.findByEmail(TEST_USER_EMAIL)).thenReturn(mockUser);
+    when(videoFormatConversionJobRepository.save(any(VideoFormatConversionJob.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    List<ContainerFormat> targetFormats =
+        List.of(
+            ContainerFormat.MKV,
+            ContainerFormat.WEBM,
+            ContainerFormat.AVI,
+            ContainerFormat.FLV,
+            ContainerFormat.MOV,
+            ContainerFormat.THREEGP);
+
+    for (ContainerFormat targetFormat : targetFormats) {
+      VideoFormatConversionJobStatusResponse response =
+          videoService.convertTo(targetFormat, TEST_BUCKET_KEY_123, TEST_USER_EMAIL);
+
+      assertNotNull(response);
+      assertNotNull(response.getJobId());
+      assertEquals(ProcessStatus.PENDING, response.getStatus());
+
+      log.info("Successfully created conversion job for format: {}", targetFormat);
+    }
+
+    verify(videoRepository, times(targetFormats.size())).findByBucketKey(TEST_BUCKET_KEY_123);
+    verify(videoFormatConversionJobRepository, times(targetFormats.size()))
+        .save(any(VideoFormatConversionJob.class));
+  }
+
+  @Test
+  void should_throw_exception_when_converting_video_to_audio_format() {
+    var videoId = randomUUID().toString();
+    var mockVideo = createMockJVideo(videoId, TEST_BUCKET_KEY_123);
+    var mockUser = createMockUser();
+
+    when(videoRepository.findByBucketKey(TEST_BUCKET_KEY_123)).thenReturn(Optional.of(mockVideo));
+    when(userService.findByEmail(TEST_USER_EMAIL)).thenReturn(mockUser);
+
+    InvalidFormatConversionException exception =
+        assertThrows(
+            InvalidFormatConversionException.class,
+            () ->
+                videoService.convertTo(ContainerFormat.MP3, TEST_BUCKET_KEY_123, TEST_USER_EMAIL));
+
+    assertTrue(exception.getMessage().contains("Cannot convert video format"));
+    assertTrue(exception.getMessage().contains("to audio format"));
+    assertTrue(exception.getMessage().contains("Use audio extraction instead"));
+
+    verify(videoRepository).findByBucketKey(TEST_BUCKET_KEY_123);
+    verify(userService).findByEmail(TEST_USER_EMAIL);
+    verify(videoFormatConversionJobRepository, never()).save(any());
+    verify(videoFormatConversionRequestedEventProducer, never()).accept(any());
+
+    log.info("Correctly prevented video to audio format conversion (MP4 -> MP3)");
+  }
+
+  @Test
+  void should_throw_exception_when_source_and_target_formats_are_same() {
+    var videoId = randomUUID().toString();
+    var mockVideo = createMockJVideo(videoId, TEST_BUCKET_KEY_123);
+    var mockUser = createMockUser();
+
+    when(videoRepository.findByBucketKey(TEST_BUCKET_KEY_123)).thenReturn(Optional.of(mockVideo));
+    when(userService.findByEmail(TEST_USER_EMAIL)).thenReturn(mockUser);
+
+    InvalidFormatConversionException exception =
+        assertThrows(
+            InvalidFormatConversionException.class,
+            () ->
+                videoService.convertTo(ContainerFormat.MP4, TEST_BUCKET_KEY_123, TEST_USER_EMAIL));
+
+    assertTrue(exception.getMessage().contains("Source and target formats are the same"));
+    assertTrue(exception.getMessage().contains("MP4"));
+
+    verify(videoRepository).findByBucketKey(TEST_BUCKET_KEY_123);
+    verify(userService).findByEmail(TEST_USER_EMAIL);
+    verify(videoFormatConversionJobRepository, never()).save(any());
+    verify(videoFormatConversionRequestedEventProducer, never()).accept(any());
+
+    log.info("Correctly prevented same format conversion (MP4 -> MP4)");
+  }
+
+  @Test
+  void should_throw_exception_when_target_format_is_unknown() {
+    var videoId = randomUUID().toString();
+    var mockVideo = createMockJVideo(videoId, TEST_BUCKET_KEY_123);
+    var mockUser = createMockUser();
+
+    when(videoRepository.findByBucketKey(TEST_BUCKET_KEY_123)).thenReturn(Optional.of(mockVideo));
+    when(userService.findByEmail(TEST_USER_EMAIL)).thenReturn(mockUser);
+
+    InvalidFormatConversionException exception =
+        assertThrows(
+            InvalidFormatConversionException.class,
+            () ->
+                videoService.convertTo(
+                    ContainerFormat.UNKNOWN, TEST_BUCKET_KEY_123, TEST_USER_EMAIL));
+
+    assertTrue(exception.getMessage().contains("Target format is unknown or unsupported"));
+
+    verify(videoRepository).findByBucketKey(TEST_BUCKET_KEY_123);
+    verify(userService).findByEmail(TEST_USER_EMAIL);
+    verify(videoFormatConversionJobRepository, never()).save(any());
+    verify(videoFormatConversionRequestedEventProducer, never()).accept(any());
+
+    log.info("Correctly prevented unknown format conversion");
+  }
+
+  @Test
+  void should_throw_exception_when_video_not_found_for_conversion() {
+    when(videoRepository.findByBucketKey(NON_EXISTENT_KEY)).thenReturn(Optional.empty());
+
+    EntityNotFoundException exception =
+        assertThrows(
+            EntityNotFoundException.class,
+            () -> videoService.convertTo(ContainerFormat.MKV, NON_EXISTENT_KEY, TEST_USER_EMAIL));
+
+    assertTrue(exception.getMessage().contains(NO_VIDEO_FOUND_MSG));
+    assertTrue(exception.getMessage().contains(NON_EXISTENT_KEY));
+
+    verify(videoRepository).findByBucketKey(NON_EXISTENT_KEY);
+    verify(userService, never()).findByEmail(any());
+    verify(videoFormatConversionJobRepository, never()).save(any());
+    verify(videoFormatConversionRequestedEventProducer, never()).accept(any());
+
+    log.info(LOG_EXCEPTION_THROWN, NON_EXISTENT_KEY);
+  }
+
+  @Test
+  void should_retrieve_format_conversion_job_status() {
+    var jobId = randomUUID().toString();
+    var videoId = randomUUID().toString();
+    var convertedVideoId = randomUUID().toString();
+
+    JVideo mockParentVideo = createMockJVideo(videoId, ORIGINAL_KEY);
+    JVideo mockConvertedVideo =
+        createMockJVideoWithFormat(convertedVideoId, "converted_key", ContainerFormat.MKV);
+    String convertedVideoUrl = S3_BUCKET_PREFIX + "converted_video.mkv";
+    mockConvertedVideo.setBucketKey(convertedVideoUrl);
+
+    VideoFormatConversionJob mockJob =
+        createCompletedFormatConversionJob(jobId, mockParentVideo, mockConvertedVideo);
+
+    when(videoFormatConversionJobRepository.findById(jobId)).thenReturn(Optional.of(mockJob));
+
+    VideoFormatConversionJobStatusResponse response = videoService.getFormatConversionStatus(jobId);
+
+    assertNotNull(response);
+    assertEquals(jobId, response.getJobId());
+    assertEquals(ProcessStatus.COMPLETED, response.getStatus());
+    assertNotNull(response.getCreatedAt());
+    assertNotNull(response.getCompletedAt());
+    assertEquals(convertedVideoId, response.getConvertedVideoId());
+    assertEquals(convertedVideoUrl, response.getConvertedVideoBucketKey());
+    assertNull(response.getErrorMessage());
+    assertEquals(1, response.getAttemptCount());
+
+    verify(videoFormatConversionJobRepository).findById(jobId);
+
+    log.info(
+        "Retrieved format conversion job status: {} - Status: {}, Attempts: {}",
+        jobId,
+        response.getStatus(),
+        response.getAttemptCount());
+  }
+
+  @Test
+  void should_throw_exception_when_format_conversion_job_not_found() {
+    var nonExistentJobId = randomUUID().toString();
+
+    when(videoFormatConversionJobRepository.findById(nonExistentJobId))
+        .thenReturn(Optional.empty());
+
+    EntityNotFoundException exception =
+        assertThrows(
+            EntityNotFoundException.class,
+            () -> videoService.getFormatConversionStatus(nonExistentJobId));
+
+    assertTrue(exception.getMessage().contains("Format conversion job not found"));
+    assertTrue(exception.getMessage().contains(nonExistentJobId));
+
+    verify(videoFormatConversionJobRepository).findById(nonExistentJobId);
+
+    log.info("Correctly threw exception for non-existent format conversion job");
+  }
+
+  @Test
+  void should_prevent_audio_to_video_format_conversion() {
+    var videoId = randomUUID().toString();
+    var mockVideo = createMockJVideoWithFormat(videoId, TEST_BUCKET_KEY_123, ContainerFormat.MP3);
+    var mockUser = createMockUser();
+
+    when(videoRepository.findByBucketKey(TEST_BUCKET_KEY_123)).thenReturn(Optional.of(mockVideo));
+    when(userService.findByEmail(TEST_USER_EMAIL)).thenReturn(mockUser);
+
+    InvalidFormatConversionException exception =
+        assertThrows(
+            InvalidFormatConversionException.class,
+            () ->
+                videoService.convertTo(ContainerFormat.MP4, TEST_BUCKET_KEY_123, TEST_USER_EMAIL));
+
+    assertTrue(exception.getMessage().contains("Cannot convert audio format"));
+    assertTrue(exception.getMessage().contains("to video format"));
+
+    verify(videoRepository).findByBucketKey(TEST_BUCKET_KEY_123);
+    verify(userService).findByEmail(TEST_USER_EMAIL);
+    verify(videoFormatConversionJobRepository, never()).save(any());
+    verify(videoFormatConversionRequestedEventProducer, never()).accept(any());
+
+    log.info("Correctly prevented audio to video format conversion (MP3 -> MP4)");
   }
 
   private void verifyAudioExtractionEvent(
@@ -521,11 +812,11 @@ class VideoServiceIT {
     return toJVideo(video);
   }
 
-  private JAudio createMockJAudio(String id, String bucketKey) {
+  private JAudio createMockJAudio(String id) {
     Audio audio = new Audio();
     audio.setId(id);
     audio.setFileName(TEST_AUDIO_FILENAME);
-    audio.setFilePath(bucketKey);
+    audio.setFilePath("audio_key");
     audio.setDuration(AUDIO_DURATION);
     audio.setBitRate(AUDIO_BIT_RATE);
     audio.setSampleRate(AUDIO_SAMPLE_RATE);
@@ -569,5 +860,96 @@ class VideoServiceIT {
     }
 
     return job;
+  }
+
+  private void assertFormatConversionJobResponse(VideoFormatConversionJobStatusResponse response) {
+    assertNotNull(response);
+    assertNotNull(response.getJobId());
+    assertEquals(ProcessStatus.PENDING, response.getStatus());
+    assertNotNull(response.getCreatedAt());
+    assertNull(response.getCompletedAt());
+    assertNull(response.getConvertedVideoId());
+    assertNull(response.getConvertedVideoBucketKey());
+    assertNull(response.getErrorMessage());
+    assertEquals(0, response.getAttemptCount());
+  }
+
+  private void verifyFormatConversionEvent(
+      VideoFormatConversionJobStatusResponse response,
+      String videoId,
+      ContainerFormat targetFormat) {
+    ArgumentCaptor<List<VideoFormatConversionRequested>> eventCaptor =
+        ArgumentCaptor.forClass(List.class);
+    verify(videoFormatConversionRequestedEventProducer).accept(eventCaptor.capture());
+
+    List<VideoFormatConversionRequested> events = eventCaptor.getValue();
+    assertEquals(1, events.size());
+    VideoFormatConversionRequested event = events.getFirst();
+    assertEquals(videoId, event.getVideoId());
+    assertEquals(TEST_BUCKET_KEY_123, event.getBucketKey());
+    assertEquals(TEST_USER_EMAIL, event.getOwner());
+    assertEquals(targetFormat, event.getTargetFormat());
+    assertEquals(response.getJobId(), event.getJobId());
+  }
+
+  private VideoFormatConversionJob createCompletedFormatConversionJob(
+      String jobId, JVideo parentVideo, JVideo convertedVideo) {
+    VideoFormatConversionJob mockJob = new VideoFormatConversionJob();
+    mockJob.setId(jobId);
+    mockJob.setParent(parentVideo);
+    mockJob.setConvertedVideo(convertedVideo);
+    mockJob.setStatus(ProcessStatus.COMPLETED);
+    mockJob.setCreatedAt(LocalDateTime.now().minusMinutes(5));
+    mockJob.setCompletedAt(LocalDateTime.now());
+    mockJob.setAttemptCount(1);
+    mockJob.setErrorMessage(null);
+    return mockJob;
+  }
+
+  private JVideo createMockJVideoWithFormat(String id, String bucketKey, ContainerFormat format) {
+    Video video = new Video();
+    video.setId(id);
+    video.setFileName("test_video" + getExtensionForFormat(format));
+    video.setFilePath(bucketKey);
+    video.setWidth(VIDEO_WIDTH);
+    video.setHeight(VIDEO_HEIGHT);
+    video.setDuration(VIDEO_DURATION);
+    video.setFrameRate(VIDEO_FRAME_RATE);
+    video.setSize(VIDEO_SIZE);
+    video.setSizeType(SizeType.BYTES);
+    video.setFileType(FileType.VIDEO);
+    video.setCodec(getCodecForFormat(format));
+    video.setContainerFormat(format);
+    video.setAudioChannels(AUDIO_CHANNELS);
+    video.setAudioSampleRate(AUDIO_SAMPLE_RATE);
+    video.setAudioCodec(AudioCodec.AAC);
+    video.setCreatedAt(LocalDateTime.now());
+    video.setOwner(createMockUser());
+    return toJVideo(video);
+  }
+
+  private String getExtensionForFormat(ContainerFormat format) {
+    return switch (format) {
+      case MKV -> ".mkv";
+      case MOV -> ".mov";
+      case AVI -> ".avi";
+      case FLV -> ".flv";
+      case WEBM -> ".webm";
+      case THREEGP -> ".3gp";
+      case MP3 -> ".mp3";
+      case WAV -> ".wav";
+      case OGG -> ".ogg";
+      default -> ".mp4";
+    };
+  }
+
+  private VideoCodec getCodecForFormat(ContainerFormat format) {
+    return switch (format) {
+      case AVI -> VideoCodec.MPEG4;
+      case FLV -> VideoCodec.FLV;
+      case WEBM -> VideoCodec.VP9;
+      case THREEGP -> VideoCodec.H263;
+      default -> VideoCodec.H264;
+    };
   }
 }

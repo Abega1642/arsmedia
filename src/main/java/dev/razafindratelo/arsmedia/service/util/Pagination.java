@@ -1,4 +1,4 @@
-package dev.razafindratelo.arsmedia.service;
+package dev.razafindratelo.arsmedia.service.util;
 
 import java.util.Map;
 import java.util.function.BiFunction;

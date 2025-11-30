@@ -4,7 +4,7 @@ import static dev.razafindratelo.arsmedia.mapper.MapperConstants.UTILITY_CLASS_E
 import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toVideo;
 
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.VideoCompressionJobStatusResponse;
-import dev.razafindratelo.arsmedia.repository.model.VideoCompressionJob;
+import dev.razafindratelo.arsmedia.repository.model.job.VideoCompressionJob;
 
 public class VideoCompressionJobStatusResponseMapper {
 

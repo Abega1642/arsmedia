@@ -36,10 +36,11 @@ import dev.razafindratelo.arsmedia.model.classifier.VideoCodec;
 import dev.razafindratelo.arsmedia.repository.AudioExtractionJobRepository;
 import dev.razafindratelo.arsmedia.repository.AudioRepository;
 import dev.razafindratelo.arsmedia.repository.VideoRepository;
-import dev.razafindratelo.arsmedia.repository.model.AudioExtractionJob;
 import dev.razafindratelo.arsmedia.repository.model.JAudio;
 import dev.razafindratelo.arsmedia.repository.model.JVideo;
+import dev.razafindratelo.arsmedia.repository.model.job.AudioExtractionJob;
 import dev.razafindratelo.arsmedia.service.UserService;
+import dev.razafindratelo.arsmedia.service.util.BitRateCalculator;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -80,6 +81,7 @@ class AudioExtractionRequestedServiceIT {
   private static final String SUFFIX = ".mp3";
   private static final String TEST_VIDEO_MP_4 = "test_video.mp4";
   private final TempFileCleaner tempFileCleaner = new TempFileCleaner();
+  private final BitRateCalculator bitRateCalculator = new BitRateCalculator();
 
   @TempDir File tempDir;
   private File interceptedAudioFile;
@@ -114,7 +116,8 @@ class AudioExtractionRequestedServiceIT {
             audioRepository,
             userService,
             audioExtractionJobRepository,
-            tempFileCleaner);
+            tempFileCleaner,
+            bitRateCalculator);
   }
 
   @Test

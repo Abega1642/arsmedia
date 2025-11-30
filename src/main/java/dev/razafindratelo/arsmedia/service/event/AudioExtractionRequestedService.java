@@ -19,9 +19,10 @@ import dev.razafindratelo.arsmedia.model.classifier.SizeType;
 import dev.razafindratelo.arsmedia.repository.AudioExtractionJobRepository;
 import dev.razafindratelo.arsmedia.repository.AudioRepository;
 import dev.razafindratelo.arsmedia.repository.VideoRepository;
-import dev.razafindratelo.arsmedia.repository.model.AudioExtractionJob;
 import dev.razafindratelo.arsmedia.repository.model.JAudio;
+import dev.razafindratelo.arsmedia.repository.model.job.AudioExtractionJob;
 import dev.razafindratelo.arsmedia.service.UserService;
+import dev.razafindratelo.arsmedia.service.util.BitRateCalculator;
 import jakarta.persistence.EntityNotFoundException;
 import java.io.File;
 import java.io.IOException;
@@ -57,6 +58,7 @@ public class AudioExtractionRequestedService implements Consumer<AudioExtraction
   private final UserService userService;
   private final AudioExtractionJobRepository jobRepository;
   private final TempFileCleaner tempFileCleaner;
+  private final BitRateCalculator bitRateCalculator;
 
   public AudioExtractionRequestedService(
       @Value("${ffmpeg.path}") String ffmpegPath,
@@ -66,7 +68,8 @@ public class AudioExtractionRequestedService implements Consumer<AudioExtraction
       AudioRepository audioRepository,
       UserService userService,
       AudioExtractionJobRepository jobRepository,
-      TempFileCleaner tempFileCleaner)
+      TempFileCleaner tempFileCleaner,
+      BitRateCalculator bitRateCalculator)
       throws IOException {
 
     this.ffmpeg = new FFmpeg(ffmpegPath);
@@ -77,6 +80,7 @@ public class AudioExtractionRequestedService implements Consumer<AudioExtraction
     this.userService = userService;
     this.jobRepository = jobRepository;
     this.tempFileCleaner = tempFileCleaner;
+    this.bitRateCalculator = bitRateCalculator;
   }
 
   @Override
@@ -215,7 +219,7 @@ public class AudioExtractionRequestedService implements Consumer<AudioExtraction
     audio.setChannels(sourceVideo.getAudioChannels());
     audio.setSampleRate(sourceVideo.getAudioSampleRate());
     audio.setFormat(ContainerFormat.MP3);
-    audio.setBitRate(calculateAudioBitRate(audioFile, sourceVideo.getDuration()));
+    audio.setBitRate((int) bitRateCalculator.calculate(audioFile, sourceVideo.getDuration()));
 
     log.info(
         "Created audio entity: {} channels, {} Hz, {} bytes",
@@ -229,15 +233,6 @@ public class AudioExtractionRequestedService implements Consumer<AudioExtraction
   private String generateAudioFileName(String originalVideoFileName) {
     String nameWithoutExtension = originalVideoFileName.replaceAll("\\.[^.]+$", "");
     return EXTRACTED_AUDIO_PREFIX + nameWithoutExtension + AUDIO_FILE_EXTENSION;
-  }
-
-  private int calculateAudioBitRate(File audioFile, double durationInSeconds) {
-    if (durationInSeconds <= ZERO_BITRATE) {
-      return ZERO_BITRATE;
-    }
-
-    long fileSizeBits = audioFile.length() * 8;
-    return (int) (fileSizeBits / durationInSeconds / 1000);
   }
 
   private void saveExtractedAudio(Audio audio, String jobId) {

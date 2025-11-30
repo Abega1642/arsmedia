@@ -3,7 +3,7 @@ package dev.razafindratelo.arsmedia.service;
 import dev.razafindratelo.arsmedia.mapper.VideoMapper;
 import dev.razafindratelo.arsmedia.model.Video;
 import dev.razafindratelo.arsmedia.repository.VideoCompressionJobRepository;
-import dev.razafindratelo.arsmedia.repository.model.VideoCompressionJob;
+import dev.razafindratelo.arsmedia.repository.model.job.VideoCompressionJob;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

@@ -1,38 +1,40 @@
-package dev.razafindratelo.arsmedia.repository.model;
+package dev.razafindratelo.arsmedia.repository.model.job;
 
 import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
+import dev.razafindratelo.arsmedia.repository.model.JVideo;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
-import lombok.AllArgsConstructor;
-import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.ToString;
 
 @Entity
-@Table(name = "audio_extraction_job")
-@AllArgsConstructor
+@Table(name = "video_format_conversion_job")
 @NoArgsConstructor
+@Getter
+@Setter
 @EqualsAndHashCode(callSuper = true)
-@Data
-@ToString
-public class AudioExtractionJob extends Job {
+@ToString(callSuper = true)
+public class VideoFormatConversionJob extends Job {
+
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "video_id", nullable = false)
   private JVideo parent;
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "extracted_audio_id")
-  private JAudio extractedAudio;
+  @JoinColumn(name = "converted_video_id")
+  private JVideo convertedVideo;
 
-  public AudioExtractionJob(
+  public VideoFormatConversionJob(
       String id,
       JVideo parent,
-      JAudio extractedAudio,
+      JVideo convertedVideo,
       LocalDateTime createdAt,
       LocalDateTime completedAt,
       ProcessStatus status,
@@ -40,6 +42,6 @@ public class AudioExtractionJob extends Job {
       int attemptCount) {
     super(id, createdAt, completedAt, status, errorMessage, attemptCount);
     this.parent = parent;
-    this.extractedAudio = extractedAudio;
+    this.convertedVideo = convertedVideo;
   }
 }

@@ -12,7 +12,7 @@ import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
 import dev.razafindratelo.arsmedia.repository.VideoCompressionJobRepository;
 import dev.razafindratelo.arsmedia.repository.model.JUser;
 import dev.razafindratelo.arsmedia.repository.model.JVideo;
-import dev.razafindratelo.arsmedia.repository.model.VideoCompressionJob;
+import dev.razafindratelo.arsmedia.repository.model.job.VideoCompressionJob;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;

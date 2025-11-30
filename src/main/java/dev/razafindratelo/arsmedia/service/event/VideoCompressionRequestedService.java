@@ -18,8 +18,9 @@ import dev.razafindratelo.arsmedia.model.classifier.ProcessStatus;
 import dev.razafindratelo.arsmedia.model.classifier.VideoCodec;
 import dev.razafindratelo.arsmedia.repository.VideoCompressionJobRepository;
 import dev.razafindratelo.arsmedia.repository.VideoRepository;
-import dev.razafindratelo.arsmedia.repository.model.VideoCompressionJob;
+import dev.razafindratelo.arsmedia.repository.model.job.VideoCompressionJob;
 import dev.razafindratelo.arsmedia.service.UserService;
+import dev.razafindratelo.arsmedia.service.util.BitRateCalculator;
 import jakarta.persistence.EntityNotFoundException;
 import java.io.File;
 import java.io.IOException;
@@ -52,6 +53,7 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
   private final UserService userService;
   private final VideoCompressionJobRepository jobRepository;
   private final TempFileCleaner tempFileCleaner;
+  private final BitRateCalculator bitRateCalculator;
 
   public VideoCompressionRequestedService(
       @Value("${ffmpeg.path}") String ffmpegPath,
@@ -60,7 +62,8 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
       VideoRepository videoRepository,
       UserService userService,
       VideoCompressionJobRepository jobRepository,
-      TempFileCleaner tempFileCleaner)
+      TempFileCleaner tempFileCleaner,
+      BitRateCalculator bitRateCalculator)
       throws IOException {
     this.ffmpeg = new FFmpeg(ffmpegPath);
     this.ffprobe = new FFprobe(ffprobePath);
@@ -69,6 +72,7 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
     this.userService = userService;
     this.jobRepository = jobRepository;
     this.tempFileCleaner = tempFileCleaner;
+    this.bitRateCalculator = bitRateCalculator;
   }
 
   @Override
@@ -261,7 +265,7 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
     compressed.setFrameRate(frameRate);
     compressed.setAspectRatio(calculateAspectRatio(resolution.getWidth(), resolution.getHeight()));
     compressed.setContainerFormat(ContainerFormat.MP4);
-    compressed.setBitRate(calculateBitRate(compressedFile, original.getDuration()));
+    compressed.setBitRate(bitRateCalculator.calculate(compressedFile, original.getDuration()));
 
     setAudioProperties(compressed, original, hasAudio);
 
@@ -294,14 +298,6 @@ public class VideoCompressionRequestedService implements Consumer<VideoCompressi
 
   private int findGCD(int a, int b) {
     return b == 0 ? a : findGCD(b, a % b);
-  }
-
-  private double calculateBitRate(File file, double durationInSeconds) {
-    if (durationInSeconds <= 0) {
-      return 0;
-    }
-    long fileSizeBits = file.length() * 8;
-    return fileSizeBits / durationInSeconds / 1000;
   }
 
   private void saveCompressedVideo(Video compressedVideo, String jobId) {
