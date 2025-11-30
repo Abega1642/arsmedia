@@ -25,6 +25,7 @@ import dev.razafindratelo.arsmedia.service.util.BitRateCalculator;
 import jakarta.persistence.EntityNotFoundException;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
@@ -238,7 +239,7 @@ public class VideoFormatConversionRequestedService
   private File convertVideoFormat(File originalFile, ContainerFormat targetFormat)
       throws IOException {
     String extension = FORMAT_EXTENSIONS.getOrDefault(targetFormat, MP4_FILE_EXTENSION);
-    File convertedFile = File.createTempFile(TEMP_FILE_PREFIX, extension);
+    var convertedFile = Files.createTempFile(TEMP_FILE_PREFIX, extension).toFile();
     log.info("Created temporary output file: {}", convertedFile.getAbsolutePath());
 
     FFmpegBuilder builder = buildConversionCommand(originalFile, convertedFile, targetFormat);
