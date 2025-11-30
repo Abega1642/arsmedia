@@ -8,6 +8,7 @@ import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -31,44 +32,44 @@ public class FFmpegMockHelper {
 
     return mockConstruction(
         FFmpegExecutor.class,
-        (mock, _) -> {
-          FFmpegJob mockJob = mock(FFmpegJob.class);
-          when(mock.createJob(any(FFmpegBuilder.class))).thenReturn(mockJob);
+        (mock, _) -> setupMockBehavior(mock, prefix, extension, mockFileSize, fileInterceptor));
+  }
 
-          doAnswer(
-                  _ -> {
-                    File systemTempDir = new File(System.getProperty("java.io.tmpdir"));
-                    File[] outputFiles =
-                        systemTempDir.listFiles(
-                            (_, name) -> name.startsWith(prefix) && name.endsWith(extension));
+  private static void setupMockBehavior(
+      FFmpegExecutor mock,
+      String prefix,
+      String extension,
+      int mockFileSize,
+      Consumer<File> fileInterceptor) {
 
-                    if (outputFiles != null && outputFiles.length > 0) {
-                      File actualOutputFile =
-                          Arrays.stream(outputFiles)
-                              .max(Comparator.comparingLong(File::lastModified))
-                              .orElseThrow(
-                                  () ->
-                                      new RuntimeException(
-                                          "Could not find output file with prefix: " + prefix));
+    FFmpegJob mockJob = mock(FFmpegJob.class);
+    when(mock.createJob(any(FFmpegBuilder.class))).thenReturn(mockJob);
 
-                      log.info("Writing mock data to: {}", actualOutputFile.getAbsolutePath());
+    doAnswer(
+            _ -> {
+              File output = findLatestTempFile(prefix, extension);
+              writeMockData(output, mockFileSize);
+              fileInterceptor.accept(output);
+              return null;
+            })
+        .when(mockJob)
+        .run();
+  }
 
-                      byte[] mockData = new byte[mockFileSize];
-                      new Random().nextBytes(mockData);
-                      Files.write(actualOutputFile.toPath(), mockData);
+  private static File findLatestTempFile(String prefix, String extension) {
+    File dir = new File(System.getProperty("java.io.tmpdir"));
+    File[] matches =
+        dir.listFiles((d, name) -> name.startsWith(prefix) && name.endsWith(extension));
 
-                      fileInterceptor.accept(actualOutputFile);
+    return Arrays.stream(matches == null ? new File[0] : matches)
+        .max(Comparator.comparingLong(File::lastModified))
+        .orElseThrow(() -> new RuntimeException("No temp file found for prefix: " + prefix));
+  }
 
-                      log.info("Successfully wrote {} bytes to file", actualOutputFile.length());
-                    } else {
-                      throw new RuntimeException(
-                          "No temp file was created by the service with prefix: " + prefix);
-                    }
-
-                    return null;
-                  })
-              .when(mockJob)
-              .run();
-        });
+  private static void writeMockData(File file, int size) throws IOException {
+    byte[] data = new byte[size];
+    new Random().nextBytes(data);
+    Files.write(file.toPath(), data);
+    log.info("Wrote {} bytes to {}", size, file.getAbsolutePath());
   }
 }
