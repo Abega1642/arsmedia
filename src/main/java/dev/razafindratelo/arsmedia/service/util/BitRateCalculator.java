@@ -59,6 +59,6 @@ public class BitRateCalculator {
   private double computeBitrate(File file, double durationInSeconds) {
     long fileSizeInBytes = file.length();
     long fileSizeInBits = fileSizeInBytes * BITS_PER_BYTE;
-    return (double) fileSizeInBits / durationInSeconds / KILOBITS_DIVISOR;
+    return fileSizeInBits / durationInSeconds / KILOBITS_DIVISOR;
   }
 }

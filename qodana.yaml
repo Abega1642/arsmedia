@@ -7,28 +7,57 @@ projectJDK: "21"
 linter: jetbrains/qodana-jvm-community:2025.2
 
 include:
-  - name: NullableProblemsInspection
-  - name: UnusedDeclarationInspection
-  - name: UnusedAssignmentInspection
-  - name: UnusedParameterInspection
-  - name: SecurityInspection
-  - name: VulnerableLibrariesInspection
-  - name: SpringJavaInspection
-  - name: MethodNamingConventionInspection
-  - name: FieldNamingConventionInspection
-  - name: LocalVariableNamingConventionInspection
-  - name: TooGenericExceptionThrownInspection
-  - name: InterruptedExceptionInControlFlowInspection
-  - name: UtilityClassWithoutPrivateConstructorInspection
-  - name: UnnecessaryBracesInspection
-  - name: SimplifyBooleanExpressionInspection
-  - name: MergeIfInspection
-  - name: UseOfSystemOutOrSystemErrInspection
-  - name: EqualsHashCodeInspection
-  - name: ModifierOrderInspection
-  - name: IllegalUnicodeEscapeInspection
-  - name: ConstantValueInspection
-  - name: FinalPrivateFieldInspection
+  - name: OptionalGetWithoutIsPresent
+  - name: ClassEscapesDefinedScope
+  - name: LocalVariableHidesMemberVariable
+  - name: ConcatenationWithEmptyString
+  - name: NonConstantFieldWithUpperCaseName
+  - name: LombokGetterMayBeUsed
+  - name: LombokSetterMayBeUsed
+  - name: MethodWithMoreThanThreeNegations
+  - name: MethodWithMultipleLoops
+  - name: MethodWithMultipleReturnPoints
+  - name: MethodWithTooManyParameters
+  - name: OverlyComplexMethod
+  - name: OverlyLongMethod
+  - name: OverlyNestedMethod
+  - name: ExceptionClassNameDoesntEndWithException
+  - name: NonExceptionNameEndsWithException
+  - name: DataFlowIssu
+  - name: BooleanMethodNameMustStartWithQuestion
+  - name: ClassNameDiffersFromFileName
+  - name: EmptyClass
+  - name: ThrowablePrintedToSystemOut
+  - name: SimplifiableIfStatement
+  - name: ObjectsEqualsCanBeSimplified
+  - name: SizeReplaceableByIsEmpty
+  - name: ArrayCanBeReplacedWithEnumValues
+  - name: ClassExplicitlyExtendsObject
+  - name: SingleStatementInBlock
+  - name: ConstantExpression
+  - name: RedundantFieldInitialization
+  - name: ContinueOrBreakFromFinallyBlock
+  - name: ErrorNotRethrown
+  - name: NullThrown
+  - name: CheckedExceptionClass
+  - name: ReturnOfNull
+  - name: ExpressionComparedToItself
+  - name: AnonymousInnerClass
+  - name: ClassMayBeInterface
+  - name: CyclomaticComplexityInspection
+  - name: MagicNumber
+  - name: MagicConstant
+  - name: NewObjectEquality
+  - name: MethodOnlyUsedFromInnerClass
+  - name: AssignmentToNull
+  - name: QuestionableName
+  - name: DuplicateThrows
+  - name: UnusedParameters
+  - name: UnusedLibrary
+  - name: SillyAssignment
+  - name: AssignmentToForLoopParameter
+  - name: MarkdownIncorrectTableFormatting
+
 
 exclude:
   - name: CodeStyleInspection
