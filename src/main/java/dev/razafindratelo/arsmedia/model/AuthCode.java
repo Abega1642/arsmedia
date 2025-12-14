@@ -8,8 +8,11 @@ import java.util.concurrent.ThreadLocalRandom;
 public record AuthCode(
     String id, User owner, String code, LocalDateTime createdAt, LocalDateTime deadline) {
 
+  private static final int RANDOM_BOUND = 100_000;
+  private static final int RANDOM_ORIGIN = 0;
+
   public static String generateCode() {
-    int number = ThreadLocalRandom.current().nextInt(0, 100_000);
+    int number = ThreadLocalRandom.current().nextInt(RANDOM_ORIGIN, RANDOM_BOUND);
     return String.format("%05d", number);
   }
 

@@ -17,13 +17,12 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class EventProducer<T extends InfraEvent> implements Consumer<Collection<T>> {
 
+  private static final int MAX_EVENTS_PER_BATCH = 10;
   private final RabbitTemplate rabbitTemplate;
   private final ObjectMapper objectMapper;
   private final String exchangeName;
   private final String routingKey;
   private final ListGrouper<T> listGrouper;
-
-  private static final int MAX_EVENTS_PER_BATCH = 10;
 
   public EventProducer(
       RabbitTemplate rabbitTemplate,
@@ -45,25 +44,48 @@ public class EventProducer<T extends InfraEvent> implements Consumer<Collection<
       return;
     }
 
-    List<T> eventsList = List.copyOf(events);
+    listGrouper.apply(List.copyOf(events), MAX_EVENTS_PER_BATCH).forEach(this::publishBatch);
+  }
 
-    for (List<T> batch : listGrouper.apply(eventsList, MAX_EVENTS_PER_BATCH)) {
-      log.info(
-          "Publishing batch of {} events to exchange '{}' with routing '{}'",
-          batch.size(),
-          exchangeName,
-          routingKey);
-      for (T event : batch) {
-        try {
-          String payload = objectMapper.writeValueAsString(event);
-          rabbitTemplate.convertAndSend(exchangeName, routingKey, payload);
-          log.debug("Published event: {}", event.getClass().getSimpleName());
-        } catch (JsonProcessingException e) {
-          log.error("Serialization failed for event: {}", event, e);
-        } catch (Exception e) {
-          log.error("Publishing failed for event: {}", event, e);
-        }
-      }
+  private void publishBatch(List<T> batch) {
+    log.info(
+        "Publishing batch of {} events to exchange '{}' with routing '{}'",
+        batch.size(),
+        exchangeName,
+        routingKey);
+
+    batch.forEach(this::publishEvent);
+  }
+
+  private void publishEvent(T event) {
+    try {
+      String payload = serializeEvent(event);
+      sendToRabbitMQ(payload);
+      logSuccessfulPublish(event);
+    } catch (JsonProcessingException e) {
+      logSerializationError(event, e);
+    } catch (Exception e) {
+      logPublishingError(event, e);
     }
+  }
+
+  private String serializeEvent(T event) throws JsonProcessingException {
+    return objectMapper.writeValueAsString(event);
+  }
+
+  private void sendToRabbitMQ(String payload) {
+    rabbitTemplate.convertAndSend(exchangeName, routingKey, payload);
+  }
+
+  private void logSuccessfulPublish(T event) {
+    log.debug("Published event: {}", event.getClass().getSimpleName());
+  }
+
+  private void logSerializationError(T event, JsonProcessingException e) {
+    log.error("Serialization failed for event: {}", event, e);
+  }
+
+  private void logPublishingError(T event, Exception e) {
+    log.error("Publishing failed for event: {}", event, e);
   }
 }

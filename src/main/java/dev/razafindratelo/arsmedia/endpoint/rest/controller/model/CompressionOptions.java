@@ -13,9 +13,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class CompressionOptions {
+  private static final int DEFAULT_CRF = 23;
+
   @JsonProperty("crf")
-  @Builder.Default
-  private int crf = 23;
+  private int crf;
 
   @JsonProperty("target_width")
   private Integer targetWidth;
@@ -27,6 +28,6 @@ public class CompressionOptions {
   private Long targetSizeMB;
 
   public static CompressionOptions defaults() {
-    return new CompressionOptions(23, null, null, null);
+    return new CompressionOptions(DEFAULT_CRF, null, null, null);
   }
 }

@@ -30,13 +30,15 @@ public class HealthEventController {
   }
 
   private void validateNbEvent(int nbEvent) {
-    if (nbEvent < 1 || nbEvent > 500) {
+    int maxEvent = 500;
+    int minEvent = 1;
+
+    if (nbEvent < minEvent || nbEvent > maxEvent)
       throw new IllegalArgumentException("nbEvent must be between 1 and 500");
-    }
   }
 
   private List<String> generateUuids(int nbEvent) {
-    return IntStream.range(0, nbEvent).mapToObj(i -> randomUUID().toString()).toList();
+    return IntStream.range(0, nbEvent).mapToObj(_ -> randomUUID().toString()).toList();
   }
 
   private void fireEvents(List<String> uuids, int waitInSeconds) {

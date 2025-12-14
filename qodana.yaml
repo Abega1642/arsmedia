@@ -24,7 +24,6 @@ include:
   - name: ExceptionClassNameDoesntEndWithException
   - name: NonExceptionNameEndsWithException
   - name: DataFlowIssu
-  - name: BooleanMethodNameMustStartWithQuestion
   - name: ClassNameDiffersFromFileName
   - name: EmptyClass
   - name: ThrowablePrintedToSystemOut

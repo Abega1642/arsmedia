@@ -9,25 +9,32 @@ public enum SizeType {
   PB,
   EB;
 
+  private static final long SIZE_KB = 1_024L;
+  private static final long SIZE_MB = SIZE_KB * SIZE_KB;
+  private static final long SIZE_GB = SIZE_MB * SIZE_KB;
+  private static final long SIZE_TB = SIZE_GB * SIZE_KB;
+  private static final long SIZE_PB = SIZE_TB * SIZE_KB;
+  private static final long SIZE_EB = SIZE_PB * SIZE_KB;
+
   public static double convert(long bytes, SizeType targetUnit) {
     return switch (targetUnit) {
       case BYTES -> bytes;
-      case KB -> bytes / 1_024.0;
-      case MB -> bytes / 1_048_576.0;
-      case GB -> bytes / 1_073_741_824.0;
-      case TB -> bytes / 1_099_511_627_776.0;
-      case PB -> bytes / 1_125_899_906_842_624.0;
-      case EB -> bytes / 1_152_921_504_606_846_976.0;
+      case KB -> bytes / (double) SIZE_KB;
+      case MB -> bytes / (double) SIZE_MB;
+      case GB -> bytes / (double) SIZE_GB;
+      case TB -> bytes / (double) SIZE_TB;
+      case PB -> bytes / (double) SIZE_PB;
+      case EB -> bytes / (double) SIZE_EB;
     };
   }
 
   public static SizeType bestFit(long bytes) {
-    if (bytes < 1_024L) return BYTES;
-    if (bytes < 1_048_576L) return KB;
-    if (bytes < 1_073_741_824L) return MB;
-    if (bytes < 1_099_511_627_776L) return GB;
-    if (bytes < 1_125_899_906_842_624L) return TB;
-    if (bytes < 1_152_921_504_606_846_976L) return PB;
+    if (bytes < SIZE_KB) return BYTES;
+    if (bytes < SIZE_MB) return KB;
+    if (bytes < SIZE_GB) return MB;
+    if (bytes < SIZE_TB) return GB;
+    if (bytes < SIZE_PB) return TB;
+    if (bytes < SIZE_EB) return PB;
     return EB;
   }
 }

@@ -12,6 +12,8 @@ import lombok.Getter;
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class VideoCompressionRequested extends InfraEvent {
+  private static final int MAX_CONSUMER_DURATION = 10;
+  private static final int MAX_CONSUMER_BACKOFF_BETWEEN_RETRIES_DURATION = 30;
 
   private final String videoId;
   private final String bucketKey;
@@ -35,11 +37,11 @@ public class VideoCompressionRequested extends InfraEvent {
 
   @Override
   public Duration maxConsumerDuration() {
-    return Duration.ofMinutes(10);
+    return Duration.ofMinutes(MAX_CONSUMER_DURATION);
   }
 
   @Override
   public Duration maxConsumerBackoffBetweenRetries() {
-    return Duration.ofSeconds(30);
+    return Duration.ofSeconds(MAX_CONSUMER_BACKOFF_BETWEEN_RETRIES_DURATION);
   }
 }

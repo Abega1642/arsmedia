@@ -12,6 +12,9 @@ import lombok.Setter;
 @Setter
 @Builder
 public class VideoFormatConversionRequested extends InfraEvent {
+  private static final int MAX_CONSUMER_DURATION = 5;
+  private static final int MAX_CONSUMER_BACKOFF_BETWEEN_RETRIES_DURATION = 15;
+
   private final String videoId;
   private final String bucketKey;
   private final String owner;
@@ -20,11 +23,11 @@ public class VideoFormatConversionRequested extends InfraEvent {
 
   @Override
   public Duration maxConsumerDuration() {
-    return Duration.ofMinutes(5);
+    return Duration.ofMinutes(MAX_CONSUMER_DURATION);
   }
 
   @Override
   public Duration maxConsumerBackoffBetweenRetries() {
-    return Duration.ofSeconds(15);
+    return Duration.ofSeconds(MAX_CONSUMER_BACKOFF_BETWEEN_RETRIES_DURATION);
   }
 }

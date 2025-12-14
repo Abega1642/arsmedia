@@ -41,7 +41,8 @@ public class ApiKeyGenerator implements BiFunction<User, LocalDateTime, String> 
       SecretKeySpec secretKey = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), ALGORITHM);
       hmac.init(secretKey);
       byte[] hmacBytes = hmac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-      return bytesToHex(hmacBytes).substring(0, 16);
+      int maxInd = 16;
+      return bytesToHex(hmacBytes).substring(0, maxInd);
     } catch (NoSuchAlgorithmException | InvalidKeyException e) {
       throw new HmacCalculationException("Failed to calculate HMAC", e);
     }

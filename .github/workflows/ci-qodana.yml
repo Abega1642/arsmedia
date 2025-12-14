@@ -1,4 +1,4 @@
-name: CI - Qodana
+name: CI - Qodana Linter
 
 on:
   push:
@@ -23,52 +23,33 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Qodana Scan
-        uses: JetBrains/qodana-action@v2025.2
+        uses: JetBrains/qodana-action@27de2a744479d1d731934eeaf79287575ebc5dd3
+        env:
+          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
         with:
-          linter: jetbrains/qodana-jvm-community:2025.2
-          use-docker: true
-          args: >
-            --cache-dir /home/runner/work/_temp/qodana/caches
-            --results-dir /home/runner/work/_temp/qodana/results
-            --skip-pull
-            --save-report
-
-      - name: Debug – list Qodana results directory
-        if: always()
-        run: |
-          echo "===== DEBUG: Listing ${{ runner.temp }}/qodana ====="
-          ls -R "${{ runner.temp }}/qodana" || echo "Directory not found"
+          use-caches: true
+          post-pr-comment: true
+          use-annotations: true
+          upload-result: false
+          args: --save-report,--results-dir,${{ runner.temp }}/qodana
+          push-fixes: 'none'
 
       - name: Print Qodana Summary
         if: always()
         run: |
           echo "===== QODANA SUMMARY ====="
-          jq '.' "${{ runner.temp }}/qodana/results/summary.json" \
-            || echo "No summary.json found"
+          jq '.' ${{ runner.temp }}/qodana/results/summary.json || echo "No summary.json found"
 
-      - name: Print Qodana Raw Problems
+      - name: Print Qodana Errors & Issues
         if: always()
         run: |
-          echo "===== QODANA PROBLEMS ====="
-          jq '.problems[] | {
-                rule: .problemType,
-                message: .details,
-                file: .file,
-                line: .line,
-                severity: .severity
-              }' \
-            "${{ runner.temp }}/qodana/results/qodana.json" \
-            || echo "No qodana.json found"
+          echo "===== QODANA ISSUES ====="
+          jq '.problems' ${{ runner.temp }}/qodana/results/qodana.json || echo "No problems found"
 
       - name: Print Qodana SARIF issues (compact)
         if: always()
         run: |
-          echo "===== QODANA SARIF ====="
-          jq '.runs[].results[] | {
-                ruleId,
-                message: .message.text,
-                file: .locations[0].physicalLocation.artifactLocation.uri,
-                line: .locations[0].physicalLocation.region.startLine
-              }' \
-            "${{ runner.temp }}/qodana/results/qodana.sarif.json" \
-            || echo "No SARIF found"
+          echo "===== QODANA SARIF (compact list) ====="
+          jq '.runs[].results[] | {ruleId, message: .message.text, file: .locations[0].physicalLocation.artifactLocation.uri, line: .locations[0].physicalLocation.region.startLine}' \
+            ${{ runner.temp }}/qodana/qodana.sarif.json \
+            || echo "SARIF not found"
