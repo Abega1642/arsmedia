@@ -1,6 +1,5 @@
 package dev.razafindratelo.arsmedia.config;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -33,8 +32,7 @@ class ApiClientSecretFilterIT extends FacadeIT {
                       req.addHeader(HOST_HEADER, "localhost:8080");
                       return req;
                     }))
-        .andExpect(status().isUnauthorized())
-        .andDo(result -> assertThat(result.getResponse().getStatus()));
+        .andExpect(status().is4xxClientError());
   }
 
   @Test

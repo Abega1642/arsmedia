@@ -11,9 +11,9 @@ import static org.mockito.Mockito.startsWith;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import dev.razafindratelo.arsmedia.exception.MediaUploadException;
 import dev.razafindratelo.arsmedia.exception.UserNotActivatedException;
 import dev.razafindratelo.arsmedia.file.BucketComponent;
+import dev.razafindratelo.arsmedia.file.MultipartFileConverter;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.model.Video;
 import dev.razafindratelo.arsmedia.repository.VideoRepository;
@@ -58,7 +58,7 @@ class MediaServiceIT {
     var video = createTestVideo();
 
     when(userService.findByEmail(TEST_EMAIL)).thenReturn(activeUser);
-    when(fileConverter.convert(multipartFile)).thenReturn(videoFile);
+    when(fileConverter.apply(multipartFile)).thenReturn(videoFile);
     when(videoExtractor.apply(videoFile)).thenReturn(video);
 
     var result = mediaService.uploadVideo(multipartFile, TEST_EMAIL);
@@ -69,7 +69,7 @@ class MediaServiceIT {
     assertThat(result.getFilePath()).startsWith(VIDEO_PREFIX);
 
     verify(userService).findByEmail(TEST_EMAIL);
-    verify(fileConverter).convert(multipartFile);
+    verify(fileConverter).apply(multipartFile);
     verify(videoExtractor).apply(videoFile);
     verify(bucket).upload(eq(videoFile), startsWith(VIDEO_PREFIX));
     verify(videoRepository).save(any());
@@ -83,7 +83,7 @@ class MediaServiceIT {
     var video = createTestVideo();
 
     when(userService.findByEmail(TEST_EMAIL)).thenReturn(activeUser);
-    when(fileConverter.convert(multipartFile)).thenReturn(videoFile);
+    when(fileConverter.apply(multipartFile)).thenReturn(videoFile);
     when(videoExtractor.apply(videoFile)).thenReturn(video);
 
     var result = mediaService.uploadVideo(multipartFile, TEST_EMAIL);
@@ -105,24 +105,7 @@ class MediaServiceIT {
         .hasMessageContaining(TEST_EMAIL);
 
     verify(userService).findByEmail(TEST_EMAIL);
-    verify(fileConverter, never()).convert(any());
-    verify(bucket, never()).upload(any(), any());
-    verify(videoRepository, never()).save(any());
-  }
-
-  @Test
-  void should_throw_exception_when_file_conversion_fails() throws IOException {
-    var multipartFile = mock(MultipartFile.class);
-    var activeUser = createActiveUser();
-    var conversionException = new IOException("File conversion failed");
-
-    when(userService.findByEmail(TEST_EMAIL)).thenReturn(activeUser);
-    when(fileConverter.convert(multipartFile)).thenThrow(conversionException);
-
-    assertThatThrownBy(() -> mediaService.uploadVideo(multipartFile, TEST_EMAIL))
-        .isInstanceOf(MediaUploadException.class)
-        .hasMessageContaining(FAILED_TO_UPLOAD_VIDEO_MESSAGE);
-
+    verify(fileConverter, never()).apply(any());
     verify(bucket, never()).upload(any(), any());
     verify(videoRepository, never()).save(any());
   }
@@ -139,7 +122,7 @@ class MediaServiceIT {
         .hasMessageContaining("Audio upload not yet implemented");
 
     verify(userService).findByEmail(TEST_EMAIL);
-    verify(fileConverter, never()).convert(any());
+    verify(fileConverter, never()).apply(any());
   }
 
   @Test
@@ -154,7 +137,7 @@ class MediaServiceIT {
         .hasMessageContaining("Image upload not yet implemented");
 
     verify(userService).findByEmail(TEST_EMAIL);
-    verify(fileConverter, never()).convert(any());
+    verify(fileConverter, never()).apply(any());
   }
 
   @Test
@@ -192,8 +175,8 @@ class MediaServiceIT {
     var video2 = createTestVideo();
 
     when(userService.findByEmail(TEST_EMAIL)).thenReturn(activeUser);
-    when(fileConverter.convert(multipartFile1)).thenReturn(videoFile1);
-    when(fileConverter.convert(multipartFile2)).thenReturn(videoFile2);
+    when(fileConverter.apply(multipartFile1)).thenReturn(videoFile1);
+    when(fileConverter.apply(multipartFile2)).thenReturn(videoFile2);
     when(videoExtractor.apply(videoFile1)).thenReturn(video1);
     when(videoExtractor.apply(videoFile2)).thenReturn(video2);
 
@@ -213,7 +196,7 @@ class MediaServiceIT {
     var video = createTestVideo();
 
     when(userService.findByEmail(TEST_EMAIL)).thenReturn(activeUser);
-    when(fileConverter.convert(multipartFile)).thenReturn(videoFile);
+    when(fileConverter.apply(multipartFile)).thenReturn(videoFile);
     when(videoExtractor.apply(videoFile)).thenReturn(video);
 
     mediaService.uploadVideo(multipartFile, TEST_EMAIL);

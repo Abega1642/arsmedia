@@ -3,7 +3,7 @@ package dev.razafindratelo.arsmedia.endpoint.rest.controller.health;
 import static org.owasp.encoder.Encode.forJava;
 
 import dev.razafindratelo.arsmedia.InfraGenerated;
-import dev.razafindratelo.arsmedia.service.HealthEmailService;
+import dev.razafindratelo.arsmedia.service.health.HealthEmailService;
 import jakarta.mail.internet.AddressException;
 import java.io.IOException;
 import lombok.AllArgsConstructor;
@@ -39,7 +39,7 @@ public class HealthEmailController {
     } catch (AddressException e) {
       log.error("Invalid email address provided: {}", forJava(to), e);
       return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .body("Invalid email address: " + forJava(to));
+          .body("Invalid email address: %s".formatted(forJava(to)));
 
     } catch (IOException e) {
       log.error("Failed to create test attachment for health check", e);

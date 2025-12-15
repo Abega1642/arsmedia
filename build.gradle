@@ -72,14 +72,17 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
     testImplementation 'org.springframework.amqp:spring-rabbit-test'
     testImplementation 'org.springframework.security:spring-security-test'
+
     testImplementation 'org.testcontainers:junit-jupiter'
     testImplementation 'org.testcontainers:postgresql'
     testImplementation 'org.testcontainers:rabbitmq'
-    testImplementation 'org.testcontainers:localstack:1.21.3'
+    testImplementation 'org.testcontainers:localstack'
+
     testImplementation 'org.wiremock:wiremock-standalone:3.13.1'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testImplementation 'com.icegreen:greenmail:2.0.1'
     testImplementation 'com.icegreen:greenmail-junit5:2.0.1'
+
 }
 
 test {

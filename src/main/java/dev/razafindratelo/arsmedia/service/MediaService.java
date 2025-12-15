@@ -1,10 +1,11 @@
 package dev.razafindratelo.arsmedia.service;
 
 import static java.util.UUID.randomUUID;
+import static org.owasp.encoder.Encode.forJava;
 
-import dev.razafindratelo.arsmedia.exception.MediaUploadException;
 import dev.razafindratelo.arsmedia.exception.UserNotActivatedException;
 import dev.razafindratelo.arsmedia.file.BucketComponent;
+import dev.razafindratelo.arsmedia.file.MultipartFileConverter;
 import dev.razafindratelo.arsmedia.mapper.VideoMapper;
 import dev.razafindratelo.arsmedia.model.Audio;
 import dev.razafindratelo.arsmedia.model.Image;
@@ -14,7 +15,6 @@ import dev.razafindratelo.arsmedia.repository.VideoRepository;
 import dev.razafindratelo.arsmedia.service.media.VideoMetaDataExtractor;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
-import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.NotImplementedException;
@@ -36,33 +36,28 @@ public class MediaService {
   public Video uploadVideo(@NotNull MultipartFile file, @NotNull @Email String userEmail) {
     User owner = validateUserForMediaOperations(userEmail);
 
-    try {
-      var videoFile = fileConverter.convert(file);
-      var video = videoExtractor.apply(videoFile);
-      video.setOwner(owner);
+    var videoFile = fileConverter.apply(file);
+    var video = videoExtractor.apply(videoFile);
+    video.setOwner(owner);
 
-      String bucketKey = "videos/" + randomUUID();
+    String bucketKey = "videos/%s".formatted(randomUUID());
 
-      log.info(
-          "Uploading video: id={}, name={}, duration={}, bucketKey={}, user={}",
-          video.getId(),
-          video.getFileName(),
-          video.getDuration(),
-          bucketKey,
-          userEmail);
+    log.info(
+        "Uploading video: id={}, name={}, duration={}, bucketKey={}, user={}",
+        video.getId(),
+        video.getFileName(),
+        video.getDuration(),
+        bucketKey,
+        owner.getEmail());
 
-      bucket.upload(videoFile, bucketKey);
-      video.setFilePath(bucketKey);
+    bucket.upload(videoFile, bucketKey);
+    video.setFilePath(bucketKey);
 
-      log.info("Video uploaded successfully. Pre-signed URL generated for id={}", video.getId());
+    log.info("Video uploaded successfully. Pre-signed URL generated for id={}", video.getId());
 
-      videoRepository.save(VideoMapper.toJVideo(video));
+    videoRepository.save(VideoMapper.toJVideo(video));
 
-      return video;
-    } catch (IOException e) {
-      log.error("Failed to upload video for user: {}", userEmail, e);
-      throw new MediaUploadException("Failed to upload video : " + e);
-    }
+    return video;
   }
 
   public Audio uploadAudio(@NotNull MultipartFile file, @NotNull @Email String userEmail) {
@@ -83,9 +78,9 @@ public class MediaService {
         user.getEmail(),
         user.isActivated());
 
-    if (!user.isActivated()) {
-      throw new UserNotActivatedException("User account is not activated: " + userEmail);
-    }
+    if (!user.isActivated())
+      throw new UserNotActivatedException(
+          "User account is not activated: %s".formatted(forJava(userEmail)));
 
     return user;
   }

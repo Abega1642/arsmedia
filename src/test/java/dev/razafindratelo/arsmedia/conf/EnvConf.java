@@ -20,5 +20,7 @@ public class EnvConf {
     registry.add("app.token.refresh-token-duration", () -> "PT168H");
     registry.add("app.token.max-active-tokens-per-user", () -> "5");
     registry.add("app.token.cleanup-cron", () -> "0 0 2 * * ?");
+    registry.add("ffmpeg.path", () -> "/usr/bin/ffmpeg");
+    registry.add("ffprobe.path", () -> "/usr/bin/ffprobe");
   }
 }
