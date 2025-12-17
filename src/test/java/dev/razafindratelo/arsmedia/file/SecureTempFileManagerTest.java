@@ -1,45 +1,66 @@
 package dev.razafindratelo.arsmedia.file;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.owasp.encoder.Encode.forJava;
 
+import dev.razafindratelo.arsmedia.InfraGenerated;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Objects;
 import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 
+@Slf4j
+@InfraGenerated
 class SecureTempFileManagerTest {
 
   private static final String TEST_PREFIX = "test-";
   private static final String TEST_SUFFIX = ".txt";
   private static final String TEST_CONTENT = "Test content for secure file";
   private static final byte[] TEST_BYTES = "Binary test content".getBytes();
+  private static final String MIN_PREFIX = "abc";
+  private static final String SHORT_PREFIX = "ab";
+  private static final String EMPTY_SUFFIX = "";
+  private static final String SPECIAL_CONTENT =
+      "Special chars: €, ñ, 中文, emoji: 🔒, newlines:\n\ttabs\r\n";
+  private static final int LARGE_CONTENT_SIZE = 10_000;
 
-  private SecureTempFileManager manager;
+  private final TempFileCleaner tempFileCleaner = new TempFileCleaner();
+  private SecureTempFileManager subject;
   private File createdFile;
 
   @BeforeEach
   void setUp() {
-    manager = new SecureTempFileManager();
+
+    subject = new SecureTempFileManager(tempFileCleaner);
     createdFile = null;
   }
 
   @AfterEach
   void tearDown() {
     if (createdFile != null && createdFile.exists()) {
-      manager.deleteTempFile(createdFile);
+      subject.deleteTempFile(createdFile);
     }
   }
 
   @Test
   void should_create_temp_file_with_default_parameters() throws IOException {
-    createdFile = manager.createSecureTempFile();
+    createdFile = subject.createSecureTempFile();
 
     assertNotNull(createdFile);
     assertTrue(createdFile.exists());
@@ -50,7 +71,7 @@ class SecureTempFileManagerTest {
 
   @Test
   void should_create_temp_file_with_custom_prefix_and_suffix() throws IOException {
-    createdFile = manager.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
+    createdFile = subject.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
 
     assertNotNull(createdFile);
     assertTrue(createdFile.exists());
@@ -60,8 +81,8 @@ class SecureTempFileManagerTest {
 
   @Test
   void should_create_multiple_unique_temp_files() throws IOException {
-    File firstFile = manager.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
-    File secondFile = manager.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
+    File firstFile = subject.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
+    File secondFile = subject.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
 
     try {
       assertNotNull(firstFile);
@@ -70,14 +91,14 @@ class SecureTempFileManagerTest {
       assertTrue(firstFile.exists());
       assertTrue(secondFile.exists());
     } finally {
-      manager.deleteTempFile(firstFile);
-      manager.deleteTempFile(secondFile);
+      subject.deleteTempFile(firstFile);
+      subject.deleteTempFile(secondFile);
     }
   }
 
   @Test
   void should_create_temp_file_with_string_content() throws IOException {
-    createdFile = manager.createSecureTempFileWithContent(TEST_PREFIX, TEST_SUFFIX, TEST_CONTENT);
+    createdFile = subject.createSecureTempFileWithContent(TEST_PREFIX, TEST_SUFFIX, TEST_CONTENT);
 
     assertNotNull(createdFile);
     assertTrue(createdFile.exists());
@@ -88,7 +109,7 @@ class SecureTempFileManagerTest {
 
   @Test
   void should_create_temp_file_with_byte_content() throws IOException {
-    createdFile = manager.createSecureTempFileWithContent(TEST_PREFIX, TEST_SUFFIX, TEST_BYTES);
+    createdFile = subject.createSecureTempFileWithContent(TEST_PREFIX, TEST_SUFFIX, TEST_BYTES);
 
     assertNotNull(createdFile);
     assertTrue(createdFile.exists());
@@ -100,7 +121,7 @@ class SecureTempFileManagerTest {
   @Test
   void should_create_temp_file_with_empty_string_content() throws IOException {
     String emptyContent = "";
-    createdFile = manager.createSecureTempFileWithContent(TEST_PREFIX, TEST_SUFFIX, emptyContent);
+    createdFile = subject.createSecureTempFileWithContent(TEST_PREFIX, TEST_SUFFIX, emptyContent);
 
     assertNotNull(createdFile);
     assertTrue(createdFile.exists());
@@ -112,7 +133,7 @@ class SecureTempFileManagerTest {
   @Test
   void should_create_temp_file_with_empty_byte_array() throws IOException {
     byte[] emptyBytes = new byte[0];
-    createdFile = manager.createSecureTempFileWithContent(TEST_PREFIX, TEST_SUFFIX, emptyBytes);
+    createdFile = subject.createSecureTempFileWithContent(TEST_PREFIX, TEST_SUFFIX, emptyBytes);
 
     assertNotNull(createdFile);
     assertTrue(createdFile.exists());
@@ -121,45 +142,44 @@ class SecureTempFileManagerTest {
 
   @Test
   void should_delete_temp_file_successfully() throws IOException {
-    createdFile = manager.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
+    createdFile = subject.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
     assertTrue(createdFile.exists());
 
-    boolean deleted = manager.deleteTempFile(createdFile);
+    subject.deleteTempFile(createdFile);
 
-    assertTrue(deleted);
     assertFalse(createdFile.exists());
   }
 
   @Test
-  void should_return_false_when_deleting_null_file() {
-    boolean deleted = manager.deleteTempFile(null);
-    assertFalse(deleted);
+  void should_handle_deleting_null_file() {
+    assertDoesNotThrow(() -> subject.deleteTempFile(null));
   }
 
   @Test
-  void should_return_false_when_deleting_non_existent_file() {
-    File nonExistentFile = new File("/tmp/non-existent-file-" + System.currentTimeMillis());
-    boolean deleted = manager.deleteTempFile(nonExistentFile);
-    assertFalse(deleted);
+  void should_handle_deleting_non_existent_file() {
+    File nonExistentFile =
+        new File("/tmp/non-existent-file-%d".formatted(System.currentTimeMillis()));
+
+    assertFalse(nonExistentFile.exists(), "File should not exist before test");
+    assertDoesNotThrow(() -> subject.deleteTempFile(nonExistentFile));
+    assertFalse(nonExistentFile.exists(), "File should still not exist after delete attempt");
   }
 
   @Test
   void should_throw_exception_when_prefix_is_null() {
     IllegalArgumentException exception =
         assertThrows(
-            IllegalArgumentException.class, () -> manager.createSecureTempFile(null, TEST_SUFFIX));
+            IllegalArgumentException.class, () -> subject.createSecureTempFile(null, TEST_SUFFIX));
 
     assertEquals("Prefix must be at least 3 characters long", exception.getMessage());
   }
 
   @Test
   void should_throw_exception_when_prefix_is_too_short() {
-    String shortPrefix = "ab";
-
     IllegalArgumentException exception =
         assertThrows(
             IllegalArgumentException.class,
-            () -> manager.createSecureTempFile(shortPrefix, TEST_SUFFIX));
+            () -> subject.createSecureTempFile(SHORT_PREFIX, TEST_SUFFIX));
 
     assertEquals("Prefix must be at least 3 characters long", exception.getMessage());
   }
@@ -168,15 +188,14 @@ class SecureTempFileManagerTest {
   void should_throw_exception_when_suffix_is_null() {
     IllegalArgumentException exception =
         assertThrows(
-            IllegalArgumentException.class, () -> manager.createSecureTempFile(TEST_PREFIX, null));
+            IllegalArgumentException.class, () -> subject.createSecureTempFile(TEST_PREFIX, null));
 
     assertEquals("Suffix cannot be null", exception.getMessage());
   }
 
   @Test
   void should_accept_empty_suffix() throws IOException {
-    String emptySuffix = "";
-    createdFile = manager.createSecureTempFile(TEST_PREFIX, emptySuffix);
+    createdFile = subject.createSecureTempFile(TEST_PREFIX, EMPTY_SUFFIX);
 
     assertNotNull(createdFile);
     assertTrue(createdFile.exists());
@@ -185,8 +204,7 @@ class SecureTempFileManagerTest {
 
   @Test
   void should_accept_minimum_valid_prefix_length() throws IOException {
-    String minPrefix = "abc";
-    createdFile = manager.createSecureTempFile(minPrefix, TEST_SUFFIX);
+    createdFile = subject.createSecureTempFile(MIN_PREFIX, TEST_SUFFIX);
 
     assertNotNull(createdFile);
     assertTrue(createdFile.exists());
@@ -195,7 +213,7 @@ class SecureTempFileManagerTest {
   @Test
   @EnabledOnOs({OS.LINUX, OS.MAC})
   void should_create_file_with_owner_only_permissions_on_posix() throws IOException {
-    createdFile = manager.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
+    createdFile = subject.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
 
     Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(createdFile.toPath());
     Set<PosixFilePermission> expectedPermissions = PosixFilePermissions.fromString("rw-------");
@@ -206,7 +224,7 @@ class SecureTempFileManagerTest {
   @Test
   @EnabledOnOs({OS.LINUX, OS.MAC})
   void should_not_allow_group_read_on_posix() throws IOException {
-    createdFile = manager.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
+    createdFile = subject.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
 
     Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(createdFile.toPath());
 
@@ -218,7 +236,7 @@ class SecureTempFileManagerTest {
   @Test
   @EnabledOnOs({OS.LINUX, OS.MAC})
   void should_not_allow_others_read_on_posix() throws IOException {
-    createdFile = manager.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
+    createdFile = subject.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
 
     Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(createdFile.toPath());
 
@@ -230,7 +248,7 @@ class SecureTempFileManagerTest {
   @Test
   @EnabledOnOs(OS.WINDOWS)
   void should_create_file_in_user_temp_directory_on_windows() throws IOException {
-    createdFile = manager.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
+    createdFile = subject.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
 
     String userTempDir = System.getProperty("java.io.tmpdir");
     assertTrue(createdFile.getAbsolutePath().startsWith(userTempDir));
@@ -242,23 +260,19 @@ class SecureTempFileManagerTest {
 
     assertThrows(
         NullPointerException.class,
-        () -> manager.createSecureTempFileWithContent(TEST_PREFIX, TEST_SUFFIX, invalidContent));
-
-    // Verify no orphaned files were created by checking temp directory
-    // This is a best-effort verification
+        () -> subject.createSecureTempFileWithContent(TEST_PREFIX, TEST_SUFFIX, invalidContent));
   }
 
   @Test
   void should_handle_large_content() throws IOException {
     StringBuilder largeContent = new StringBuilder();
-    int largeSize = 10_000;
 
-    for (int i = 0; i < largeSize; i++) {
+    for (int i = 0; i < LARGE_CONTENT_SIZE; i++) {
       largeContent.append("Line ").append(i).append("\n");
     }
 
     createdFile =
-        manager.createSecureTempFileWithContent(TEST_PREFIX, TEST_SUFFIX, largeContent.toString());
+        subject.createSecureTempFileWithContent(TEST_PREFIX, TEST_SUFFIX, largeContent.toString());
 
     assertNotNull(createdFile);
     assertTrue(createdFile.exists());
@@ -270,34 +284,265 @@ class SecureTempFileManagerTest {
 
   @Test
   void should_handle_special_characters_in_content() throws IOException {
-    String specialContent = "Special chars: €, ñ, 中文, emoji: 🔒, newlines:\n\ttabs\r\n";
-    createdFile = manager.createSecureTempFileWithContent(TEST_PREFIX, TEST_SUFFIX, specialContent);
+    createdFile =
+        subject.createSecureTempFileWithContent(TEST_PREFIX, TEST_SUFFIX, SPECIAL_CONTENT);
 
     assertNotNull(createdFile);
     assertTrue(createdFile.exists());
 
     String actualContent = Files.readString(createdFile.toPath());
-    assertEquals(specialContent, actualContent);
+    assertEquals(SPECIAL_CONTENT, actualContent);
   }
 
   @Test
   void should_create_readable_file() throws IOException {
-    createdFile = manager.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
+    createdFile = subject.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
 
     assertTrue(createdFile.canRead());
   }
 
   @Test
   void should_create_writable_file() throws IOException {
-    createdFile = manager.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
+    createdFile = subject.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
 
     assertTrue(createdFile.canWrite());
   }
 
   @Test
   void should_not_create_executable_file() throws IOException {
-    createdFile = manager.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
+    createdFile = subject.createSecureTempFile(TEST_PREFIX, TEST_SUFFIX);
 
     assertFalse(createdFile.canExecute());
+  }
+
+  @Test
+  void should_create_temp_directory_with_prefix() throws IOException {
+    File createdDir = subject.createSecureTempDirectory(TEST_PREFIX);
+
+    try {
+      assertNotNull(createdDir);
+      assertTrue(createdDir.exists());
+      assertTrue(createdDir.isDirectory());
+      assertTrue(createdDir.getName().startsWith(TEST_PREFIX));
+    } finally {
+      deleteDirectoryIfExists(createdDir);
+    }
+  }
+
+  @Test
+  void should_create_multiple_unique_temp_directories() throws IOException {
+    File firstDir = subject.createSecureTempDirectory(TEST_PREFIX);
+    File secondDir = subject.createSecureTempDirectory(TEST_PREFIX);
+
+    try {
+      assertNotNull(firstDir);
+      assertNotNull(secondDir);
+      assertNotEquals(firstDir.getAbsolutePath(), secondDir.getAbsolutePath());
+      assertTrue(firstDir.exists());
+      assertTrue(secondDir.exists());
+      assertTrue(firstDir.isDirectory());
+      assertTrue(secondDir.isDirectory());
+    } finally {
+      deleteDirectoryIfExists(firstDir);
+      deleteDirectoryIfExists(secondDir);
+    }
+  }
+
+  @Test
+  void should_throw_exception_when_directory_prefix_is_null() {
+    IllegalArgumentException exception =
+        assertThrows(IllegalArgumentException.class, () -> subject.createSecureTempDirectory(null));
+
+    assertEquals("Prefix must be at least 3 characters long", exception.getMessage());
+  }
+
+  @Test
+  void should_throw_exception_when_directory_prefix_is_too_short() {
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class, () -> subject.createSecureTempDirectory(SHORT_PREFIX));
+
+    assertEquals("Prefix must be at least 3 characters long", exception.getMessage());
+  }
+
+  @Test
+  void should_accept_minimum_valid_directory_prefix_length() throws IOException {
+    File createdDir = subject.createSecureTempDirectory(MIN_PREFIX);
+
+    try {
+      assertNotNull(createdDir);
+      assertTrue(createdDir.exists());
+      assertTrue(createdDir.isDirectory());
+    } finally {
+      deleteDirectoryIfExists(createdDir);
+    }
+  }
+
+  @Test
+  @EnabledOnOs({OS.LINUX, OS.MAC})
+  void should_create_directory_with_owner_only_permissions_on_posix() throws IOException {
+    File createdDir = subject.createSecureTempDirectory(TEST_PREFIX);
+
+    try {
+      Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(createdDir.toPath());
+      Set<PosixFilePermission> expectedPermissions = PosixFilePermissions.fromString("rwx------");
+
+      assertEquals(expectedPermissions, permissions);
+    } finally {
+      deleteDirectoryIfExists(createdDir);
+    }
+  }
+
+  @Test
+  @EnabledOnOs({OS.LINUX, OS.MAC})
+  void should_not_allow_group_access_on_directory_on_posix() throws IOException {
+    File createdDir = subject.createSecureTempDirectory(TEST_PREFIX);
+
+    try {
+      Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(createdDir.toPath());
+
+      assertFalse(permissions.contains(PosixFilePermission.GROUP_READ));
+      assertFalse(permissions.contains(PosixFilePermission.GROUP_WRITE));
+      assertFalse(permissions.contains(PosixFilePermission.GROUP_EXECUTE));
+    } finally {
+      deleteDirectoryIfExists(createdDir);
+    }
+  }
+
+  @Test
+  @EnabledOnOs({OS.LINUX, OS.MAC})
+  void should_not_allow_others_access_on_directory_on_posix() throws IOException {
+    File createdDir = subject.createSecureTempDirectory(TEST_PREFIX);
+
+    try {
+      Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(createdDir.toPath());
+
+      assertFalse(permissions.contains(PosixFilePermission.OTHERS_READ));
+      assertFalse(permissions.contains(PosixFilePermission.OTHERS_WRITE));
+      assertFalse(permissions.contains(PosixFilePermission.OTHERS_EXECUTE));
+    } finally {
+      deleteDirectoryIfExists(createdDir);
+    }
+  }
+
+  @Test
+  @EnabledOnOs(OS.WINDOWS)
+  void should_create_directory_in_user_temp_directory_on_windows() throws IOException {
+    File createdDir = subject.createSecureTempDirectory(TEST_PREFIX);
+
+    try {
+      String userTempDir = System.getProperty("java.io.tmpdir");
+      assertTrue(createdDir.getAbsolutePath().startsWith(userTempDir));
+    } finally {
+      deleteDirectoryIfExists(createdDir);
+    }
+  }
+
+  @Test
+  void should_create_readable_directory() throws IOException {
+    File createdDir = subject.createSecureTempDirectory(TEST_PREFIX);
+
+    try {
+      assertTrue(createdDir.canRead());
+    } finally {
+      deleteDirectoryIfExists(createdDir);
+    }
+  }
+
+  @Test
+  void should_create_writable_directory() throws IOException {
+    File createdDir = subject.createSecureTempDirectory(TEST_PREFIX);
+
+    try {
+      assertTrue(createdDir.canWrite());
+    } finally {
+      deleteDirectoryIfExists(createdDir);
+    }
+  }
+
+  @Test
+  void should_create_executable_directory() throws IOException {
+    File createdDir = subject.createSecureTempDirectory(TEST_PREFIX);
+
+    try {
+      assertTrue(createdDir.canExecute());
+    } finally {
+      deleteDirectoryIfExists(createdDir);
+    }
+  }
+
+  @Test
+  void should_allow_creating_files_inside_secure_directory() throws IOException {
+    File createdDir = subject.createSecureTempDirectory(TEST_PREFIX);
+    File fileInDir = null;
+
+    try {
+      fileInDir = new File(createdDir, "test-file.txt");
+      assertTrue(fileInDir.createNewFile());
+      assertTrue(fileInDir.exists());
+      assertTrue(fileInDir.isFile());
+
+      Files.writeString(fileInDir.toPath(), TEST_CONTENT);
+      String readContent = Files.readString(fileInDir.toPath());
+      assertEquals(TEST_CONTENT, readContent);
+    } finally {
+      deleteFileIfExists(fileInDir);
+      deleteDirectoryIfExists(createdDir);
+    }
+  }
+
+  @Test
+  void should_allow_creating_subdirectories_inside_secure_directory() throws IOException {
+    File createdDir = subject.createSecureTempDirectory(TEST_PREFIX);
+    File subDir = null;
+
+    try {
+      subDir = new File(createdDir, "subdir");
+      assertTrue(subDir.mkdir());
+      assertTrue(subDir.exists());
+      assertTrue(subDir.isDirectory());
+    } finally {
+      deleteDirectoryIfExists(subDir);
+      deleteDirectoryIfExists(createdDir);
+    }
+  }
+
+  @Test
+  void should_support_directory_with_multiple_files() throws IOException {
+    File createdDir = subject.createSecureTempDirectory(TEST_PREFIX);
+    File file1 = null;
+    File file2 = null;
+    File file3 = null;
+
+    try {
+      file1 = new File(createdDir, "file1.txt");
+      file2 = new File(createdDir, "file2.txt");
+      file3 = new File(createdDir, "file3.txt");
+
+      assertTrue(file1.createNewFile());
+      assertTrue(file2.createNewFile());
+      assertTrue(file3.createNewFile());
+
+      Files.writeString(file1.toPath(), "Content 1");
+      Files.writeString(file2.toPath(), "Content 2");
+      Files.writeString(file3.toPath(), "Content 3");
+
+      assertEquals(3, Objects.requireNonNull(createdDir.listFiles()).length);
+    } finally {
+      deleteFileIfExists(file1);
+      deleteFileIfExists(file2);
+      deleteFileIfExists(file3);
+      deleteDirectoryIfExists(createdDir);
+    }
+  }
+
+  private void deleteFileIfExists(File file) {
+    if (file != null && file.exists() && !file.delete())
+      log.error("Failed to delete file: {}", forJava(file.getAbsolutePath()));
+  }
+
+  private void deleteDirectoryIfExists(File directory) {
+    if (directory != null && directory.exists() && directory.isDirectory() && !directory.delete())
+      log.error("Failed to delete directory: {}", forJava(directory.getAbsolutePath()));
   }
 }

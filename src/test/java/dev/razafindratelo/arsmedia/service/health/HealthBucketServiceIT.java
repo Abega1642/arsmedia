@@ -55,8 +55,10 @@ class HealthBucketServiceIT {
     File downloadFile = createTempFile("download.txt");
     File dirUploadFile = createTempFile("dir-upload.txt");
     File finalUploadFile = createTempFile("final-upload.txt");
+    File tempDirectory = createTempDirectory();
     URL expectedUrl = createTestUrl();
 
+    when(secureTempFileManager.createSecureTempDirectory(anyString())).thenReturn(tempDirectory);
     when(secureTempFileManager.createSecureTempFileWithContent(
             anyString(), anyString(), anyString()))
         .thenReturn(uploadFile, dirUploadFile, finalUploadFile);
@@ -97,7 +99,9 @@ class HealthBucketServiceIT {
     File downloadFile = createTempFile("download.txt");
     File dirUploadFile = createTempFile("dir-upload.txt");
     File finalUploadFile = createTempFile("final-upload.txt");
+    File tempDirectory = createTempDirectory();
 
+    when(secureTempFileManager.createSecureTempDirectory(anyString())).thenReturn(tempDirectory);
     when(secureTempFileManager.createSecureTempFileWithContent(
             anyString(), anyString(), anyString()))
         .thenReturn(uploadFile, dirUploadFile, finalUploadFile);
@@ -118,8 +122,10 @@ class HealthBucketServiceIT {
     File downloadFile = createTempFile("download.txt");
     File dirUploadFile = createTempFile("dir-upload.txt");
     File finalUploadFile = createTempFile("final-upload.txt");
+    File tempDirectory = createTempDirectory();
     URL expectedUrl = createTestUrl();
 
+    when(secureTempFileManager.createSecureTempDirectory(anyString())).thenReturn(tempDirectory);
     when(secureTempFileManager.createSecureTempFileWithContent(
             anyString(), anyString(), anyString()))
         .thenReturn(uploadFile, dirUploadFile, finalUploadFile);
@@ -155,8 +161,10 @@ class HealthBucketServiceIT {
     File downloadFile = createTempFile("download.txt");
     File dirUploadFile = createTempFile("dir-upload.txt");
     File finalUploadFile = createTempFile("final-upload.txt");
+    File tempDirectory = createTempDirectory();
     URL expectedUrl = createTestUrl();
 
+    when(secureTempFileManager.createSecureTempDirectory(anyString())).thenReturn(tempDirectory);
     when(secureTempFileManager.createSecureTempFileWithContent(
             anyString(), anyString(), anyString()))
         .thenReturn(uploadFile, dirUploadFile, finalUploadFile);
@@ -175,8 +183,10 @@ class HealthBucketServiceIT {
     File downloadFile = createTempFile("download.txt");
     File dirUploadFile = createTempFile("dir-upload.txt");
     File finalUploadFile = createTempFile("final-upload.txt");
+    File tempDirectory = createTempDirectory();
     URL expectedUrl = createTestUrl();
 
+    when(secureTempFileManager.createSecureTempDirectory(anyString())).thenReturn(tempDirectory);
     when(secureTempFileManager.createSecureTempFileWithContent(
             anyString(), anyString(), anyString()))
         .thenReturn(uploadFile, dirUploadFile, finalUploadFile);
@@ -198,8 +208,10 @@ class HealthBucketServiceIT {
     File downloadFile = createTempFile("download.txt");
     File dirUploadFile = createTempFile("dir-upload.txt");
     File finalUploadFile = createTempFile("final-upload.txt");
+    File tempDirectory = createTempDirectory();
     URL expectedUrl = createTestUrl();
 
+    when(secureTempFileManager.createSecureTempDirectory(anyString())).thenReturn(tempDirectory);
     when(secureTempFileManager.createSecureTempFileWithContent(
             anyString(), anyString(), anyString()))
         .thenReturn(uploadFile, dirUploadFile, finalUploadFile);
@@ -218,8 +230,10 @@ class HealthBucketServiceIT {
     File downloadFile = createTempFile("download.txt");
     File dirUploadFile = createTempFile("dir-upload.txt");
     File finalUploadFile = createTempFile("final-upload.txt");
+    File tempDirectory = createTempDirectory();
     URL expectedUrl = createTestUrl();
 
+    when(secureTempFileManager.createSecureTempDirectory(anyString())).thenReturn(tempDirectory);
     when(secureTempFileManager.createSecureTempFileWithContent(
             anyString(), anyString(), anyString()))
         .thenReturn(uploadFile, dirUploadFile, finalUploadFile);
@@ -238,8 +252,10 @@ class HealthBucketServiceIT {
     File downloadFile = createTempFile("download.txt");
     File dirUploadFile = createTempFile("dir-upload.txt");
     File finalUploadFile = createTempFile("final-upload.txt");
+    File tempDirectory = createTempDirectory();
     URL expectedUrl = createTestUrl();
 
+    when(secureTempFileManager.createSecureTempDirectory(anyString())).thenReturn(tempDirectory);
     when(secureTempFileManager.createSecureTempFileWithContent(
             anyString(), anyString(), anyString()))
         .thenReturn(uploadFile, dirUploadFile, finalUploadFile);
@@ -258,6 +274,14 @@ class HealthBucketServiceIT {
     File file = new File(tempDir, filename);
     Files.writeString(file.toPath(), HealthBucketServiceIT.TEST_CONTENT);
     return file;
+  }
+
+  private File createTempDirectory() throws IOException {
+    File dir = new File(tempDir, "test-dir");
+    if (!dir.mkdir())
+      throw new IOException("Failed to create test directory: " + dir.getAbsolutePath());
+
+    return dir;
   }
 
   private URL createTestUrl() {

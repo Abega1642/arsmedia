@@ -94,7 +94,7 @@ public class HealthBucketService {
     String dirId = randomUUID().toString();
     String dirPrefix = DIR_PREFIX + dirId;
 
-    File dir = Files.createTempDirectory(dirPrefix).toFile();
+    File dir = secureTempFileManager.createSecureTempDirectory(dirPrefix);
     File fileInDir = null;
 
     try {
