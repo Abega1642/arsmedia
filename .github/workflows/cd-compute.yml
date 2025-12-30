@@ -3,7 +3,7 @@ name: CD - Health check
 on:
   schedule:
     # Runs every 8 minutes
-    - cron: '*/8 * * * *'
+    - cron: "*/8 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -15,36 +15,55 @@ jobs:
       issues: write
 
     steps:
-      - name: Check URL Status
+      - name: Check URL Status with Retry
         id: health_check
         run: |
           URLS=(
             "https://arsmedia.onrender.com/ping"
           )
-          
+
           FAILED_URLS=()
           FAILED_STATUSES=()
-          
+
           for URL in "${URLS[@]}"; do
             echo "Checking $URL..."
-          
-            HTTP_STATUS=$(curl -L -o /dev/null -s -w "%{http_code}" --max-time 30 "$URL")
-          
-            echo "HTTP Status for $URL: $HTTP_STATUS"
-          
-            if [ "$HTTP_STATUS" -eq 200 ]; then
-              echo "Success! $URL returned status 200"
-            else
-              echo "Failed! $URL returned status $HTTP_STATUS"
+
+            # Retry logic with backoff
+            MAX_RETRIES=3
+            RETRY_COUNT=0
+            SUCCESS=false
+            
+            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+              echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
+              
+              HTTP_STATUS=$(curl -L -o /dev/null -s -w "%{http_code}" --max-time 90 "$URL")
+              
+              echo "HTTP Status for $URL: $HTTP_STATUS"
+              
+              if [ "$HTTP_STATUS" -eq 200 ]; then
+                echo "Success!  $URL returned status 200"
+                SUCCESS=true
+                break
+              else
+                echo "Failed!  $URL returned status $HTTP_STATUS"
+                RETRY_COUNT=$((RETRY_COUNT + 1))
+                if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                  echo "Waiting 30 seconds before retry..."
+                  sleep 30
+                fi
+              fi
+            done
+            
+            if [ "$SUCCESS" = false ]; then
               FAILED_URLS+=("$URL")
               FAILED_STATUSES+=("$HTTP_STATUS")
             fi
             echo "---"
           done
-          
+
           if [ ${#FAILED_URLS[@]} -gt 0 ]; then
             echo "failed=true" >> $GITHUB_OUTPUT
-          
+
             echo "FAILED_URLS=${FAILED_URLS[*]}" >> $GITHUB_ENV
             echo "FAILED_STATUSES=${FAILED_STATUSES[*]}" >> $GITHUB_ENV
             exit 1
@@ -59,33 +78,34 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            const failedUrls = process.env.FAILED_URLS.split(' ');
+            const failedUrls = process.env. FAILED_URLS. split(' ');
             const failedStatuses = process.env.FAILED_STATUSES.split(' ');
-            
+
             let failureDetails = '';
             for (let i = 0; i < failedUrls.length; i++) {
               failureDetails += `- **${failedUrls[i]}** - Status: ${failedStatuses[i]}\n`;
             }
-            
-            const issue = await github.rest.issues.create({
+
+            const issue = await github.rest.issues. create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: 'Health Check Failed - ' + new Date().toISOString(),
               body: `## Health Check Failure Report
-            
+
               **Time:** ${new Date().toLocaleString()}
               **Workflow Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}
-            
+
               ### Failed URLs:
               ${failureDetails}
-            
+
               ### Possible Causes:
-              - Service is down
+              - Service is down or was sleeping (Render free tier)
               - Service is restarting
               - Network issues
               - Server error
-            
+              - Failed after 3 retry attempts with 30s intervals
+
               Please investigate and resolve the issue.`,
               labels: ['bug', 'health-check']
             });
-            console.log('Created issue:', issue.data.number);
+            console.log('Created issue:', issue. data.number);
