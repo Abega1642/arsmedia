@@ -1,11 +1,8 @@
 version: "1.0"
-
 profile:
   name: qodana.starter
-
 projectJDK: "21"
 linter: jetbrains/qodana-jvm-community:2025.2
-
 include:
   - name: NullableProblemsInspection
   - name: UnusedDeclarationInspection
@@ -29,13 +26,11 @@ include:
   - name: IllegalUnicodeEscapeInspection
   - name: ConstantValueInspection
   - name: FinalPrivateFieldInspection
-
 exclude:
   - name: CodeStyleInspection
   - name: RedundantModifierInspection
   - name: UnnecessarySemicolonInspection
   - name: SpellCheckingInspection
-
 failureConditions:
   severityThresholds:
     any: 10

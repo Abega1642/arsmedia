@@ -1,11 +1,13 @@
 package dev.razafindratelo.arsmedia.service;
 
+import static org.owasp.encoder.Encode.forJava;
+
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.UserCreationRequest;
 import dev.razafindratelo.arsmedia.mapper.UserMapper;
 import dev.razafindratelo.arsmedia.model.User;
 import dev.razafindratelo.arsmedia.repository.UserRepository;
 import dev.razafindratelo.arsmedia.repository.model.JUser;
-import dev.razafindratelo.arsmedia.service.util.Pagination;
+import dev.razafindratelo.arsmedia.service.util.Paginator;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -30,7 +32,7 @@ import org.springframework.validation.annotation.Validated;
 @AllArgsConstructor
 public class UserService implements UserDetailsService {
   private UserRepository repository;
-  private Pagination paginator;
+  private Paginator paginator;
   private BCryptPasswordEncoder encoder;
 
   public User findById(@NotBlank @NotNull String id) {
@@ -38,7 +40,10 @@ public class UserService implements UserDetailsService {
     var jUser =
         repository
             .findById(id)
-            .orElseThrow(() -> new EntityNotFoundException("User with id : " + id + " not found"));
+            .orElseThrow(
+                () ->
+                    new EntityNotFoundException(
+                        "User with id : %s not found".formatted(forJava(id))));
 
     return UserMapper.toUser(jUser);
   }
@@ -48,7 +53,8 @@ public class UserService implements UserDetailsService {
     var jUser =
         repository
             .findByEmail(email)
-            .orElseThrow(() -> new EntityNotFoundException("Email not found: " + email));
+            .orElseThrow(
+                () -> new EntityNotFoundException("Email not found: %s".formatted(forJava(email))));
 
     return UserMapper.toUser(jUser);
   }
@@ -70,7 +76,8 @@ public class UserService implements UserDetailsService {
     JUser existing =
         repository
             .findById(user.getId())
-            .orElseThrow(() -> new EntityNotFoundException("User not found: " + user.getId()));
+            .orElseThrow(
+                () -> new EntityNotFoundException("User not found: %s".formatted(user.getId())));
 
     if (user.getPseudo() != null) existing.setPseudo(user.getPseudo());
     if (user.getPhoneNumber() != null) existing.setPhoneNumber(user.getPhoneNumber());
@@ -86,11 +93,12 @@ public class UserService implements UserDetailsService {
 
   public boolean updateActivationStatusByEmail(
       @Email @NotBlank @NotNull String email, boolean isActivated) {
-    log.info("Update user {} activity status to {}", email, isActivated);
+    log.info("Update user {} activity status to {}", forJava(email), isActivated);
 
     repository.updateActivationByEmail(email, isActivated, LocalDateTime.now());
     var updatedUser = findByEmail(email);
-    log.info("User infos : { email = {}, isActive = {} }", email, updatedUser.isActivated());
+    log.info(
+        "User infos : { email = {}, isActive = {} }", forJava(email), updatedUser.isActivated());
 
     return updatedUser.isActivated() == isActivated;
   }

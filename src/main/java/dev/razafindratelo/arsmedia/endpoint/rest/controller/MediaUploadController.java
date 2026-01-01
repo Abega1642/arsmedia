@@ -1,5 +1,7 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller;
 
+import static org.owasp.encoder.Encode.forJava;
+
 import dev.razafindratelo.arsmedia.model.Audio;
 import dev.razafindratelo.arsmedia.model.Image;
 import dev.razafindratelo.arsmedia.model.Video;
@@ -27,7 +29,7 @@ public class MediaUploadController {
       @RequestParam("file") @NotNull MultipartFile file,
       @RequestParam("userEmail") @Email String userEmail) {
 
-    log.info("Video upload request received for user: {}", userEmail);
+    log.info("Video upload request received for user: {}", forJava(userEmail));
 
     Video uploadedVideo = mediaService.uploadVideo(file, userEmail);
     return ResponseEntity.ok(uploadedVideo);
@@ -38,7 +40,7 @@ public class MediaUploadController {
       @RequestParam("file") MultipartFile file,
       @RequestParam("userEmail") @Email String userEmail) {
 
-    log.info("Audio upload request received for user: {}", userEmail);
+    log.info("Audio upload request received for user: {}", forJava(userEmail));
     Audio uploadedAudio = mediaService.uploadAudio(file, userEmail);
     return ResponseEntity.ok(uploadedAudio);
   }
@@ -48,7 +50,7 @@ public class MediaUploadController {
       @RequestParam("file") MultipartFile file,
       @RequestParam("userEmail") @Email String userEmail) {
 
-    log.info("Image upload request received for user: {}", userEmail);
+    log.info("Image upload request received for user: {}", forJava(userEmail));
     Image uploadedImage = mediaService.uploadImage(file, userEmail);
     return ResponseEntity.ok(uploadedImage);
   }

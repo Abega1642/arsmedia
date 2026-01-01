@@ -3,37 +3,14 @@ info:
   title: Arsmedia Backend API
   description: >
     Backend API for the **Arsmedia Application**. This API provides endpoints for:
-    
-    **Video Capabilities**
-    - Convert between formats: .avi → .mp4, .mkv → .mov, .webm → .avi, etc.
-    - Change codecs (H.264, H.265, VP9, AV1).
-    - Extract or replace audio tracks.
-    - Cut, trim, merge, or concatenate videos without re-encoding.
-    - Resize, crop, rotate, or flip videos.
-    - Add subtitles or burn them into the video.
-    - Apply filters: blur, sharpen, grayscale, watermark.
-    - **Video compression**
 
-    **Audio Capabilities**
-    - Convert between audio formats: .mp3 → .wav, .flac → .aac, etc.
-    - Change bitrate, sample rate, or channels.
-    - Extract audio from a video file.
-    - Normalize or adjust volume.
-    - Apply effects: fade in/out, echo, equalizer.
-    - Mix multiple audio tracks.
+    **Video Capabilities** - Convert between formats: .avi → .mp4, .mkv → .mov, .webm → .avi, etc. - Change codecs (H.264, H.265, VP9, AV1). - Extract or replace audio tracks. - Cut, trim, merge, or concatenate videos without re-encoding. - Resize, crop, rotate, or flip videos. - Add subtitles or burn them into the video. - Apply filters: blur, sharpen, grayscale, watermark. - **Video compression**
 
-    **Image Capabilities**
-    - Convert between image formats: .png → .jpg, .bmp → .tiff, etc.
-    - Extract frames from a video.
-    - Create a video or GIF from images.
-    - Resize, crop, or apply filters.
-    - Generate thumbnails.
+    **Audio Capabilities** - Convert between audio formats: .mp3 → .wav, .flac → .aac, etc. - Change bitrate, sample rate, or channels. - Extract audio from a video file. - Normalize or adjust volume. - Apply effects: fade in/out, echo, equalizer. - Mix multiple audio tracks.
 
-    **Authentication & Security**
-    - **Client Authentication**: All non-public endpoints require X-CLIENT-ID and X-CLIENT-SECRET headers for client verification
-    - **User Authentication**: Protected endpoints require JWT Bearer token obtained from /auth/token/token-pairs
-    - **Admin Endpoints**: Require API Key authentication in addition to client credentials and bearer token
-    - Local requests (localhost/127.0.0.1) bypass client secret validation
+    **Image Capabilities** - Convert between image formats: .png → .jpg, .bmp → .tiff, etc. - Extract frames from a video. - Create a video or GIF from images. - Resize, crop, or apply filters. - Generate thumbnails.
+
+    **Authentication & Security** - **Client Authentication**: All non-public endpoints require X-CLIENT-ID and X-CLIENT-SECRET headers for client verification - **User Authentication**: Protected endpoints require JWT Bearer token obtained from /auth/token/token-pairs - **Admin Endpoints**: Require API Key authentication in addition to client credentials and bearer token - Local requests (localhost/127.0.0.1) bypass client secret validation
 
     The health endpoints check if the storage bucket and event messaging system are operational.
 
@@ -42,13 +19,11 @@ info:
     name: Abegà Razafindratelo
     email: a.razafindratelo@gmail.com
     url: https://github.com/Abega1642
-
 servers:
   - url: https://arsmedia.onrender.com
     description: Pre-production server
   - url: http://localhost:8080
     description: Local development server
-
 tags:
   - name: Authentication
     description: Authentication and authorization endpoints
@@ -60,7 +35,6 @@ tags:
     description: Endpoints to verify system and bucket health (public access)
   - name: Docs
     description: API documentation endpoints and redirects
-
 paths:
   /:
     get:
@@ -68,7 +42,7 @@ paths:
       tags:
         - Docs
       summary: Redirect root path to Swagger UI
-      security: [ ]
+      security: []
       responses:
         "302":
           description: Redirects to /doc
@@ -78,14 +52,13 @@ paths:
               schema:
                 type: string
                 example: /doc
-
   /ping:
     get:
       operationId: pong
       tags:
         - Health
       summary: Check if the server is alive
-      security: [ ]
+      security: []
       responses:
         "200":
           description: Server is alive and responding
@@ -94,7 +67,6 @@ paths:
               schema:
                 type: string
                 example: pong
-
   /health/bucket:
     get:
       operationId: healthBucketCheck
@@ -102,9 +74,9 @@ paths:
         - Health
       summary: Check bucket health by uploading, downloading, and presigning a file
       description: >
-        This endpoint uploads a randomly generated text file to the storage bucket, 
-        verifies its content by downloading it, and returns a presigned URL for the file.
-      security: [ ]
+        This endpoint uploads a randomly generated text file to the storage bucket,  verifies its content by downloading it, and returns a presigned URL for the file.
+
+      security: []
       responses:
         "200":
           description: Successfully uploaded, verified, and presigned file
@@ -115,7 +87,6 @@ paths:
                 example: "https://arsmedia-bucket.s3.amazonaws.com/health/uuid.txt?X-Amz-Signature=..."
         "500":
           $ref: "#/components/responses/InternalServerError"
-
   /health/message:
     get:
       operationId: triggerDummyEvents
@@ -123,9 +94,9 @@ paths:
         - Health
       summary: Trigger dummy health check events
       description: >
-        This endpoint triggers one or more dummy events through the event producer 
-        for testing the messaging system (e.g., RabbitMQ or Kafka).
-      security: [ ]
+        This endpoint triggers one or more dummy events through the event producer  for testing the messaging system (e.g., RabbitMQ or Kafka).
+
+      security: []
       parameters:
         - name: nbEvent
           in: query
@@ -169,7 +140,6 @@ paths:
                 message: "nbEvent must be between 1 and 500"
                 path: "/health/message"
                 errorCode: "BAD_FORM"
-
   /health/email:
     get:
       operationId: sendHealthEmail
@@ -177,7 +147,7 @@ paths:
         - Health
       summary: Send health check email
       description: Sends a test email to verify email service functionality
-      security: [ ]
+      security: []
       parameters:
         - name: to
           in: query
@@ -207,7 +177,6 @@ paths:
                 message: "Invalid email address format"
                 path: "/health/email"
                 errorCode: "BAD_FORM"
-
   /sign-up:
     post:
       operationId: signUp
@@ -216,8 +185,8 @@ paths:
       summary: Register a new user
       description: Creates a new user account with email, password, and phone number. Requires client credentials for non-local requests.
       security:
-        - ClientSecret: [ ]
-          ClientId: [ ]
+        - ClientSecret: []
+          ClientId: []
       requestBody:
         required: true
         content:
@@ -248,7 +217,6 @@ paths:
                 message: "User with email 'user@example.com' already exists"
                 path: "/sign-up"
                 errorCode: "CONSTRAINT_VIOLATION_ON_FIELDS"
-
   /users:
     get:
       operationId: findUsers
@@ -256,13 +224,13 @@ paths:
         - User
       summary: Get paginated list of users (ADMIN only)
       description: >
-        Retrieves a paginated list of all users. 
-        **Requires client credentials, ADMIN role, and API Key authentication.**
+        Retrieves a paginated list of all users.  **Requires client credentials, ADMIN role, and API Key authentication.**
+
       security:
-        - ClientSecret: [ ]
-          ClientId: [ ]
-          ApiKeyAuth: [ ]
-          BearerAuth: [ ]
+        - ClientSecret: []
+          ClientId: []
+          ApiKeyAuth: []
+          BearerAuth: []
       parameters:
         - name: page
           in: query
@@ -289,7 +257,6 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/ForbiddenAdminOrClient"
-
   /users/{email}:
     get:
       operationId: findUser
@@ -297,12 +264,12 @@ paths:
         - User
       summary: Get user by email
       description: >
-        Retrieves a specific user by their email address.
-        **Requires client credentials and Bearer token authentication.**
+        Retrieves a specific user by their email address. **Requires client credentials and Bearer token authentication.**
+
       security:
-        - ClientSecret: [ ]
-          ClientId: [ ]
-          BearerAuth: [ ]
+        - ClientSecret: []
+          ClientId: []
+          BearerAuth: []
       parameters:
         - name: email
           in: path
@@ -336,7 +303,6 @@ paths:
           $ref: "#/components/responses/InvalidClientCredentials"
         "404":
           $ref: "#/components/responses/UserNotFound"
-
   /auth/login:
     post:
       operationId: login
@@ -344,11 +310,11 @@ paths:
         - Authentication
       summary: User login
       description: >
-        Authenticates a user with email and password. Returns user information.
-        Requires client credentials for non-local requests. After login, use /auth/token/token-pairs to get JWT tokens.
+        Authenticates a user with email and password. Returns user information. Requires client credentials for non-local requests. After login, use /auth/token/token-pairs to get JWT tokens.
+
       security:
-        - ClientSecret: [ ]
-          ClientId: [ ]
+        - ClientSecret: []
+          ClientId: []
       requestBody:
         required: true
         content:
@@ -379,7 +345,6 @@ paths:
           $ref: "#/components/responses/AuthenticationFailed"
         "403":
           $ref: "#/components/responses/ForbiddenLoginOrClient"
-
   /auth/token/token-pairs:
     post:
       operationId: generateTokenPair
@@ -387,11 +352,11 @@ paths:
         - Authentication
       summary: Generate access and refresh token pair
       description: >
-        Generates a new pair of access and refresh tokens for authenticated requests.
-        Requires client credentials and valid user credentials from login.
+        Generates a new pair of access and refresh tokens for authenticated requests. Requires client credentials and valid user credentials from login.
+
       security:
-        - ClientSecret: [ ]
-          ClientId: [ ]
+        - ClientSecret: []
+          ClientId: []
       requestBody:
         required: true
         content:
@@ -435,7 +400,6 @@ paths:
                 message: "Token already exists for this user"
                 path: "/auth/token/token-pairs"
                 errorCode: "TOKEN_UNIQUENESS_CONFLICT"
-
   /auth/token/refresh-token-pairs:
     post:
       operationId: refreshTokenPair
@@ -443,11 +407,11 @@ paths:
         - Authentication
       summary: Refresh access token using refresh token
       description: >
-        Generates a new access token using a valid refresh token.
-        Requires client credentials and valid refresh token.
+        Generates a new access token using a valid refresh token. Requires client credentials and valid refresh token.
+
       security:
-        - ClientSecret: [ ]
-          ClientId: [ ]
+        - ClientSecret: []
+          ClientId: []
       parameters:
         - name: refresh_token
           in: query
@@ -480,7 +444,6 @@ paths:
           $ref: "#/components/responses/InvalidRefreshToken"
         "403":
           $ref: "#/components/responses/InvalidClientCredentials"
-
   /auth/auth-code/{userId}:
     post:
       operationId: sendAuthCode
@@ -488,11 +451,11 @@ paths:
         - Authentication
       summary: Send authentication code to user
       description: >
-        Sends an authentication code to the user's email for account activation.
-        Requires client credentials for non-local requests.
+        Sends an authentication code to the user's email for account activation. Requires client credentials for non-local requests.
+
       security:
-        - ClientSecret: [ ]
-          ClientId: [ ]
+        - ClientSecret: []
+          ClientId: []
       parameters:
         - name: userId
           in: path
@@ -524,7 +487,6 @@ paths:
           $ref: "#/components/responses/InvalidClientCredentials"
         "404":
           $ref: "#/components/responses/UserNotFound"
-
   /auth/activate-profile/{userId}:
     patch:
       operationId: activateUserProfile
@@ -532,11 +494,11 @@ paths:
         - Authentication
       summary: Activate user profile with authentication code
       description: >
-        Activates a user profile by verifying the authentication code sent to their email.
-        Requires client credentials for non-local requests.
+        Activates a user profile by verifying the authentication code sent to their email. Requires client credentials for non-local requests.
+
       security:
-        - ClientSecret: [ ]
-          ClientId: [ ]
+        - ClientSecret: []
+          ClientId: []
       parameters:
         - name: userId
           in: path
@@ -574,7 +536,6 @@ paths:
           $ref: "#/components/responses/InvalidClientCredentials"
         "404":
           $ref: "#/components/responses/UserNotFound"
-
   /auth/api-keys/generate:
     post:
       operationId: generateApiKey
@@ -582,12 +543,12 @@ paths:
         - Authentication
       summary: Generate API key
       description: >
-        Generates a new API key for programmatic access.
-        **Requires client credentials and Bearer token authentication.**
+        Generates a new API key for programmatic access. **Requires client credentials and Bearer token authentication.**
+
       security:
-        - ClientSecret: [ ]
-          ClientId: [ ]
-          BearerAuth: [ ]
+        - ClientSecret: []
+          ClientId: []
+          BearerAuth: []
       requestBody:
         required: true
         content:
@@ -618,7 +579,6 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/InvalidClientCredentials"
-
   /api/media/videos/upload:
     post:
       operationId: uploadVideo
@@ -626,12 +586,12 @@ paths:
         - Video
       summary: Upload a video file
       description: >
-        Uploads a video file to the storage bucket.
-        **Requires client credentials and Bearer token authentication.**
+        Uploads a video file to the storage bucket. **Requires client credentials and Bearer token authentication.**
+
       security:
-        - ClientSecret: [ ]
-          ClientId: [ ]
-          BearerAuth: [ ]
+        - ClientSecret: []
+          ClientId: []
+          BearerAuth: []
       parameters:
         - name: userEmail
           in: query
@@ -679,7 +639,6 @@ paths:
           $ref: "#/components/responses/InvalidClientCredentials"
         "500":
           $ref: "#/components/responses/InternalServerError"
-
   /api/media/videos/compression-status/{jobId}:
     get:
       operationId: getCompressionStatus
@@ -687,12 +646,12 @@ paths:
         - Video
       summary: Get compression job status by job ID
       description: >
-        Retrieves the current status and details of a specific compression job by its unique job ID.
-        **Requires client credentials and Bearer token authentication.**
+        Retrieves the current status and details of a specific compression job by its unique job ID. **Requires client credentials and Bearer token authentication.**
+
       security:
-        - ClientSecret: [ ]
-          ClientId: [ ]
-          BearerAuth: [ ]
+        - ClientSecret: []
+          ClientId: []
+          BearerAuth: []
       parameters:
         - name: jobId
           in: path
@@ -740,7 +699,6 @@ paths:
                 errorCode: "ENTITY_NOT_FOUND"
         "500":
           $ref: "#/components/responses/InternalServerError"
-
   /api/media/videos/compression-jobs/{videoId}:
     get:
       operationId: getCompressionJobsByVideoId
@@ -748,12 +706,12 @@ paths:
         - Video
       summary: Get all compression jobs for a video
       description: >
-        Retrieves a list of all compression jobs associated with a specific video ID.
-        **Requires client credentials and Bearer token authentication.**
+        Retrieves a list of all compression jobs associated with a specific video ID. **Requires client credentials and Bearer token authentication.**
+
       security:
-        - ClientSecret: [ ]
-          ClientId: [ ]
-          BearerAuth: [ ]
+        - ClientSecret: []
+          ClientId: []
+          BearerAuth: []
       parameters:
         - name: videoId
           in: path
@@ -803,7 +761,6 @@ paths:
                 errorCode: "ENTITY_NOT_FOUND"
         "500":
           $ref: "#/components/responses/InternalServerError"
-
   /api/media/videos/compress/{bucketKey}:
     post:
       operationId: compressVideo
@@ -811,12 +768,12 @@ paths:
         - Video
       summary: Compress a video
       description: >
-        Initiates video compression process and returns job status with tracking information.
-        **Requires client credentials and Bearer token authentication.**
+        Initiates video compression process and returns job status with tracking information. **Requires client credentials and Bearer token authentication.**
+
       security:
-        - ClientSecret: [ ]
-          ClientId: [ ]
-          BearerAuth: [ ]
+        - ClientSecret: []
+          ClientId: []
+          BearerAuth: []
       parameters:
         - name: bucketKey
           in: path
@@ -871,7 +828,6 @@ paths:
                 errorCode: "ENTITY_NOT_FOUND"
         "500":
           $ref: "#/components/responses/InternalServerError"
-
   /api/media/videos/compressed:
     get:
       operationId: getAllCompressedVideosOfUser
@@ -879,12 +835,12 @@ paths:
         - Video
       summary: Get all compressed videos for a user
       description: >
-        Retrieves a list of all compressed videos belonging to a specific user.
-        **Requires client credentials and Bearer token authentication.**
+        Retrieves a list of all compressed videos belonging to a specific user. **Requires client credentials and Bearer token authentication.**
+
       security:
-        - ClientSecret: [ ]
-          ClientId: [ ]
-          BearerAuth: [ ]
+        - ClientSecret: []
+          ClientId: []
+          BearerAuth: []
       parameters:
         - name: userEmail
           in: query
@@ -921,7 +877,6 @@ paths:
           $ref: "#/components/responses/InvalidClientCredentials"
         "500":
           $ref: "#/components/responses/InternalServerError"
-
   /api/media/videos/extract-audio/{bucketKey}:
     post:
       operationId: extractAudio
@@ -929,12 +884,12 @@ paths:
         - Video
       summary: Extract audio from a video
       description: >
-        Initiates audio extraction process from a video and returns job status with tracking information.
-        **Requires client credentials and Bearer token authentication.**
+        Initiates audio extraction process from a video and returns job status with tracking information. **Requires client credentials and Bearer token authentication.**
+
       security:
-        - ClientSecret: [ ]
-          ClientId: [ ]
-          BearerAuth: [ ]
+        - ClientSecret: []
+          ClientId: []
+          BearerAuth: []
       parameters:
         - name: bucketKey
           in: path
@@ -989,7 +944,6 @@ paths:
                 errorCode: "ENTITY_NOT_FOUND"
         "500":
           $ref: "#/components/responses/InternalServerError"
-
   /api/media/videos/audio-extraction-status/{jobId}:
     get:
       operationId: getAudioExtractionStatus
@@ -997,12 +951,12 @@ paths:
         - Video
       summary: Get audio extraction job status by job ID
       description: >
-        Retrieves the current status and details of a specific audio extraction job by its unique job ID.
-        **Requires client credentials and Bearer token authentication.**
+        Retrieves the current status and details of a specific audio extraction job by its unique job ID. **Requires client credentials and Bearer token authentication.**
+
       security:
-        - ClientSecret: [ ]
-          ClientId: [ ]
-          BearerAuth: [ ]
+        - ClientSecret: []
+          ClientId: []
+          BearerAuth: []
       parameters:
         - name: jobId
           in: path
@@ -1050,7 +1004,6 @@ paths:
                 errorCode: "ENTITY_NOT_FOUND"
         "500":
           $ref: "#/components/responses/InternalServerError"
-
   /api/media/videos/format-convert/{bucketKey}:
     post:
       operationId: convertVideoToFormat
@@ -1058,12 +1011,12 @@ paths:
         - Video
       summary: Format video converter
       description: >
-        Initiates converting video format process and returns job status with tracking information.
-        **Requires client credentials and Bearer token authentication.**
+        Initiates converting video format process and returns job status with tracking information. **Requires client credentials and Bearer token authentication.**
+
       security:
-        - ClientSecret: [ ]
-          ClientId: [ ]
-          BearerAuth: [ ]
+        - ClientSecret: []
+          ClientId: []
+          BearerAuth: []
       parameters:
         - name: bucketKey
           in: path
@@ -1124,7 +1077,6 @@ paths:
                 errorCode: "ENTITY_NOT_FOUND"
         "500":
           $ref: "#/components/responses/InternalServerError"
-
   /api/media/videos/format-conversion-status/{jobId}:
     get:
       operationId: getFormatConversionStatus
@@ -1132,12 +1084,12 @@ paths:
         - Video
       summary: Get video format conversion job status by job ID
       description: >
-        Retrieves the current status and details of a specific video format conversion job by its unique job ID.
-        **Requires client credentials and Bearer token authentication.**
+        Retrieves the current status and details of a specific video format conversion job by its unique job ID. **Requires client credentials and Bearer token authentication.**
+
       security:
-        - ClientSecret: [ ]
-          ClientId: [ ]
-          BearerAuth: [ ]
+        - ClientSecret: []
+          ClientId: []
+          BearerAuth: []
       parameters:
         - name: jobId
           in: path
@@ -1185,7 +1137,6 @@ paths:
                 errorCode: "ENTITY_NOT_FOUND"
         "500":
           $ref: "#/components/responses/InternalServerError"
-
 components:
   securitySchemes:
     ClientSecret:
@@ -1193,36 +1144,28 @@ components:
       in: header
       name: X-CLIENT-SECRET
       description: >
-        Client secret for API access. Must be provided along with X-CLIENT-ID header.
-        Local requests (localhost/127.0.0.1) bypass this requirement.
-        Contact API administrator to obtain client credentials.
+        Client secret for API access. Must be provided along with X-CLIENT-ID header. Local requests (localhost/127.0.0.1) bypass this requirement. Contact API administrator to obtain client credentials.
 
     ClientId:
       type: apiKey
       in: header
       name: X-CLIENT-ID
       description: >
-        Client ID for API access. Must be provided along with X-CLIENT-SECRET header.
-        Local requests (localhost/127.0.0.1) bypass this requirement.
-        Contact API administrator to obtain client credentials.
-
+        Client ID for API access. Must be provided along with X-CLIENT-SECRET header. Local requests (localhost/127.0.0.1) bypass this requirement. Contact API administrator to obtain client credentials.
 
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
       description: >
-        JWT token obtained from /auth/token/token-pairs after login.
-        Include in Authorization header as: `Bearer <token>`
+        JWT token obtained from /auth/token/token-pairs after login. Include in Authorization header as: `Bearer <token>`
 
     ApiKeyAuth:
       type: apiKey
       in: header
       name: X-API-Key
       description: >
-        API key obtained from /auth/api-keys/generate.
-        Required for admin endpoints like /users.
-        Include in X-API-Key header.
+        API key obtained from /auth/api-keys/generate. Required for admin endpoints like /users. Include in X-API-Key header.
 
   responses:
     Unauthorized:
@@ -1238,7 +1181,6 @@ components:
             message: "Authentication required"
             path: "/api/endpoint"
             errorCode: "MISSING_AUTHORIZATION"
-
     AuthenticationFailed:
       description: Authentication failed - invalid credentials
       content:
@@ -1252,7 +1194,6 @@ components:
             message: "Invalid email or password"
             path: "/auth/login"
             errorCode: "AUTHENTICATION_FAILED"
-
     InvalidRefreshToken:
       description: Invalid or expired refresh token
       content:
@@ -1266,7 +1207,6 @@ components:
             message: "Refresh token is invalid or has expired"
             path: "/auth/token/refresh-token-pairs"
             errorCode: "INVALID_TOKEN"
-
     InvalidClientCredentials:
       description: Invalid or missing client credentials
       content:
@@ -1280,7 +1220,6 @@ components:
             message: "Invalid or missing client credentials"
             path: "/api/endpoint"
             errorCode: "AUTHORIZATION_DENIED"
-
     ForbiddenLoginOrClient:
       description: User account is not activated or invalid client credentials
       content:
@@ -1304,7 +1243,6 @@ components:
                 message: "Invalid or missing client credentials"
                 path: "/auth/login"
                 errorCode: "AUTHORIZATION_DENIED"
-
     ForbiddenAdminOrClient:
       description: Access denied - ADMIN role required, missing API key, or invalid client credentials
       content:
@@ -1336,7 +1274,6 @@ components:
                 message: "Invalid or missing client credentials"
                 path: "/users"
                 errorCode: "AUTHORIZATION_DENIED"
-
     UserNotFound:
       description: User not found
       content:
@@ -1350,7 +1287,6 @@ components:
             message: "User not found"
             path: "/api/endpoint"
             errorCode: "ENTITY_NOT_FOUND"
-
     BadRequestValidation:
       description: Invalid request data or validation failure
       content:
@@ -1364,7 +1300,6 @@ components:
             message: "Email format is invalid or password does not meet requirements"
             path: "/sign-up"
             errorCode: "CONSTRAINT_VIOLATION_ON_FIELDS"
-
     InternalServerError:
       description: Internal server error
       content:
@@ -1378,7 +1313,6 @@ components:
             message: "An unexpected error occurred"
             path: "/api/endpoint"
             errorCode: "INTERNAL_SERVER_ERROR"
-
   schemas:
     ErrorResponse:
       type: object
@@ -1429,7 +1363,6 @@ components:
         - error
         - message
         - path
-
     CompressionJobStatusResponse:
       type: object
       properties:
@@ -1471,7 +1404,6 @@ components:
         - status
         - createdAt
         - attemptCount
-
     VideoFormatConversionJobStatusResponse:
       type: object
       properties:
@@ -1513,7 +1445,6 @@ components:
         - status
         - createdAt
         - attemptCount
-
     UserCreationRequest:
       type: object
       properties:
@@ -1545,13 +1476,11 @@ components:
         - password
         - phoneNumber
         - role
-
     GrantedAuthority:
       type: object
       properties:
         authority:
           type: string
-
     User:
       type: object
       properties:
@@ -1596,7 +1525,6 @@ components:
           type: boolean
         credentialsNonExpired:
           type: boolean
-
     TokenPairRequest:
       type: object
       properties:
@@ -1612,7 +1540,6 @@ components:
       required:
         - userEmail
         - userId
-
     RToken:
       type: object
       properties:
@@ -1631,7 +1558,6 @@ components:
         value:
           type: string
           description: The actual token string
-
     RTokenPair:
       type: object
       properties:
@@ -1646,7 +1572,6 @@ components:
         - accessToken
         - refreshToken
         - requestTime
-
     LoginRequest:
       type: object
       properties:
@@ -1663,7 +1588,6 @@ components:
       required:
         - email
         - password
-
     LoginResponse:
       type: object
       properties:
@@ -1678,7 +1602,6 @@ components:
           format: date-time
         user:
           $ref: "#/components/schemas/RUser"
-
     RUser:
       type: object
       properties:
@@ -1710,7 +1633,6 @@ components:
         - phoneNumber
         - pseudo
         - role
-
     AuthCodeResponse:
       type: object
       properties:
@@ -1725,7 +1647,6 @@ components:
           description: Timestamp when the code was sent
       required:
         - sentTo
-
     ApiKeyRequest:
       type: object
       properties:
@@ -1740,7 +1661,6 @@ components:
       required:
         - reason
         - userEmail
-
     ApiKeyResponse:
       type: object
       properties:
@@ -1751,7 +1671,6 @@ components:
           type: string
           format: date-time
           description: When the API key was created
-
     AuthCodeRequest:
       type: object
       properties:
@@ -1767,7 +1686,6 @@ components:
       required:
         - code
         - userEmail
-
     ContainerFormat:
       type: string
       enum:
@@ -1789,7 +1707,6 @@ components:
         - APE
         - AIFF
         - UNKNOWN
-
     Video:
       type: object
       properties:
@@ -1897,7 +1814,6 @@ components:
         audioSampleRate:
           type: integer
           format: int32
-
     ProcessSuccessResponse:
       type: object
       properties:
@@ -1907,7 +1823,6 @@ components:
         path:
           type: string
           description: Path or URL to the processed file
-
     PageUser:
       type: object
       properties:
@@ -1940,7 +1855,6 @@ components:
           type: boolean
         empty:
           type: boolean
-
     PageableObject:
       type: object
       properties:
@@ -1959,7 +1873,6 @@ components:
           format: int32
         unpaged:
           type: boolean
-
     SortObject:
       type: object
       properties:
@@ -1969,7 +1882,6 @@ components:
           type: boolean
         unsorted:
           type: boolean
-
     AudioExtractionJobStatusResponse:
       type: object
       required:
@@ -1984,7 +1896,7 @@ components:
           example: "ae-job-12345-abcde"
         status:
           type: string
-          enum: [ PENDING, PROGRESSING, COMPLETED, FAILED ]
+          enum: [PENDING, PROGRESSING, COMPLETED, FAILED]
           description: Current status of the audio extraction job
           example: "COMPLETED"
         created_at:
@@ -2018,6 +1930,5 @@ components:
           description: Number of processing attempts made for this job
           example: 1
           minimum: 0
-
 security:
-  - BearerAuth: [ ]
+  - BearerAuth: []

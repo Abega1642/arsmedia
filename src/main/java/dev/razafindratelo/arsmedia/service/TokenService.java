@@ -2,6 +2,7 @@ package dev.razafindratelo.arsmedia.service;
 
 import static dev.razafindratelo.arsmedia.mapper.TokenMapper.toRest;
 import static java.util.UUID.randomUUID;
+import static org.owasp.encoder.Encode.forJava;
 
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.RTokenPair;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.TokenPairRequest;
@@ -78,7 +79,7 @@ public class TokenService {
   }
 
   public TokenPair generateTokenPair(@Email String userEmail) {
-    log.info("Generating token pair for user: {}", userEmail);
+    log.info("Generating token pair for user: {}", forJava(userEmail));
 
     var user = validateUserForTokenGeneration(userEmail);
     enforceTokenQuota(userEmail);
@@ -86,7 +87,7 @@ public class TokenService {
     var accessToken = generateAccessToken(user);
     var refreshToken = generateRefreshToken(user);
 
-    log.info("Successfully generated token pair for user: {}", userEmail);
+    log.info("Successfully generated token pair for user: {}", forJava(userEmail));
     return new TokenPair(accessToken, refreshToken, LocalDateTime.now());
   }
 
@@ -120,7 +121,8 @@ public class TokenService {
 
     var validationResult = validateToken(refreshTokenValue, TokenType.REFRESH_TOKEN);
     if (!validationResult.valid()) {
-      throw new InvalidTokenException("Invalid refresh token: " + validationResult.reason());
+      throw new InvalidTokenException(
+          "Invalid refresh token: %s".formatted(validationResult.reason()));
     }
 
     safelyInvalidateToken(refreshTokenValue);
@@ -128,46 +130,50 @@ public class TokenService {
   }
 
   public void revokeToken(@NotBlank @NotNull String tokenValue, @Email String userEmail) {
-    log.info("Revoking token for user: {}", userEmail);
+    log.info("Revoking token for user: {}", forJava(userEmail));
 
     var token =
         tokenRepository
             .findByValueAndUserEmailAndIsValid(tokenValue, userEmail, true)
             .orElseThrow(
-                () -> new TokenNotFoundException("No active token found for user: " + userEmail));
+                () ->
+                    new TokenNotFoundException(
+                        "No active token found for user: %s".formatted(forJava(userEmail))));
 
     token.setValid(false);
     tokenRepository.save(token);
-    log.info("Successfully revoked token for user: {}", userEmail);
+    log.info("Successfully revoked token for user: {}", forJava(userEmail));
   }
 
   public void revokeAllUserTokens(@Email @NotBlank @NotNull String userEmail) {
-    log.info("Revoking all tokens for user: {}", userEmail);
+    log.info("Revoking all tokens for user: {}", forJava(userEmail));
 
     var activeTokens = tokenRepository.findByUserEmailAndIsValid(userEmail, true);
     if (activeTokens.isEmpty()) {
-      log.info("No active tokens found for user: {}", userEmail);
+      log.info("No active tokens found for user: {}", forJava(userEmail));
       return;
     }
 
     activeTokens.forEach(token -> token.setValid(false));
     tokenRepository.saveAll(activeTokens);
-    log.info("Successfully revoked {} tokens for user: {}", activeTokens.size(), userEmail);
+    log.info(
+        "Successfully revoked {} tokens for user: {}", activeTokens.size(), forJava(userEmail));
   }
 
   public void revokeUserTokensByType(
       @Email @NotBlank @NotNull String userEmail, @NotNull TokenType type) {
-    log.info("Revoking {} tokens for user: {}", type, userEmail);
+    log.info("Revoking {} tokens for user: {}", type, forJava(userEmail));
 
     var tokens = tokenRepository.findByUserEmailAndTypeAndIsValid(userEmail, type, true);
     if (tokens.isEmpty()) {
-      log.info("No active {} tokens found for user: {}", type, userEmail);
+      log.info("No active {} tokens found for user: {}", type, forJava(userEmail));
       return;
     }
 
     tokens.forEach(token -> token.setValid(false));
     tokenRepository.saveAll(tokens);
-    log.info("Successfully revoked {} {} tokens for user: {}", tokens.size(), type, userEmail);
+    log.info(
+        "Successfully revoked {} {} tokens for user: {}", tokens.size(), type, forJava(userEmail));
   }
 
   @Scheduled(cron = "${app.token.cleanup-cron}")
@@ -223,7 +229,8 @@ public class TokenService {
         user.isActivated());
 
     if (!user.isActivated())
-      throw new UserNotActivatedException("User account is not activated: " + userEmail);
+      throw new UserNotActivatedException(
+          "User account is not activated: %s".formatted(forJava(userEmail)));
 
     return user;
   }
@@ -274,7 +281,8 @@ public class TokenService {
     }
 
     throw new TokenGenerationException(
-        "Failed to generate unique " + type + " after " + maxTokenGenerationRetries + " attempts");
+        "Failed to generate unique %s after %d attempts"
+            .formatted(type, maxTokenGenerationRetries));
   }
 
   private Token persistToken(User user, String tokenValue, TokenType type, Duration duration) {
@@ -308,7 +316,9 @@ public class TokenService {
 
     if (activeTokenCount >= maxActiveTokensPerUser) {
       log.info(
-          "Enforcing token quota for user: {} ({} active tokens)", userEmail, activeTokenCount);
+          "Enforcing token quota for user: {} ({} active tokens)",
+          forJava(userEmail),
+          activeTokenCount);
 
       var oldestTokens =
           tokenRepository.findByUserEmailAndIsValidOrderByCreationAsc(userEmail, true);
@@ -319,12 +329,13 @@ public class TokenService {
 
       for (var token : tokensToUpdate) {
         token.setValid(false);
-        log.debug("Invalidating old token for user: {}", userEmail);
+        log.debug("Invalidating old token for user: {}", forJava(userEmail));
       }
 
       if (!tokensToUpdate.isEmpty()) {
         tokenRepository.saveAll(tokensToUpdate);
-        log.info("Invalidated {} oldest tokens for user: {}", tokensToUpdate.size(), userEmail);
+        log.info(
+            "Invalidated {} oldest tokens for user: {}", tokensToUpdate.size(), forJava(userEmail));
       }
     }
   }
@@ -332,7 +343,7 @@ public class TokenService {
   private TokenValidationResult validateTokenAttributes(JToken token, TokenType expectedType) {
     if (token.getType() != expectedType) {
       return TokenValidationResult.invalid(
-          "Token type mismatch. Expected: " + expectedType + ", Actual: " + token.getType(),
+          "Token type mismatch. Expected: %s, Actual: %s".formatted(expectedType, token.getType()),
           token.getType());
     }
 
@@ -357,10 +368,10 @@ public class TokenService {
               token -> {
                 token.setValid(false);
                 tokenRepository.save(token);
-                log.debug("Invalidated token: {}", maskToken(tokenValue));
+                log.debug("Invalidated token");
               });
     } catch (Exception e) {
-      log.error("Failed to invalidate token: {}, error: {}", maskToken(tokenValue), e.getMessage());
+      log.error("Failed to invalidate token, error: {}", e.getMessage());
     }
   }
 
@@ -373,15 +384,8 @@ public class TokenService {
 
     if (attempt == maxTokenGenerationRetries) {
       throw new TokenGenerationException(
-          "Token generation failed after " + maxTokenGenerationRetries + " attempts", e);
+          "Token generation failed after %d attempts".formatted(maxTokenGenerationRetries), e);
     }
-  }
-
-  private String maskToken(String token) {
-    if (token == null || token.length() <= 8) {
-      return "***";
-    }
-    return token.substring(0, 4) + "..." + token.substring(token.length() - 4);
   }
 
   @FunctionalInterface
