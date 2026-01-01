@@ -1,55 +1,37 @@
 package dev.razafindratelo.arsmedia.endpoint.rest.controller.health;
 
 import dev.razafindratelo.arsmedia.InfraGenerated;
-import dev.razafindratelo.arsmedia.file.BucketComponent;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.time.Duration;
-import java.util.UUID;
+import dev.razafindratelo.arsmedia.exception.bucket.BucketHealthCheckException;
+import dev.razafindratelo.arsmedia.service.health.HealthBucketService;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * REST controller for cloud storage bucket health check operations.
+ *
+ * <p>Provides endpoints to verify cloud storage (S3, GCS, etc.) connectivity and access permissions
+ * by performing basic bucket operations.
+ */
 @InfraGenerated
 @RestController
 @AllArgsConstructor
 public class HealthBucketController {
 
-  private static final String HEALTH_KEY = "health";
-  private final BucketComponent bucketComponent;
+  private final HealthBucketService healthBucketService;
 
+  /**
+   * Checks cloud storage bucket health and accessibility.
+   *
+   * <p>This endpoint performs operations on the configured cloud storage bucket to verify
+   * connectivity, authentication, and basic read/write permissions.
+   *
+   * @return ResponseEntity containing the health check results as a string
+   * @throws BucketHealthCheckException if the bucket health check fails
+   */
   @GetMapping("/health/bucket")
-  public ResponseEntity<String> fileCanBeUploadedThenSigned() throws IOException {
-    String fileSuffix = ".txt";
-    String filePrefix = UUID.randomUUID().toString();
-    File fileToUpload = Files.createTempFile(filePrefix, fileSuffix).toFile();
-    writeRandomContent(fileToUpload);
-
-    String fileBucketKey = HEALTH_KEY + "/" + filePrefix + fileSuffix;
-    bucketComponent.upload(fileToUpload, fileBucketKey);
-
-    File downloaded = bucketComponent.download(fileBucketKey);
-    if (!Files.readString(fileToUpload.toPath()).equals(Files.readString(downloaded.toPath()))) {
-      throw new IllegalArgumentException("Uploaded and downloaded content mismatch");
-    }
-
-    String dirPrefix = "dir-" + UUID.randomUUID();
-    File dir = Files.createTempDirectory(dirPrefix).toFile();
-    File fInDir = new File(dir, UUID.randomUUID() + ".txt");
-    writeRandomContent(fInDir);
-    String dirBucketKey = HEALTH_KEY + "/" + dirPrefix;
-    bucketComponent.upload(dir, dirBucketKey);
-
-    return ResponseEntity.ok(
-        bucketComponent.presign(fileBucketKey, Duration.ofMinutes(2)).toString());
-  }
-
-  private void writeRandomContent(File file) throws IOException {
-    try (FileWriter writer = new FileWriter(file)) {
-      writer.write(UUID.randomUUID().toString());
-    }
+  public ResponseEntity<String> checkBucketHealth() {
+    return ResponseEntity.ok(healthBucketService.performHealthCheck().toString());
   }
 }

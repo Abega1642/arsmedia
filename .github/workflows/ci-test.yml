@@ -1,38 +1,28 @@
 name: CI - Tests
-
 on:
   push:
-    branches: [ "**" ]
+    branches: ["**"]
   pull_request:
-    branches: [ "**" ]
-
+    branches: ["**"]
+  workflow_dispatch:
 jobs:
   test:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-
+        uses: actions/checkout@v6.0.1
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
           cache: gradle
-
-      - name: Install FFmpeg
-        run: |
-          sudo apt update
-          sudo apt install -y ffmpeg
-
       - name: Grant execute permission for Gradle wrapper
         run: chmod +x gradlew
-
       - name: Cache Gradle dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
@@ -40,10 +30,5 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
-
       - name: Run tests
-        env:
-          TESTCONTAINERS_RYUK_DISABLED: "true"
-          TESTCONTAINERS_CHECKS_DISABLE: "true"
-          DOCKER_HOST: unix:///var/run/docker.sock
-        run: ./gradlew clean test --info
+        run: make ci-test

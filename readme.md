@@ -140,6 +140,12 @@ git clone https://github.com/Abega1642/arsmedia.git
 cd arsmedia
 ```
 
+Install development tools:
+
+```bash
+make install
+```
+
 Configure environment variables:
 
 ```bash
@@ -147,40 +153,173 @@ cp .env.template .env
 # Update values as needed
 ```
 
-Build the application:
+### Build & Run
+
+Build the application (with format check):
 
 ```bash
-./gradlew clean build
-```
-
-Run using Docker:
-
-```bash
-docker build -t arsmedia .
-docker run -p 8080:8080 --env-file .env arsmedia
-```
-
-### Development Workflow
-
-Run tests with coverage:
-
-```bash
-./gradlew testWithCoverage
-```
-
-Apply code formatting:
-
-```bash
-./format.sh
+make build
 ```
 
 Run locally:
 
 ```bash
-./gradlew bootRun
+make run
 ```
 
----
+Run with development profile:
+
+```bash
+make dev
+```
+
+### Docker Operations
+
+Build Docker image:
+
+```bash
+make docker-build
+```
+
+Run Docker container:
+
+```bash
+make docker-run
+```
+
+Stop Docker container:
+
+```bash
+make docker-stop
+```
+
+### Testing
+
+Run all tests:
+
+```bash
+make test
+```
+
+Run unit tests only:
+
+```bash
+make test-unit
+```
+
+Run integration tests only:
+
+```bash
+make test-integration
+```
+
+### Code Quality
+
+Format code:
+
+```bash
+make format
+```
+
+Check code formatting:
+
+```bash
+make format-check
+```
+
+Run Qodana analysis:
+
+```bash
+make qodana
+```
+
+Run Semgrep security scan:
+
+```bash
+make semgrep
+```
+
+### CI/CD Pipeline (Local Simulation)
+
+Run CI build pipeline locally:
+
+```bash
+make ci-build
+```
+
+Run CI test pipeline locally:
+
+```bash
+make ci-test
+```
+
+Run CI format check locally:
+
+```bash
+make ci-format
+```
+
+### Development Workflow
+
+Download and cache dependencies:
+
+```bash
+make deps
+```
+
+Compile the application:
+
+```bash
+make compile
+```
+
+Build JAR file:
+
+```bash
+make jar
+```
+
+Verify development environment:
+
+```bash
+make verify
+```
+
+### Health & Monitoring
+
+Check application health:
+
+```bash
+make health-check
+```
+
+View container logs:
+
+```bash
+make docker-logs
+```
+
+### Cleanup
+
+Clean build artifacts:
+
+```bash
+make clean
+```
+
+Complete cleanup (including Docker):
+
+```bash
+make clean-all
+```
+
+### Help
+
+Show all available commands:
+
+```bash
+make help
+```
 
 ## Quality & Reliability
 

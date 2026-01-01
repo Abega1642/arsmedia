@@ -1,78 +1,19 @@
 name: CD - Health check
-
 on:
   schedule:
-    # Runs every 8 minutes
-    - cron: "*/8 * * * *"
+    # Runs every 10 minutes
+    - cron: "*/10 * * * *"
   workflow_dispatch:
-
 jobs:
   check-urls:
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
       issues: write
-
     steps:
       - name: Check URL Status with Retry
         id: health_check
-        run: |
-          URLS=(
-            "https://arsmedia.onrender.com/ping"
-          )
-
-          FAILED_URLS=()
-          FAILED_STATUSES=()
-
-          for URL in "${URLS[@]}"; do
-            echo "Checking $URL..."
-
-            # Retry logic with backoff
-            MAX_RETRIES=3
-            RETRY_COUNT=0
-            SUCCESS=false
-            
-            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-              echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
-              
-              HTTP_STATUS=$(curl -L -o /dev/null -s -w "%{http_code}" --max-time 90 "$URL")
-              
-              echo "HTTP Status for $URL: $HTTP_STATUS"
-              
-              if [ "$HTTP_STATUS" -eq 200 ]; then
-                echo "Success!  $URL returned status 200"
-                SUCCESS=true
-                break
-              else
-                echo "Failed!  $URL returned status $HTTP_STATUS"
-                RETRY_COUNT=$((RETRY_COUNT + 1))
-                if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-                  echo "Waiting 30 seconds before retry..."
-                  sleep 30
-                fi
-              fi
-            done
-            
-            if [ "$SUCCESS" = false ]; then
-              FAILED_URLS+=("$URL")
-              FAILED_STATUSES+=("$HTTP_STATUS")
-            fi
-            echo "---"
-          done
-
-          if [ ${#FAILED_URLS[@]} -gt 0 ]; then
-            echo "failed=true" >> $GITHUB_OUTPUT
-
-            echo "FAILED_URLS=${FAILED_URLS[*]}" >> $GITHUB_ENV
-            echo "FAILED_STATUSES=${FAILED_STATUSES[*]}" >> $GITHUB_ENV
-            exit 1
-          else
-            echo "failed=false" >> $GITHUB_OUTPUT
-            echo "All health checks passed!"
-            exit 0
-          fi
-
+        run: "URLS=(\n  \"https://arsmedia.onrender.com/ping\"\n)\n\nFAILED_URLS=()\nFAILED_STATUSES=()\n\nfor URL in \"${URLS[@]}\"; do\n  echo \"Checking $URL...\"\n\n  # Retry logic with backoff\n  MAX_RETRIES=3\n  RETRY_COUNT=0\n  SUCCESS=false\n  \n  while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do\n    echo \"Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES\"\n    \n    HTTP_STATUS=$(curl -L -o /dev/null -s -w \"%{http_code}\" --max-time 90 \"$URL\")\n    \n    echo \"HTTP Status for $URL: $HTTP_STATUS\"\n    \n    if [ \"$HTTP_STATUS\" -eq 200 ]; then\n      echo \"Success!  $URL returned status 200\"\n      SUCCESS=true\n      break\n    else\n      echo \"Failed!  $URL returned status $HTTP_STATUS\"\n      RETRY_COUNT=$((RETRY_COUNT + 1))\n      if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then\n        echo \"Waiting 30 seconds before retry...\"\n        sleep 30\n      fi\n    fi\n  done\n  \n  if [ \"$SUCCESS\" = false ]; then\n    FAILED_URLS+=(\"$URL\")\n    FAILED_STATUSES+=(\"$HTTP_STATUS\")\n  fi\n  echo \"---\"\ndone\n\nif [ ${#FAILED_URLS[@]} -gt 0 ]; then\n  echo \"failed=true\" >> $GITHUB_OUTPUT\n\n  echo \"FAILED_URLS=${FAILED_URLS[*]}\" >> $GITHUB_ENV\n  echo \"FAILED_STATUSES=${FAILED_STATUSES[*]}\" >> $GITHUB_ENV\n  exit 1\nelse\n  echo \"failed=false\" >> $GITHUB_OUTPUT\n  echo \"All health checks passed!\"\n  exit 0\nfi\n"
       - name: Create Issue on Failure
         if: failure()
         uses: actions/github-script@v8

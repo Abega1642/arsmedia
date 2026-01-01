@@ -5,7 +5,7 @@ CREATE TYPE token_type as ENUM (
 
 CREATE TABLE token
 (
-    id         VARCHAR PRIMARY KEY,
+    id         VARCHAR(40) PRIMARY KEY,
     value      TEXT                     NOT NULL,
     creation   TIMESTAMP WITH TIME ZONE DEFAULT now(),
     expiration TIMESTAMP WITH TIME ZONE NOT NULL,

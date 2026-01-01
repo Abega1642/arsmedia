@@ -1,6 +1,7 @@
 package dev.razafindratelo.arsmedia.service;
 
 import static java.time.LocalDateTime.now;
+import static org.owasp.encoder.Encode.forJava;
 
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.ApiKeyRequest;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.ApiKeyResponse;
@@ -12,7 +13,7 @@ import dev.razafindratelo.arsmedia.model.ApiKey;
 import dev.razafindratelo.arsmedia.repository.ApiKeyRepository;
 import dev.razafindratelo.arsmedia.repository.model.JApiKey;
 import dev.razafindratelo.arsmedia.service.util.ApiKeyGenerator;
-import dev.razafindratelo.arsmedia.service.util.Pagination;
+import dev.razafindratelo.arsmedia.service.util.Paginator;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -36,7 +37,7 @@ public class ApiKeyService {
   private final ApiKeyRepository repository;
   private final UserService userService;
   private final ApiKeyGenerator apiKeyGenerator;
-  private final Pagination paginator;
+  private final Paginator paginator;
 
   public ApiKeyResponse createApiKey(@NotNull @Valid ApiKeyRequest request) {
     var apiKey = createApiKeyWithUserEmailAndDuration(request.userEmail(), Duration.ofDays(20));
@@ -62,7 +63,7 @@ public class ApiKeyService {
             creation,
             expiration);
 
-    log.info("API key generated for user {}", userEmail);
+    log.info("API key generated for user {}", forJava(userEmail));
     return ApiKeyMapper.toModel(repository.save(apiKey));
   }
 
@@ -75,7 +76,8 @@ public class ApiKeyService {
         user.isActivated());
 
     if (!user.isActivated())
-      throw new UserNotActivatedException("User account is not activated: " + userEmail);
+      throw new UserNotActivatedException(
+          "User account is not activated: %s".formatted(forJava(userEmail)));
   }
 
   public Page<ApiKey> findAllByUserEmail(

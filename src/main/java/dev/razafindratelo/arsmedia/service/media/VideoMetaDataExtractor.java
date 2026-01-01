@@ -1,5 +1,7 @@
 package dev.razafindratelo.arsmedia.service.media;
 
+import static org.owasp.encoder.Encode.forJava;
+
 import dev.razafindratelo.arsmedia.model.Video;
 import dev.razafindratelo.arsmedia.model.classifier.AudioCodec;
 import dev.razafindratelo.arsmedia.model.classifier.ContainerFormat;
@@ -11,6 +13,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.bramp.ffmpeg.FFprobe;
 import net.bramp.ffmpeg.probe.FFmpegProbeResult;
@@ -19,16 +22,9 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class VideoMetaDataExtractor implements MediaMetadataExtractor<Video> {
   private final FFprobe ffprobe;
-
-  public VideoMetaDataExtractor() throws IOException {
-    try {
-      this.ffprobe = new FFprobe("/usr/bin/ffprobe");
-    } catch (IOException e) {
-      throw new IOException(e);
-    }
-  }
 
   @Override
   public Video apply(File file) {
@@ -79,7 +75,7 @@ public class VideoMetaDataExtractor implements MediaMetadataExtractor<Video> {
       return video;
 
     } catch (IOException e) {
-      log.error("Error extracting metadata from video: {}", file.getAbsolutePath(), e);
+      log.error("Error extracting metadata from video: {}", forJava(file.getAbsolutePath()), e);
       throw new UncheckedIOException(e);
     }
   }

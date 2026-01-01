@@ -1,5 +1,7 @@
 package dev.razafindratelo.arsmedia.config;
 
+import static org.owasp.encoder.Encode.forJava;
+
 import dev.razafindratelo.arsmedia.service.ApiClientSecretService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -52,7 +54,7 @@ public class ApiClientSecretFilter extends OncePerRequestFilter {
     String host = request.getHeader("Host");
 
     if (isLocalRequest(remoteAddr, host)) {
-      log.debug("Bypassing client secret check for local request: {}", host);
+      log.debug("Bypassing client secret check for local request: {}", forJava(host));
       filterChain.doFilter(request, response);
       return;
     }

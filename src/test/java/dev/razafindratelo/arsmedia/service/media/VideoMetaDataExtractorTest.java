@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URISyntaxException;
+import net.bramp.ffmpeg.FFprobe;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -21,17 +22,19 @@ class VideoMetaDataExtractorTest {
   private VideoMetaDataExtractor subject;
 
   @BeforeEach
-  void setUp() throws IOException {
+  void setUp() {
+    FFprobe fFprobe;
     try {
-      subject = new VideoMetaDataExtractor();
+      fFprobe = new FFprobe("/usr/bin/ffprobe");
     } catch (IOException e) {
-      throw new IOException(e);
+      throw new RuntimeException("FFprobe path not found");
     }
+    subject = new VideoMetaDataExtractor(fFprobe);
   }
 
   @Test
   void should_be_able_to_detect_type_webm_from_a_video() throws URISyntaxException {
-    var resource = getClass().getResource(PREFIX + "test-video-one.webm");
+    var resource = getClass().getResource("%stest-video-one.webm".formatted(PREFIX));
     assertNotNull(resource);
 
     File video = new File(resource.toURI());

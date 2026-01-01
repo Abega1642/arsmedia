@@ -1,27 +1,22 @@
 name: CI - Qodana
-
 on:
   workflow_dispatch:
   pull_request:
-    branches: [ '*' ]
+    branches: ['*']
   push:
-    branches: [ '*' ]
-
+    branches: ['*']
 jobs:
   qodana:
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
       pull-requests: write
       checks: write
       actions: read
       security-events: write
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Qodana Scan
         uses: JetBrains/qodana-action@27de2a744479d1d731934eeaf79287575ebc5dd3
         env:
@@ -33,19 +28,16 @@ jobs:
           upload-result: true
           args: --save-report,--results-dir,${{ runner.temp }}/qodana
           push-fixes: 'none'
-
       - name: Print Qodana Summary
         if: always()
         run: |
           echo "===== QODANA SUMMARY ====="
           jq '.' ${{ runner.temp }}/qodana/results/summary.json || echo "No summary.json found"
-
       - name: Print Qodana Errors & Issues
         if: always()
         run: |
           echo "===== QODANA ISSUES ====="
           jq '.problems' ${{ runner.temp }}/qodana/results/qodana.json || echo "No problems found"
-
       - name: Print Qodana SARIF issues (compact)
         if: always()
         run: |
@@ -53,11 +45,9 @@ jobs:
           jq '.runs[].results[] | {ruleId, message: .message.text, file: .locations[0].physicalLocation.artifactLocation.uri, line: .locations[0].physicalLocation.region.startLine}' \
             ${{ runner.temp }}/qodana/qodana.sarif.json \
             || echo "SARIF not found"
-
       - name: Upload SARIF to GitHub
         if: always()
         uses: github/codeql-action/upload-sarif@014f16e7ab1402f30e7c3329d33797e7948572db
         with:
           sarif_file: ${{ runner.temp }}/qodana/qodana.sarif.json
           category: qodana
-

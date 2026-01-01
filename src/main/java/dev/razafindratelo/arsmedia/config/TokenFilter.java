@@ -1,5 +1,7 @@
 package dev.razafindratelo.arsmedia.config;
 
+import static org.owasp.encoder.Encode.forJava;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.ErrorResponse;
 import dev.razafindratelo.arsmedia.exception.InvalidAuthorizationFormatException;
@@ -66,7 +68,7 @@ public class TokenFilter extends OncePerRequestFilter {
       var authentication = createAuthentication(token);
       SecurityContextHolder.getContext().setAuthentication(authentication);
 
-      log.debug("Successfully authenticated user for path: {}", request.getServletPath());
+      log.debug("Successfully authenticated user for path: {}", forJava(request.getServletPath()));
       filterChain.doFilter(request, response);
 
     } catch (AuthenticationException ex) {
@@ -108,10 +110,11 @@ public class TokenFilter extends OncePerRequestFilter {
     var validationResult = tokenService.validateToken(tokenValue, TokenType.ACCESS_TOKEN);
 
     if (!validationResult.valid()) {
-      throw new InvalidTokenException("Token validation failed: " + validationResult.reason());
+      throw new InvalidTokenException(
+          "Token validation failed: %s".formatted(validationResult.reason()));
     }
 
-    log.debug("Token validated successfully for user: {}", validationResult.userEmail());
+    log.debug("Token validated successfully for user: {}", forJava(validationResult.userEmail()));
   }
 
   private Authentication createAuthentication(String tokenValue) {

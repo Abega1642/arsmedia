@@ -4,6 +4,7 @@ import static dev.razafindratelo.arsmedia.mapper.AudioMapper.toJAudio;
 import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toVideo;
 import static java.lang.String.format;
 import static java.util.UUID.randomUUID;
+import static org.owasp.encoder.Encode.forJava;
 
 import dev.razafindratelo.arsmedia.event.model.AudioExtractionRequested;
 import dev.razafindratelo.arsmedia.exception.AudioExtractionException;
@@ -127,7 +128,7 @@ public class AudioExtractionRequestedService implements Consumer<AudioExtraction
 
   private File extractAudio(File videoFile, Video sourceVideo) throws IOException {
     File audioFile = File.createTempFile(EXTRACTED_AUDIO_PREFIX, AUDIO_FILE_EXTENSION);
-    log.info("Created temporary audio file: {}", audioFile.getAbsolutePath());
+    log.info("Created temporary audio file: {}", forJava(audioFile.getAbsolutePath()));
 
     FFmpegBuilder builder = buildAudioExtractionCommand(videoFile, audioFile, sourceVideo);
     executeAudioExtraction(builder);

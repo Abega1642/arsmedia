@@ -6,6 +6,7 @@ import static dev.razafindratelo.arsmedia.mapper.VideoFormatConversionJobStatusR
 import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toJVideo;
 import static dev.razafindratelo.arsmedia.mapper.VideoMapper.toVideo;
 import static java.util.UUID.randomUUID;
+import static org.owasp.encoder.Encode.forJava;
 
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.CompressionOptions;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.job.AudioExtractionJobStatusResponse;
@@ -93,7 +94,10 @@ public class VideoService {
     var job =
         videoCompressionJobRepository
             .findById(jobId)
-            .orElseThrow(() -> new EntityNotFoundException("Compression job not found: " + jobId));
+            .orElseThrow(
+                () ->
+                    new EntityNotFoundException(
+                        "Compression job not found: %s".formatted(forJava(jobId))));
     return mapToCompressionResponse(job);
   }
 
@@ -103,7 +107,9 @@ public class VideoService {
         audioExtractionJobRepository
             .findById(jobId)
             .orElseThrow(
-                () -> new EntityNotFoundException("Audio extraction job not found: " + jobId));
+                () ->
+                    new EntityNotFoundException(
+                        "Audio extraction job not found: %s".formatted(forJava(jobId))));
 
     return mapToAudioExtractionJobStatusResponse(job);
   }
@@ -227,7 +233,9 @@ public class VideoService {
         videoFormatConversionJobRepository
             .findById(jobId)
             .orElseThrow(
-                () -> new EntityNotFoundException("Format conversion job not found: " + jobId));
+                () ->
+                    new EntityNotFoundException(
+                        "Format conversion job not found: %s".formatted(forJava(jobId))));
     return mapToFormatConversionResponse(job);
   }
 }

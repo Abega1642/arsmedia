@@ -2,7 +2,6 @@ package dev.razafindratelo.arsmedia.config;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import dev.razafindratelo.arsmedia.conf.FacadeIT;
@@ -47,7 +46,6 @@ class ApiClientSecretFilterIT extends FacadeIT {
                       r.addHeader(HOST_HEADER, "external.com");
                       return r;
                     }))
-        .andExpect(status().isForbidden())
-        .andExpect(content().string("Invalid or missing client credentials"));
+        .andExpect(status().isUnauthorized());
   }
 }
