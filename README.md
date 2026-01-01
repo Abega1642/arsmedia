@@ -1,15 +1,35 @@
-# 🎬 Arsmedia Backend API
+# Arsmedia API
 
-![Java](https://img.shields.io/badge/Java-21-orange?style=for-the-badge)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.6-brightgreen?style=for-the-badge)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-blue?style=for-the-badge)
-![AWS S3](https://img.shields.io/badge/AWS-S3-orange?style=for-the-badge)
-![License](https://img.shields.io/badge/License-MIT-purple?style=for-the-badge)
-![Status](https://img.shields.io/badge/Status-Production-success?style=for-the-badge)
+<p align="center">
+  <strong>Arsmedia API</strong><br/>
+</p>
 
-A high-performance, enterprise-grade multimedia processing backend built with Spring Boot, providing comprehensive media
-transformation capabilities for video, audio, and image content. Designed for scalability, security, and seamless
-integration.
+<p align="center">
+  <a href="https://github.com/Abega1642/arsmedia.git/actions/workflows/ci-test.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/Abega1642/arsmedia/ci-test.yml?label=tests&style=for-the-badge" />
+  </a>
+  <a href="https://github.com/Abega1642/arsmedia/actions/workflows/ci-build.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/Abega1642/arsmedia/ci-build.yml?label=build&style=for-the-badge" />
+  </a>
+  <a href="https://github.com/Abega1642/arsmedia/blob/preprod/LICENSE">
+    <img src="https://img.shields.io/github/license/Abega1642/arsmedia?style=for-the-badge" />
+  </a>
+  <img src="https://img.shields.io/badge/java-21-007396?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/spring%20boot-3.6.9-6DB33F?style=for-the-badge&logo=springboot&logoColor=white" />
+</p>
+
+<p align="center">
+  <img src="https://skillicons.dev/icons?i=spring,docker,gradle,java,postgres,rabbitmq,gmail,bitbucket&theme=light" />
+</p>
+
+---
+
+## Introduction
+
+**Arsmedia** is a high-performance, enterprise-grade multimedia processing backend built with Spring Boot.  
+It provides a comprehensive set of media transformation capabilities for **video, audio, and image** content, with a strong focus on scalability, security, and clean integration.
+
+The platform is designed to serve as a reliable backend for media-intensive applications, supporting complex processing pipelines while maintaining predictable performance and operational stability.
 
 ---
 
@@ -17,69 +37,70 @@ integration.
 
 ### Video Processing
 
-- Format Conversion: AVI → MP4, WebM → MOV, and 50+ additional formats
-- Codec Transcoding: H.264, H.265, VP9, AV1 with quality optimization
-- Stream Manipulation: Extract, replace, or merge audio tracks
-- Non-destructive Editing: Cut, trim, merge videos without re-encoding
-- Visual Transformations: Resize, crop, rotate, mirror, and flip
-- Subtitles & Overlays: Burn subtitles or attach as separate streams
-- Advanced Filters: Blur, sharpen, grayscale, watermark, and custom effects
-- Intelligent Compression: Quality-aware compression with bitrate control
+- Format conversion (AVI → MP4, WebM → MOV, and 50+ additional formats)
+- Codec transcoding (H.264, H.265, VP9, AV1) with quality optimization
+- Audio stream manipulation (extract, replace, merge)
+- Non-destructive editing (cut, trim, merge without re-encoding)
+- Visual transformations (resize, crop, rotate, mirror, flip)
+- Subtitle and overlay handling (burn-in or separate streams)
+- Advanced filtering (blur, sharpen, grayscale, watermark, custom effects)
+- Intelligent compression with bitrate and quality control
 
 ### Audio Processing
 
-- Multi-format Support: MP3, WAV, AAC, FLAC, OGG, and more
-- Audio Enhancement: Bitrate adjustment, sample rate conversion, channel mixing
-- Extraction Tools: Isolate audio from video files
-- Audio Effects: Normalization, volume adjustment, echo, fade, equalizer
-- Mixing & Composition: Combine multiple audio tracks with precision
+- Multi-format support (MP3, WAV, AAC, FLAC, OGG, and more)
+- Bitrate adjustment and sample-rate conversion
+- Channel mixing and audio enhancement
+- Audio extraction from video sources
+- Effects processing (normalization, volume control, echo, fade, equalizer)
+- Precise mixing and composition of multiple tracks
 
 ### Image Processing
 
-- Format Conversion: JPEG, PNG, WebP, AVIF, and 20+ formats
-- Frame Extraction: Capture frames from videos at customizable intervals
-- Media Creation: Generate videos and GIFs from image sequences
-- Image Optimization: Resize, crop, filter, and enhance images
-- Thumbnail Generation: Automatic thumbnail creation with smart cropping
+- Format conversion (JPEG, PNG, WebP, AVIF, and 20+ formats)
+- Frame extraction from videos at configurable intervals
+- Media generation (videos and GIFs from image sequences)
+- Image resizing, cropping, filtering, and enhancement
+- Automatic thumbnail generation with smart cropping
 
 ---
 
-## Architecture & Tech Stack
+## Architecture & Technology Stack
 
-| Component      | Technology                         |
-|----------------|------------------------------------|
-| Language       | Java 21                            |
-| Framework      | Spring Boot 3.5.6                  |
-| Build System   | Gradle                             |
-| Database       | PostgreSQL with Flyway migrations  |
-| Authentication | JWT, API Keys, Client Credentials  |
-| Media Engine   | FFmpeg, Jaffree                    |
-| Storage        | AWS S3 with Transfer Manager       |
-| Email          | Resend Java SDK                    |
-| File Analysis  | Apache Tika                        |
-| Messaging      | RabbitMQ                           |
-| Testing        | TestContainers, JUnit 5, GreenMail |
+| Component        | Technology                          |
+|------------------|-------------------------------------|
+| Language         | Java 21                              |
+| Framework        | Spring Boot 3.5.9                    |
+| Build System     | Gradle                               |
+| Database         | PostgreSQL with Flyway migrations    |
+| Authentication  | JWT, API Keys, Client Credentials   |
+| Media Engine    | FFmpeg, Jaffree                      |
+| Storage          | AWS S3 (Transfer Manager)            |
+| Email            | Resend Java SDK                      |
+| File Analysis    | Apache Tika                          |
+| Messaging        | RabbitMQ                             |
+| Testing          | Testcontainers, JUnit 5, GreenMail   |
 
 ---
 
-## Security Architecture
+## Security Model
 
-Arsmedia implements a multi-layered security model.
+Arsmedia implements a layered security approach to protect both infrastructure and media operations.
 
 ### Client Authentication
 
-Required for all non-public endpoints:
+All non-public endpoints require client authentication via headers:
 
 ```http
-X-CLIENT-ID: <your_client_id>
-X-CLIENT-SECRET: <your_client_secret>
-```
+X-CLIENT-ID: <client_id>
+X-CLIENT-SECRET: <client_secret>
+````
 
-Local development requests bypass secret validation for convenience.
+For local development, secret validation may be relaxed to simplify testing.
 
 ### User Authentication (JWT)
 
-Obtain access tokens via:
+JWT access tokens are issued via the authentication endpoint:
 
 ```http
 POST /auth/token/token-pairs
@@ -91,69 +112,69 @@ Content-Type: application/json
 }
 ```
 
-### Admin Endpoints
+### Administrative Endpoints
 
-Require triple authentication:
+Administrative operations require **triple authentication**:
 
-- Valid API Key
-- Client credentials
-- JWT Bearer token with admin privileges
+* Valid API key
+* Client credentials
+* JWT bearer token with administrative privileges
 
 ---
 
-## Quick Start
+## Getting Started
 
 ### Prerequisites
 
-- Java 21+
-- PostgreSQL 16+
-- FFmpeg 6.0+
-- Gradle 8.0+
+* Java 21 or newer
+* PostgreSQL 16 or newer
+* FFmpeg 6.0 or newer
+* Gradle 8.0 or newer
 
 ### Installation & Deployment
 
-1. Clone the repository
+Clone the repository:
 
 ```bash
 git clone https://github.com/Abega1642/arsmedia.git
 cd arsmedia
 ```
 
-2. Configure environment variables
+Configure environment variables:
 
 ```bash
 cp .env.template .env
-# Edit .env with your configuration
+# Update values as needed
 ```
 
-3. Build the application
+Build the application:
 
 ```bash
 ./gradlew clean build
 ```
 
-4. Run with Docker
+Run using Docker:
 
 ```bash
 docker build -t arsmedia .
 docker run -p 8080:8080 --env-file .env arsmedia
 ```
 
-### Development Setup
+### Development Workflow
 
-1. Run tests with coverage
+Run tests with coverage:
 
 ```bash
 ./gradlew testWithCoverage
 ```
 
-2. Format code
+Apply code formatting:
 
 ```bash
 ./format.sh
 ```
 
-3. Run locally
+Run locally:
 
 ```bash
 ./gradlew bootRun
@@ -161,34 +182,34 @@ docker run -p 8080:8080 --env-file .env arsmedia
 
 ---
 
-## Quality Assurance
+## Quality & Reliability
 
-### Testing & Coverage
+### Testing Strategy
 
-- Comprehensive Test Suite: Unit, integration, and end-to-end tests
-- TestContainers: Real database and service testing
-- Code Coverage: 50% minimum line coverage enforced
-- Quality Gates: JaCoCo verification with detailed reporting
+* Unit, integration, and end-to-end tests
+* Real infrastructure testing using Testcontainers
+* Minimum line coverage threshold enforced (50%)
+* JaCoCo reporting and verification
 
 ### Code Quality
 
-- Static Analysis: Qodana configuration for code quality
-- Code Formatting: Google Java Format enforced
-- Security Scanning: Dependency vulnerability checks
+* Static analysis via Qodana
+* Google Java Format enforcement
+* Dependency and security vulnerability scanning
 
 ---
 
 ## Production Deployment
 
-| Environment | URL                           | Status |
-|-------------|-------------------------------|--------|
-| Production  | https://arsmedia.onrender.com | Active |
+| Environment | URL                                                            | Status |
+| ----------- | -------------------------------------------------------------- | ------ |
+| Production  | [https://arsmedia.onrender.com](https://arsmedia.onrender.com) | Active |
 
-### Monitoring & Health
+### Monitoring
 
-- Spring Boot Actuator endpoints enabled
-- Health checks, metrics, and environment info
-- Custom media processing metrics
+* Spring Boot Actuator enabled
+* Health checks and metrics endpoints
+* Custom metrics for media processing operations
 
 ---
 
@@ -196,9 +217,9 @@ docker run -p 8080:8080 --env-file .env arsmedia
 
 ### Interactive Documentation
 
-- Swagger UI: Available at /swagger-ui.html
-- OpenAPI 3.0: Full specification in doc/api.yaml
-- Postman Collection: Import from OpenAPI spec
+* Swagger UI available at `/swagger-ui.html`
+* OpenAPI 3.0 specification located at `doc/api.yaml`
+* Postman collections can be generated from the OpenAPI definition
 
 ### Example Request
 
@@ -218,67 +239,36 @@ X-CLIENT-SECRET: your-client-secret
 
 ---
 
-## Project Structure
+## Project Foundation
 
-```
-arsmedia/
-├── src/main/java/dev/razafindratelo/arsmedia/
-│   ├── config/           # Spring configuration classes
-│   ├── endpoint/         # REST API controllers
-│   ├── service/          # Business logic layer
-│   ├── repository/       # Data access layer
-│   ├── model/           # Domain entities and DTOs
-│   ├── mapper/          # Object mapping utilities
-│   ├── file/            # File processing services
-│   ├── mail/            # Email service integration
-│   ├── event/           # Application events
-│   ├── exception/       # Custom exception handling
-│   └── datastructure/   # Custom data structures
-├── doc/                 # API documentation
-├── build.gradle         # Build configuration
-├── Dockerfile          # Container definition
-└── qodana.yaml         # Code quality configuration
-```
+Arsmedia is built on top of the **ar-infra-template**, a production-ready Spring Boot infrastructure and architecture template.
+
+For detailed architectural conventions and project structure, refer to:
+[https://github.com/Abega1642/ar-infra-template.git](https://github.com/Abega1642/ar-infra-template.git)
 
 ---
 
-## Contributing
+## Maintainer & Contact
 
-We welcome contributions! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (git checkout -b feature/amazing-feature)
-3. Commit your changes (git commit -m 'Add amazing feature')
-4. Push to the branch (git push origin feature/amazing-feature)
-5. Open a Pull Request
-
-### Development Guidelines
-
-- Write comprehensive tests for new features
-- Maintain minimum 50% code coverage
-- Follow Google Java Format style
-- Update documentation accordingly
-
----
-
-## Support & Contact
-
-Technical Lead: Abegà Razafindratelo  
-Email: <a.razafindratelo@gmail.com>  
-GitHub: https://github.com/Abega1642
+**BackOps Engineer:** Abegà Razafindratelo
+**Email:** [a.razafindratelo@gmail.com](mailto:a.razafindratelo@gmail.com)
+**GitHub:** [https://github.com/Abega1642](https://github.com/Abega1642)
 
 ---
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
+See the `LICENSE` file for details.
 
 ---
 
-## Support the Project
+## Support
 
-If you find this project useful, please consider giving it a star on GitHub!
+If this project is useful to you, consider giving it a star on GitHub.
 
-[![GitHub Stars](https://img.shields.io/github/stars/Abega1642/arsmedia?style=social)](https://github.com/Abega1642/arsmedia)
-
-Arsmedia - Professional Media Processing Backend
+<p>
+  <a href="https://github.com/Abega1642/arsmedia">
+    <img src="https://img.shields.io/github/stars/Abega1642/arsmedia?style=social" />
+  </a>
+</p>
