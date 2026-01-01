@@ -16,7 +16,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Qodana Scan
         uses: JetBrains/qodana-action@27de2a744479d1d731934eeaf79287575ebc5dd3
         env:
