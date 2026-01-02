@@ -18,7 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Qodana Scan
-        uses: JetBrains/qodana-action@27de2a744479d1d731934eeaf79287575ebc5dd3
+        uses: JetBrains/qodana-action@42dad391966aca8ca344ca2340a7f43a5507e9b2
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
         with:
