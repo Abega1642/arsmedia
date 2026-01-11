@@ -1,98 +1,124 @@
 name: CD - Health check
-
 on:
   schedule:
+    # Runs every 10 minutes
     - cron: "*/10 * * * *"
   workflow_dispatch:
-
-concurrency:
-  group: health-check
-  cancel-in-progress: false
-
 jobs:
   check-urls:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       issues: write
-
     steps:
-      # -------------------------------
-      # Step 1: Warm up Render service
-      # -------------------------------
-      - name: Warm up service (Render cold start)
-        shell: bash
+      - name: Check URL Status with Retry
+        id: health_check
         run: |
-          echo "Warming up service..."
-          curl -s https://arsmedia.onrender.com/ping || true
-          echo "Waiting for service to boot..."
-          sleep 40
+          set -euo pipefail
 
-      # --------------------------------
-      # Step 2: Health check with retries
-      # --------------------------------
-      - name: Health check with retries
-        shell: bash
-        run: |
-          URL="https://arsmedia.onrender.com/ping"
+          # list of endpoints to check
+          URLS=(
+            "https://arsmedia.onrender.com/ping"
+          )
 
+          # retry configuration (tune these values)
           MAX_RETRIES=5
-          RETRY_DELAY=45
-          ATTEMPT=1
-          SUCCESS=false
+          SLEEP_SECONDS=40
 
-          while [ $ATTEMPT -le $MAX_RETRIES ]; do
-            echo "Attempt $ATTEMPT of $MAX_RETRIES"
+          FAILED_URLS=()
+          FAILED_STATUSES=()
 
-            HTTP_STATUS=$(curl -L -o /dev/null -s -w "%{http_code}" --max-time 120 "$URL")
-            echo "HTTP Status: $HTTP_STATUS"
+          # Best-effort warm up to reduce cold-start flakiness
+          echo "Warming up ${URLS[0]} (best-effort)..."
+          curl -sSf --max-time 10 "${URLS[0]}" || true
+          sleep 5
 
-            if [ "$HTTP_STATUS" -eq 200 ]; then
-              echo "Service is healthy."
-              SUCCESS=true
-              break
+          for URL in "${URLS[@]}"; do
+            echo "Checking $URL..."
+
+            RETRY_COUNT=1
+            SUCCESS=false
+            HTTP_STATUS="000"
+
+            while [ $RETRY_COUNT -le $MAX_RETRIES ]; do
+              echo "Attempt $RETRY_COUNT of $MAX_RETRIES"
+              HTTP_STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$URL" || echo "000")
+              echo "HTTP Status for $URL: $HTTP_STATUS"
+
+              if [ "$HTTP_STATUS" = "200" ]; then
+                echo "Success!  $URL returned status 200"
+                SUCCESS=true
+                break
+              else
+                echo "Failed!  $URL returned status $HTTP_STATUS"
+                RETRY_COUNT=$((RETRY_COUNT + 1))
+                if [ $RETRY_COUNT -le $MAX_RETRIES ]; then
+                  echo "Waiting $SLEEP_SECONDS seconds before retry..."
+                  sleep $SLEEP_SECONDS
+                fi
+              fi
+            done
+
+            if [ "$SUCCESS" = false ]; then
+              FAILED_URLS+=("$URL")
+              FAILED_STATUSES+=("$HTTP_STATUS")
             fi
 
-            if [ $ATTEMPT -lt $MAX_RETRIES ]; then
-              echo "Waiting $RETRY_DELAY seconds before retry..."
-              sleep $RETRY_DELAY
-            fi
-
-            ATTEMPT=$((ATTEMPT + 1))
+            echo "---"
           done
 
-          if [ "$SUCCESS" = false ]; then
-            echo "Health check failed after retries"
-            echo "FAILED_URL=$URL" >> "$GITHUB_ENV"
-            echo "FAILED_STATUS=$HTTP_STATUS" >> "$GITHUB_ENV"
+          # Export outputs for downstream steps
+          if [ ${#FAILED_URLS[@]} -gt 0 ]; then
+            echo "failed=true" >> $GITHUB_OUTPUT
+            printf 'failed_urls=%s\n' "${FAILED_URLS[*]}" >> $GITHUB_OUTPUT
+            printf 'failed_statuses=%s\n' "${FAILED_STATUSES[*]}" >> $GITHUB_OUTPUT
+
+            printf 'FAILED_URLS=%s\n' "${FAILED_URLS[*]}" >> $GITHUB_ENV
+            printf 'FAILED_STATUSES=%s\n' "${FAILED_STATUSES[*]}" >> $GITHUB_ENV
+
             exit 1
+          else
+            echo "failed=false" >> $GITHUB_OUTPUT
+            echo "All health checks passed!"
+            exit 0
           fi
 
-      # --------------------------------
-      # Step 3: Create issue on failure
-      # --------------------------------
       - name: Create Issue on Failure
         if: failure()
         uses: actions/github-script@v8
-        continue-on-error: true
+        env:
+          FAILED_URLS: ${{ steps.health_check.outputs.failed_urls }}
+          FAILED_STATUSES: ${{ steps.health_check.outputs.failed_statuses }}
         with:
           script: |
-            await github.rest.issues.create({
+            const failedUrls = (process.env.FAILED_URLS || '').split(' ').filter(Boolean);
+            const failedStatuses = (process.env.FAILED_STATUSES || '').split(' ').filter(Boolean);
+
+            let failureDetails = '';
+            for (let i = 0; i < failedUrls.length; i++) {
+              failureDetails += `- **${failedUrls[i]}** - Status: ${failedStatuses[i] || 'unknown'}\n`;
+            }
+
+            const issue = await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `Health Check Failed - ${new Date().toISOString()}`,
-              body: `
-## Health Check Failure Report
+              title: 'Health Check Failed - ' + new Date().toISOString(),
+              body: `## Health Check Failure Report
 
 **Time:** ${new Date().toLocaleString()}
 **Workflow Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}
 
-**URL:** https://arsmedia.onrender.com/ping  
-**Last Status:** ${process.env.FAILED_STATUS}
+### Failed URLs:
+${failureDetails}
 
-### Notes
-- Render free-tier services may return 503 during cold starts.
-- Health check retried with warm-up and delay before failing.
-`,
-              labels: ['health-check', 'monitoring']
+### Possible Causes:
+- Service is down or was sleeping (Render free tier)
+- Service is restarting
+- Network issues
+- Server error
+- Failed after retry attempts from CI
+
+Please investigate and resolve the issue.`,
+              labels: ['bug', 'health-check']
             });
+            console.log('Created issue:', issue.data.number);
