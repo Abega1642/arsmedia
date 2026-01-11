@@ -1,0 +1,106 @@
+name: CD - Health check
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+# Prevent overlapping runs from canceling each other
+concurrency:
+  group: health-check
+  cancel-in-progress: false
+
+jobs:
+  check-urls:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Check URL Status with Retry
+        shell: bash
+        run: |
+          URLS=(
+            "https://arsmedia.onrender.com/ping"
+          )
+
+          FAILED_URLS=()
+          FAILED_STATUSES=()
+
+          for URL in "${URLS[@]}"; do
+            echo "Checking $URL..."
+
+            MAX_RETRIES=5
+            RETRY_COUNT=0
+            SUCCESS=false
+
+            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+              echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
+
+              HTTP_STATUS=$(curl -L -o /dev/null -s -w "%{http_code}" --max-time 120 "$URL")
+              echo "HTTP Status: $HTTP_STATUS"
+
+              if [ "$HTTP_STATUS" -eq 200 ]; then
+                echo "Success!"
+                SUCCESS=true
+                break
+              fi
+
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "Waiting 45 seconds before retry..."
+                sleep 45
+              fi
+            done
+
+            if [ "$SUCCESS" = false ]; then
+              FAILED_URLS+=("$URL")
+              FAILED_STATUSES+=("$HTTP_STATUS")
+            fi
+
+            echo "---"
+          done
+
+          if [ ${#FAILED_URLS[@]} -gt 0 ]; then
+            echo "FAILED_URLS=${FAILED_URLS[*]}" >> "$GITHUB_ENV"
+            echo "FAILED_STATUSES=${FAILED_STATUSES[*]}" >> "$GITHUB_ENV"
+            exit 1
+          else
+            echo "All health checks passed!"
+          fi
+
+      - name: Create Issue on Failure
+        if: failure()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const failedUrls = process.env.FAILED_URLS.split(' ');
+            const failedStatuses = process.env.FAILED_STATUSES.split(' ');
+
+            let failureDetails = '';
+            for (let i = 0; i < failedUrls.length; i++) {
+              failureDetails += `- **${failedUrls[i]}** - Status: ${failedStatuses[i]}\n`;
+            }
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Health Check Failed - ${new Date().toISOString()}`,
+              body: `
+## Health Check Failure Report
+
+**Time:** ${new Date().toLocaleString()}
+**Workflow Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}
+
+### Failed URLs
+${failureDetails}
+
+### Possible Causes
+- Render free-tier cold start
+- Service restarting
+- Temporary outage
+- Network issue
+`,
+              labels: ['bug', 'health-check']
+            });
