@@ -1,42 +1,18 @@
-name: CD - Health check
-
-on:
-  schedule:
-    - cron: "*/10 * * * *"
-  workflow_dispatch:
-
-concurrency:
-  group: health-check
-  cancel-in-progress: false
-
-jobs:
-  check-urls:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: write
-
-    steps:
-      # -----------------------------
-      # Warm up Render (best effort)
-      # -----------------------------
       - name: Warm up service
         shell: bash
         run: |
+          URL="https://arsmedia-1.onrender.com/ping"
           echo "Warming up Render service..."
-          curl -s --max-time 10 https://arsmedia.onrender.com/ping || true
+          curl -s --max-time 10 "$URL" || true
           sleep 10
 
-      # -----------------------------
-      # Health check with retries
-      # -----------------------------
       - name: Health check
         id: health_check
         shell: bash
         run: |
           set -euo pipefail
 
-          URL="https://arsmedia.onrender.com/ping"
+          URL="https://arsmedia-1.onrender.com/ping"
           MAX_RETRIES=5
           SLEEP_SECONDS=40
 
@@ -64,32 +40,3 @@ jobs:
           echo "FAILED_URL=$URL" >> "$GITHUB_ENV"
           echo "FAILED_STATUS=$HTTP_STATUS" >> "$GITHUB_ENV"
           exit 1
-
-      # -----------------------------
-      # Create issue on failure
-      # -----------------------------
-      - name: Create Issue on Failure
-        if: failure()
-        uses: actions/github-script@v8
-        continue-on-error: true
-        with:
-          script: |
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `Health Check Failed - ${new Date().toISOString()}`,
-              body: `
-## Health Check Failure
-
-**URL:** https://arsmedia.onrender.com/ping  
-**Status:** ${process.env.FAILED_STATUS}
-
-Likely causes:
-- Render free-tier cold start
-- Service restarting
-- App not listening on correct port
-
-See workflow logs for details.
-`,
-              labels: ['health-check', 'monitoring']
-            });
