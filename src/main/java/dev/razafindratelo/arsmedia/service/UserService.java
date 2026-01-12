@@ -15,6 +15,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -26,11 +27,13 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
-@Slf4j
 @Service
-@Validated
 @AllArgsConstructor
+@Slf4j
+@Profile("prod")
+@Validated
 public class UserService implements UserDetailsService {
+
   private UserRepository repository;
   private Paginator paginator;
   private BCryptPasswordEncoder encoder;
@@ -54,7 +57,9 @@ public class UserService implements UserDetailsService {
         repository
             .findByEmail(email)
             .orElseThrow(
-                () -> new EntityNotFoundException("Email not found: %s".formatted(forJava(email))));
+                () ->
+                    new EntityNotFoundException(
+                        "Email not found: %s".formatted(forJava(email))));
 
     return UserMapper.toUser(jUser);
   }
@@ -77,14 +82,18 @@ public class UserService implements UserDetailsService {
         repository
             .findById(user.getId())
             .orElseThrow(
-                () -> new EntityNotFoundException("User not found: %s".formatted(user.getId())));
+                () ->
+                    new EntityNotFoundException(
+                        "User not found: %s".formatted(user.getId())));
 
     if (user.getPseudo() != null) existing.setPseudo(user.getPseudo());
     if (user.getPhoneNumber() != null) existing.setPhoneNumber(user.getPhoneNumber());
     if (user.getImageProfileBucketKey() != null)
       existing.setImageProfileBucketKey(user.getImageProfileBucketKey());
     if (user.getRole() != null) existing.setRole(user.getRole());
-    if (user.getPassword() != null) existing.setPassword(encoder.encode(user.getPassword()));
+    if (user.getPassword() != null)
+      existing.setPassword(encoder.encode(user.getPassword()));
+
     existing.setActivated(user.isActivated());
     existing.setUpdatedAt(LocalDateTime.now());
 
@@ -93,12 +102,16 @@ public class UserService implements UserDetailsService {
 
   public boolean updateActivationStatusByEmail(
       @Email @NotBlank @NotNull String email, boolean isActivated) {
+
     log.info("Update user {} activity status to {}", forJava(email), isActivated);
 
     repository.updateActivationByEmail(email, isActivated, LocalDateTime.now());
     var updatedUser = findByEmail(email);
+
     log.info(
-        "User infos : { email = {}, isActive = {} }", forJava(email), updatedUser.isActivated());
+        "User infos : { email = {}, isActive = {} }",
+        forJava(email),
+        updatedUser.isActivated());
 
     return updatedUser.isActivated() == isActivated;
   }
@@ -108,15 +121,17 @@ public class UserService implements UserDetailsService {
 
     Pageable pageable =
         PageRequest.of(
-            pagination.get("page"), pagination.get("size"), Sort.by("createdAt").descending());
+            pagination.get("page"),
+            pagination.get("size"),
+            Sort.by("createdAt").descending());
 
     var results = repository.findAll(pageable);
-
     return results.map(UserMapper::toUser);
   }
 
   @Override
-  public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+  public UserDetails loadUserByUsername(String username)
+      throws UsernameNotFoundException {
     return findByEmail(username);
   }
 }
