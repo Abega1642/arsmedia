@@ -8,9 +8,7 @@ import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.RTokenPair;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.TokenPairRequest;
 import dev.razafindratelo.arsmedia.endpoint.rest.controller.model.token.TokenValidationResult;
 import dev.razafindratelo.arsmedia.exception.InvalidTokenException;
-import dev.razafindratelo.arsmedia.exception.RessourceNotFoundException;
 import dev.razafindratelo.arsmedia.exception.TokenGenerationException;
-import dev.razafindratelo.arsmedia.exception.TokenNotFoundException;
 import dev.razafindratelo.arsmedia.exception.UserNotActivatedException;
 import dev.razafindratelo.arsmedia.mapper.TokenMapper;
 import dev.razafindratelo.arsmedia.mapper.UserMapper;
@@ -27,9 +25,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -66,8 +62,9 @@ public class TokenService {
   public RTokenPair generateTokenPair(@NotNull TokenPairRequest request) {
     var user = userService.findById(request.userId());
 
-    if (!request.userEmail().equals(user.getEmail()))
+    if (!request.userEmail().equals(user.getEmail())) {
       throw new IllegalArgumentException("Invalid user email");
+    }
 
     var token = generateTokenPair(request.userEmail());
 
@@ -110,6 +107,14 @@ public class TokenService {
         .findByValueAndIsValid(tokenValue, true)
         .map(token -> validateTokenAttributes(token, expectedType))
         .orElse(TokenValidationResult.invalid("Token not found in database"));
+  }
+
+  /**
+   * Stub implementation to allow application startup without DB dependency
+   */
+  public Object findTokenByValue(String tokenValue) {
+    // Stub implementation to allow startup without DB
+    return null;
   }
 
   public TokenPair refreshTokenPair(String refreshTokenValue) {
