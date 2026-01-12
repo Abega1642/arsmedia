@@ -33,6 +33,7 @@ import org.springframework.context.annotation.Profile;
 
 @Service
 @AllArgsConstructor
+@Slf4j
 @Profile("prod")
 public class ApiKeyService {
   private final ApiKeyRepository repository;
