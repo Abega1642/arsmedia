@@ -7,23 +7,47 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
 import java.io.IOException;
+
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+/**
+ * API Client Secret filter.
+ *
+ * IMPORTANT:
+ * This filter is ONLY enabled when the "prod" profile is active.
+ *
+ * - Default / CI / Render free tier: filter is DISABLED
+ * - Production with DB: filter is ENABLED
+ *
+ * This prevents database-dependent beans from loading
+ * during health checks and startup without a DB.
+ */
 @Component
 @AllArgsConstructor
 @Slf4j
+@Profile("prod")
 public class ApiClientSecretFilter extends OncePerRequestFilter {
 
   private static final String LOCAL_HOST_IP = "127.0.0.1";
+
   private static final String[] PUBLIC_PATHS = {
-    "/ping", "/", "/health/**", "/swagger-ui/**", "/v3/api-docs/**", "/doc/**", "/actuator/**"
+      "/ping",
+      "/",
+      "/health/**",
+      "/swagger-ui/**",
+      "/v3/api-docs/**",
+      "/doc/**",
+      "/actuator/**"
   };
 
   private final ApiClientSecretService clientService;
@@ -43,6 +67,7 @@ public class ApiClientSecretFilter extends OncePerRequestFilter {
 
     String path = request.getRequestURI();
 
+    // Allow public paths without authentication
     for (String pattern : PUBLIC_PATHS) {
       if (pathMatcher.match(pattern, path)) {
         filterChain.doFilter(request, response);
@@ -53,6 +78,7 @@ public class ApiClientSecretFilter extends OncePerRequestFilter {
     String remoteAddr = request.getRemoteAddr();
     String host = request.getHeader("Host");
 
+    // Allow localhost calls
     if (isLocalRequest(remoteAddr, host)) {
       log.debug("Bypassing client secret check for local request: {}", forJava(host));
       filterChain.doFilter(request, response);
@@ -74,6 +100,7 @@ public class ApiClientSecretFilter extends OncePerRequestFilter {
   private boolean isLocalRequest(String remoteAddr, String host) {
     return LOCAL_HOST_IP.equals(remoteAddr)
         || "0:0:0:0:0:0:0:1".equals(remoteAddr)
-        || (host != null && (host.startsWith("localhost") || host.startsWith(LOCAL_HOST_IP)));
+        || (host != null &&
+            (host.startsWith("localhost") || host.startsWith(LOCAL_HOST_IP)));
   }
 }
