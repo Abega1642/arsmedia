@@ -28,11 +28,13 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Profile;
+
 
 @Service
 @AllArgsConstructor
-@Transactional
 @Slf4j
+@Profile("prod")
 public class ApiKeyService {
   private final ApiKeyRepository repository;
   private final UserService userService;

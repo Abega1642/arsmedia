@@ -17,8 +17,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.lang.Nullable;
@@ -30,13 +31,18 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
+@AllArgsConstructor
 @Slf4j
-@RequiredArgsConstructor
+@Profile("prod")
 public class TokenFilter extends OncePerRequestFilter {
 
   private static final List<String> SECURED_PATHS =
       List.of(
-          "/users/**", "/auth/api-keys/**", "/api/media/video/upload/**", "/api/media/videos/**");
+          "/users/**",
+          "/auth/api-keys/**",
+          "/api/media/video/upload/**",
+          "/api/media/videos/**");
+
   private static final String BEARER_PREFIX = "Bearer ";
   private static final int MIN_TOKEN_LENGTH = 10;
 
@@ -68,7 +74,10 @@ public class TokenFilter extends OncePerRequestFilter {
       var authentication = createAuthentication(token);
       SecurityContextHolder.getContext().setAuthentication(authentication);
 
-      log.debug("Successfully authenticated user for path: {}", forJava(request.getServletPath()));
+      log.debug(
+          "Successfully authenticated user for path: {}",
+          forJava(request.getServletPath()));
+
       filterChain.doFilter(request, response);
 
     } catch (AuthenticationException ex) {
@@ -101,32 +110,36 @@ public class TokenFilter extends OncePerRequestFilter {
 
     var token = authHeader.substring(BEARER_PREFIX.length()).trim();
 
-    if (token.length() < MIN_TOKEN_LENGTH) throw new InvalidTokenException("Token is too short");
+    if (token.length() < MIN_TOKEN_LENGTH)
+      throw new InvalidTokenException("Token is too short");
 
     return token;
   }
 
   private void validateToken(String tokenValue) {
-    var validationResult = tokenService.validateToken(tokenValue, TokenType.ACCESS_TOKEN);
+    var validationResult =
+        tokenService.validateToken(tokenValue, TokenType.ACCESS_TOKEN);
 
     if (!validationResult.valid()) {
       throw new InvalidTokenException(
           "Token validation failed: %s".formatted(validationResult.reason()));
     }
 
-    log.debug("Token validated successfully for user: {}", forJava(validationResult.userEmail()));
+    log.debug(
+        "Token validated successfully for user: {}",
+        forJava(validationResult.userEmail()));
   }
 
   private Authentication createAuthentication(String tokenValue) {
     var token = tokenService.findTokenByValue(tokenValue);
-
     var user = userService.findByEmail(token.user().getEmail());
 
     if (!user.isActivated()) {
       throw new UserNotActivatedException("User account is deactivated");
     }
 
-    return new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+    return new UsernamePasswordAuthenticationToken(
+        user, null, user.getAuthorities());
   }
 
   private void handleAuthenticationException(
@@ -146,7 +159,8 @@ public class TokenFilter extends OncePerRequestFilter {
     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
     var path = request != null ? request.getServletPath() : "N/A";
-    var errorResponse = ErrorResponse.of(HttpStatus.UNAUTHORIZED, ex.getMessage(), path);
+    var errorResponse =
+        ErrorResponse.of(HttpStatus.UNAUTHORIZED, ex.getMessage(), path);
 
     try (var writer = response.getWriter()) {
       writer.write(om.writeValueAsString(errorResponse));

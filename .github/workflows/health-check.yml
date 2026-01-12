@@ -1,0 +1,42 @@
+      - name: Warm up service
+        shell: bash
+        run: |
+          URL="https://arsmedia-1.onrender.com/ping"
+          echo "Warming up Render service..."
+          curl -s --max-time 10 "$URL" || true
+          sleep 10
+
+      - name: Health check
+        id: health_check
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          URL="https://arsmedia-1.onrender.com/ping"
+          MAX_RETRIES=5
+          SLEEP_SECONDS=40
+
+          ATTEMPT=1
+          HTTP_STATUS="000"
+
+          while [ $ATTEMPT -le $MAX_RETRIES ]; do
+            echo "Attempt $ATTEMPT of $MAX_RETRIES"
+            HTTP_STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$URL" || echo "000")
+            echo "HTTP Status: $HTTP_STATUS"
+
+            if [ "$HTTP_STATUS" = "200" ]; then
+              echo "Service healthy."
+              exit 0
+            fi
+
+            if [ $ATTEMPT -lt $MAX_RETRIES ]; then
+              echo "Waiting $SLEEP_SECONDS seconds..."
+              sleep $SLEEP_SECONDS
+            fi
+
+            ATTEMPT=$((ATTEMPT + 1))
+          done
+
+          echo "FAILED_URL=$URL" >> "$GITHUB_ENV"
+          echo "FAILED_STATUS=$HTTP_STATUS" >> "$GITHUB_ENV"
+          exit 1
